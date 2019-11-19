@@ -1,3 +1,6 @@
 [submodule "dlib"]
 	path = dlib
 	url = https://github.com/davisking/dlib.git
+[submodule "rollinghashcpp"]
+	path = rollinghashcpp
+	url = https://github.com/lemire/rollinghashcpp.git
