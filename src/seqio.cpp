@@ -23,10 +23,9 @@
 #include <experimental/filesystem>
 
 // seqan3 headers
-#include <seqan3/alphabet/all.hpp>
-#include <seqan3/range/view/all.hpp>
-#include <seqan3/std/ranges>
-#include <seqan3/io/sequence_file/all.hpp>
+#include "seqan3/range/view/all.hpp"
+#include "seqan3/std/ranges"
+#include "seqan3/io/sequence_file/all.hpp"
 
 #include "seqio.hpp"
 

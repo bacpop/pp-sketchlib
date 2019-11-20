@@ -7,11 +7,13 @@
 
 // C/C++/C++11/C++17 headers
 #define __STDC_FORMAT_MACROS
+#include <cstddef>
 #include <string>
 #include <vector>
+#include <iterator>
 
 // seqan3 headers
-#include <seqan3/alphabet/all.hpp>
+#include "seqan3/alphabet/all.hpp"
 
 class SeqBuf 
 {
@@ -33,12 +35,12 @@ class SeqBuf
     	std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector> sequence;
         std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector> rev_comp_sequence;
 
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5::dna5_vector> current_seq;
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5::dna5_vector> current_revseq;
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> current_base;
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> current_revbase;
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> base_out;
-        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> revbase_out;
+        std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector>::iterator current_seq;
+        std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector>::iterator current_revseq;
+        seqan3::alphabet::nucelotide::dna5_vector::iterator current_base;
+        seqan3::alphabet::nucelotide::dna5_vector::iterator current_revbase;
+        seqan3::alphabet::nucelotide::dna5_vector::iterator base_out;
+        seqan3::alphabet::nucelotide::dna5_vector::iterator revbase_out;
 
         bool end;
 };

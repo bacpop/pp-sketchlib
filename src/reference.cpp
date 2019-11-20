@@ -9,15 +9,13 @@
 
 #include "seqio.hpp"
 #include "sketch.hpp"
-
-// bit function defs
-#define BITATPOS(x, pos) ((x & (1ULL << pos)) >> pos)
-#define NBITS(x) (8*sizeof(x))
-#define ROUNDDIV(a, b) (((a) + (b)/2) / (b))
+#include "dist.hpp"
 
 const size_t def_bbits = 14;
 const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
+
+#define NBITS(x) (8*sizeof(x))
 
 // Initialisation
 Reference::Reference(const std::string& _name, 
@@ -33,5 +31,22 @@ Reference::Reference(const std::string& _name,
         usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, bbits, isstrandpreserved);
     }
 }
-    
 
+const double Reference::dist(const Reference &query, const int kmer_len)
+{
+    size_t intersize = calc_intersize(*this, query, sketchsize64, kmer_len, bbits);
+	size_t unionsize = NBITS(uint64_t) * sketchsize64;
+    return(intersize/(double)unionsize);
+}
+
+const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
+{
+    try
+    {
+        return usigs.at(kmer_len);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Kmer length " << kmer_len << " not found in sketch" << std::endl;
+    }
+}

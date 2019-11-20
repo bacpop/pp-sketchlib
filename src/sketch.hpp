@@ -5,6 +5,9 @@
  *
  */
 
+#include <cstdint>
+#include <cstddef>
+
 #include "rollinghashcpp/cyclichash.h"
 #include "seqio.hpp"
 

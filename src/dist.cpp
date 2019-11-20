@@ -1,4 +1,18 @@
+/*
+ *
+ * dist.cpp
+ * bindash dist method
+ *
+ */
 
+#include <cstdint>
+#include <stdlib.h>
+
+#include "dist.hpp"
+
+#define BITATPOS(x, pos) ((x & (1ULL << pos)) >> pos)
+#define NBITS(x) (8*sizeof(x))
+#define ROUNDDIV(a, b) (((a) + (b)/2) / (b))
 
 // Start of macros and method copied from https://github.com/kimwalisch/libpopcnt
 
@@ -49,14 +63,17 @@ const size_t calc_intersize(const Reference &r1,
 	// assert (e1.usigs.size() == e2.usigs.size());	
 	// assert (e1.usigs.size() == sketchsize64 * bbits);
 	size_t samebits = 0;
-	for (size_t i = 0; i < sketchsize64; i++) 
+	const std::vector<uint64_t>& sketch1 = r1.get_sketch(kmer_len);
+	const std::vector<uint64_t>& sketch2 = r2.get_sketch(kmer_len);
+    
+    for (size_t i = 0; i < sketchsize64; i++) 
     {
 		uint64_t bits = ~((uint64_t)0ULL);
 		// std::cout << "bits = " << std::hex << bits << std::endl;
 		for (size_t j = 0; j < bbits; j++) 
         {
 			// assert(e1.usigs.size() > i * bbits + j || !fprintf(stderr, "i=%lu j=%lu bbits=%lu vsize=%lu\n", i, j, bbits, e1.usigs.size()));
-			bits &= ~(r1.usigs[kmer_len][i * bbits + j] ^ r2.usigs[kmer_len][i * bbits + j]);
+			bits &= ~(sketch1[i * bbits + j] ^ sketch2[i * bbits + j]);
 			// std::cout << " bits = " << std::hex << bits << std::endl;
 		}
 
@@ -74,15 +91,4 @@ const size_t calc_intersize(const Reference &r1,
 	}
 	size_t ret = non_neg_minus(samebits, expected_samebits);
 	return ret * maxnbits / (maxnbits - expected_samebits);
-}
-
-double dist(const Reference &r1, 
-            const Reference &r2, 
-            const size_t kmer_len, 
-            const size_t sketchsize64, 
-            const size_t bbits)
-{
-    intersize = calc_intersize(query, target, sketchsize64, kmer_len, bbits);
-	unionsize = NBITS(uint64_t) * args1.sketchsize64;
-    return(intersize/(double)unionsize);
 }
