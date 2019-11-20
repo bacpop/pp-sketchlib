@@ -54,11 +54,11 @@ T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
 }
 
-const size_t calc_intersize(const Reference &r1, 
-                            const Reference &r2, 
-                            const size_t kmer_len, 
-                            const size_t sketchsize64, 
-                            const size_t bbits) 
+size_t calc_intersize(const Reference &r1, 
+                      const Reference &r2, 
+                      const size_t kmer_len, 
+                      const size_t sketchsize64, 
+                      const size_t bbits) 
 {
 	// assert (e1.usigs.size() == e2.usigs.size());	
 	// assert (e1.usigs.size() == sketchsize64 * bbits);

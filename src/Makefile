@@ -1,7 +1,9 @@
 
-CXXFLAGS=-Wall -O2 -std=c++14
+CXXFLAGS=-Wall -Wextra -O2 -std=c++14
 
 CPPFLAGS=-I../seqan3/include -I../dlib -I../rollinghashcpp -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
+
+LDFLAGS=-lz -lbz2 -pthread
 
 PROGRAMS=sketch_test
 

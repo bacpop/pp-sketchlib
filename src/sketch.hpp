@@ -4,11 +4,12 @@
  * bindash sketch method
  *
  */
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
 
-#include "rollinghashcpp/cyclichash.h"
+#include <cyclichash.h>
 #include "seqio.hpp"
 
 std::vector<uint64_t> sketch(const std::string & name,

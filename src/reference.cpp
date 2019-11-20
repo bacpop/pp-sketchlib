@@ -32,7 +32,7 @@ Reference::Reference(const std::string& _name,
     }
 }
 
-const double Reference::dist(const Reference &query, const int kmer_len)
+double Reference::dist(const Reference &query, const int kmer_len)
 {
     size_t intersize = calc_intersize(*this, query, sketchsize64, kmer_len, bbits);
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;

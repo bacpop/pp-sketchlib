@@ -4,6 +4,7 @@
  * Header file for reference.cpp
  *
  */
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -20,7 +21,7 @@ class Reference
                   const std::vector<size_t>& kmer_lengths); // read and run sketch
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
-        const double dist(const Reference &query, const int kmer_len);
+        double dist(const Reference &query, const int kmer_len);
         void save();
         void load();
 
@@ -32,5 +33,5 @@ class Reference
         bool isstrandpreserved;
 
         // sketch - map keys are k-mer length
-        std::unordered_map<const int, std::vector<uint64_t>> usigs;
+        std::unordered_map<int, std::vector<uint64_t>> usigs;
 };
