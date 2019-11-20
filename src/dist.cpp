@@ -40,16 +40,23 @@ T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
 }
 
-const size_t calc_intersize12(const Entity &e1, const Entity &e2, const size_t sketchsize64, const size_t bbits) {
+const size_t calc_intersize(const Reference &r1, 
+                            const Reference &r2, 
+                            const size_t kmer_len, 
+                            const size_t sketchsize64, 
+                            const size_t bbits) 
+{
 	// assert (e1.usigs.size() == e2.usigs.size());	
 	// assert (e1.usigs.size() == sketchsize64 * bbits);
 	size_t samebits = 0;
-	for (size_t i = 0; i < sketchsize64; i++) {
+	for (size_t i = 0; i < sketchsize64; i++) 
+    {
 		uint64_t bits = ~((uint64_t)0ULL);
 		// std::cout << "bits = " << std::hex << bits << std::endl;
-		for (size_t j = 0; j < bbits; j++) {
+		for (size_t j = 0; j < bbits; j++) 
+        {
 			// assert(e1.usigs.size() > i * bbits + j || !fprintf(stderr, "i=%lu j=%lu bbits=%lu vsize=%lu\n", i, j, bbits, e1.usigs.size()));
-			bits &= ~(e1.usigs[i * bbits + j] ^ e2.usigs[i * bbits + j]);
+			bits &= ~(r1.usigs[kmer_len][i * bbits + j] ^ r2.usigs[kmer_len][i * bbits + j]);
 			// std::cout << " bits = " << std::hex << bits << std::endl;
 		}
 
@@ -67,12 +74,15 @@ const size_t calc_intersize12(const Entity &e1, const Entity &e2, const size_t s
 	}
 	size_t ret = non_neg_minus(samebits, expected_samebits);
 	return ret * maxnbits / (maxnbits - expected_samebits);
-	
-
 }
 
-void dist()
+double dist(const Reference &r1, 
+            const Reference &r2, 
+            const size_t kmer_len, 
+            const size_t sketchsize64, 
+            const size_t bbits)
 {
-    intersize = calc_intersize12(query, target, args1.sketchsize64, args1.bbits);
+    intersize = calc_intersize(query, target, sketchsize64, kmer_len, bbits);
 	unionsize = NBITS(uint64_t) * args1.sketchsize64;
+    return(intersize/(double)unionsize);
 }

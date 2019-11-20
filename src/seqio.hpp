@@ -1,50 +1,44 @@
-
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+/*
+ *
+ * seqio.hpp
+ * Sequence reader and buffer class
+ *
+ */
 
 // C/C++/C++11/C++17 headers
 #define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-#include <iostream>
-#include <fstream>
-#include <cstdlib>
 #include <string>
-#include <iterator>
 #include <vector>
-#include <experimental/filesystem>
 
 // seqan3 headers
-#include <seqan3/io/sequence_file/input.hpp>
-
-using namespace seqan3;
+#include <seqan3/alphabet/all.hpp>
 
 class SeqBuf 
 {
     public:
-        SeqBuf(std::string& filename);
+        SeqBuf(const std::string& filename);
         
-	    unsigned char getout() const { return out; }
-	    size_it nseqs() const { return sequence.size(); }
-     
-        uint64_t eatnext();
-	    unsigned char getnewest();
-	    unsigned char getith(size_t i);
+	    unsigned char getout() const { return base_out->to_char(); }
+	    unsigned char getrevout() const { return revbase_out->to_char(); }
+	    unsigned char getnext() const { return current_base->to_char(); }
+	    unsigned char getrevnext() const { return current_revbase->to_char(); }
+	    size_t nseqs() const { return sequence.size(); }
+        bool eof() const { return end; }
 
+        bool eat(size_t word_length);
+        void reset();
+     
 
     private:
-    	std::vector<dna5_vector> sequence;
-        std::vector<dna5_vector> rev_comp_sequence;
+    	std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector> sequence;
+        std::vector<seqan3::alphabet::nucelotide::dna5::dna5_vector> rev_comp_sequence;
 
-        std::unique_ptr<dna5_vector> current_seq;
-        std::unique_ptr<dna5_vector> current_revseq;
-        std::unique_ptr<dna5> current_base;
-        std::unique_ptr<dna5> current_revbase;
-        
-        char out;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5::dna5_vector> current_seq;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5::dna5_vector> current_revseq;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> current_base;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> current_revbase;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> base_out;
+        std::unique_ptr<seqan3::alphabet::nucelotide::dna5> revbase_out;
+
+        bool end;
 };
-
-void read_fasta(std::filesystem::path const & reference_path,
-                    assembly_storage_t & storage);

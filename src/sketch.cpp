@@ -1,10 +1,18 @@
 
-#include <chrono>
+/*
+ *
+ * sketch.cpp
+ * bindash sketch method
+ *
+ */
+
+#include <tuple>
 #include <random>
+#include <vector>
+#include <exception>
 
-#include "rollinghashcpp/cyclichash.h"
-
-typedef std::tuple<CyclicHash<uint64_t>, CyclicHash<uint64_t>> rollinghash;
+#include "sketch.hpp"
+#include "seqio.hpp"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -14,85 +22,15 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 const int hashseed = 86;
 
+typedef std::tuple<CyclicHash<uint64_t>, CyclicHash<uint64_t>> rollinghash;
+
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
 
-std::vector<uint64_t> sketch(const std::string & name, 
-                             const uint64_t sketchsize, 
-                             const size_t kmer_len, 
-                             const size_t bbits,
-                             const bool isstrandpreserved)
+// Universal hashing function for densifybin
+uint64_t univhash(uint64_t s, uint64_t t) 
 {
-
-    const uint64_t nbins = sketchsize * NBITS(uint64_t);
-    const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
-    std::vector<uint64_t> usigs(sketchsize * bbits, 0);
-    std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
-    
-    rollinghash hf = init_hashes(kmer_len); 
-    hashinit(cbuf, hf, kmer_len);
-    
-    // Rolling hash through string
-    while (cbuf.nseqs() < nseqs) 
-    {
-        cbuf.eatnext();
-        if (cbuf.ceof()) 
-        { 
-            break; 
-        }
-        hashupdate(cbuf, signs, hf, isstrandpreserved, binsize);
-    }
-    
-    // Apply densifying function
-    int res = densifybin(signs);
-    if (res != 0) 
-    {
-        std::cerr << "Warning: the genome " << name << " is densified with flag " << res <<  std::endl;
-    }
-    fillusigs(usigs, signs, bbits);
-    
-    return(usigs)
-}
-
-void hashinit(CBuf & cbuf, 
-              rollinghash& hf
-              size_t kmer_len) 
-{
-	std::get<0>(hf).reset();
-    std::get<1>(hf).reset();
-    std::get<0>(hf).hashvalue = 0;
-	std::get<1>(hf).hashvalue = 0;
-	
-    for (size_t k = 0; k < kmerlen; ++k) 
-    {
-		std::get<0>(hf).eat(cbuf.getith(k));
-		std::get<1>(hf).eat(RCMAP[(int)cbuf.getith(kmerlen - k - 1)]);
-	}
-}
-
-// TODO: Remove hashinit function from main loop, instead call here when buffer rolls
-// over to next sequence. Need suitable returns from seqio function calls to find when
-// this is needed
-
-void hashupdate(CBuf & cbuf, 
-                std::vector<uint64_t> &signs, 
-		        rollinghash& hf, 
-		        bool isstranspreserved, 
-                uint64_t binsize) 
-{
-	std::get<0>(hf).update(cbuf.getout(), cbuf.getnewest());
-	std::get<1>(hf).reverse_update(RCMAP[(int)cbuf.getnewest()], RCMAP[(int)cbuf.getout()]);
-	
-    if (cbuf.slen >= cbuf.size) {
-		auto signval = std::get<0>(hf).hashvalue % SIGN_MOD;
-		
-        // Take canonical k-mer
-        if (!isstranspreserved) 
-        {
-			auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
-			signval = doublehash(signval, signval2);
-		}
-		binsign(signs, signval, binsize);
-	}
+	uint64_t x = (1009) * s + (1000*1000+3) * t;
+	return (48271 * x + 11) % ((1ULL << 31) - 1);
 }
 
 rollinghash init_hashes(const size_t kmer_len)
@@ -106,6 +44,14 @@ rollinghash init_hashes(const size_t kmer_len)
     CyclicHash<uint64_t> hfrc(kmer_len, s1, s2, 64);
 
     return(std::make_tuple(hf, hfrc));
+}
+
+void binsign(std::vector<uint64_t> &signs, 
+             const uint64_t sign, 
+             const uint64_t binsize) 
+{
+	uint64_t binidx = sign / binsize;
+	signs[binidx] = MIN(signs[binidx], sign);
 }
 
 void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits) 
@@ -146,26 +92,92 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-// Universal hashing function for densifybin
-uint64_t univhash(uint64_t s, uint64_t t) 
+void hashinit(SeqBuf & seq, 
+              rollinghash& hf,
+              size_t kmer_len) 
 {
-	uint64_t x = (1009) * s + (1000*1000+3) * t;
-	return (48271 * x + 11) % ((1ULL << 31) - 1);
+	std::get<0>(hf).reset();
+    std::get<1>(hf).reset();
+    std::get<0>(hf).hashvalue = 0;
+	std::get<1>(hf).hashvalue = 0;
+	
+    for (size_t k = 0; k < kmer_len; ++k) 
+    {
+		std::get<0>(hf).eat(seq.getnext());
+		std::get<1>(hf).eat(seq.getrevnext());
+        bool looped = seq.eat(kmer_len);
+        if (looped)
+        {
+            throw std::runtime_error("Hashing sequence shorter than k-mer length");
+        }
+	}
 }
 
-void binsign(std::vector<uint64_t> &signs, 
-             const uint64_t sign, 
-             const uint64_t binsize) 
+void hashupdate(SeqBuf & seq, 
+                std::vector<uint64_t> &signs, 
+		        rollinghash& hf, 
+		        bool isstrandpreserved, 
+                uint64_t binsize) 
 {
-	uint64_t binidx = sign / binsize;
-#ifdef CANONICAL_DENSIFICATION
-	while (sign < signs[binidx]) 
+	std::get<0>(hf).update(seq.getout(), seq.getnext());
+	std::get<1>(hf).update(seq.getrevout(), seq.getrevnext()); // was reverse_update
+	
+    auto signval = std::get<0>(hf).hashvalue % SIGN_MOD;
+    
+    // Take canonical k-mer
+    if (!isstrandpreserved) 
     {
-		signs[binidx] = sign;
-		if (0 == binidx) { break; }
-		binidx--;
-	}
-#else
-	signs[binidx] = MIN(signs[binidx], sign);
-#endif
+        auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
+        signval = doublehash(signval, signval2);
+    }
+    binsign(signs, signval, binsize);
 }
+
+std::vector<uint64_t> sketch(const std::string & name,
+                             SeqBuf &seq,
+                             const uint64_t sketchsize, 
+                             const size_t kmer_len, 
+                             const size_t bbits,
+                             const bool isstrandpreserved)
+{
+
+    const uint64_t nbins = sketchsize * NBITS(uint64_t);
+    const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
+    std::vector<uint64_t> usigs(sketchsize * bbits, 0);
+    std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
+    
+    rollinghash hf = init_hashes(kmer_len); 
+    hashinit(seq, hf, kmer_len);
+    
+    // Rolling hash through string
+    while (!seq.eof()) 
+    {
+        hashupdate(seq, signs, hf, isstrandpreserved, binsize);
+        bool looped = seq.eat(kmer_len);
+        if (looped && ! seq.eof()) 
+        { 
+            hashinit(seq, hf, kmer_len);
+        }
+    }
+    
+    // Apply densifying function
+    int res = densifybin(signs);
+    if (res != 0) 
+    {
+        std::cerr << "Warning: the genome " << name << " is densified with flag " << res << std::endl;
+    }
+    fillusigs(usigs, signs, bbits);
+    
+    seq.reset();
+
+    return(usigs);
+}
+
+
+
+
+
+
+
+
+

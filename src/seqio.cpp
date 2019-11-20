@@ -1,14 +1,42 @@
+/*
+ *
+ * seqio.cpp
+ * Sequence reader and buffer class
+ *
+ */
 
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+// C/C++/C++11/C++17 headers
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <string>
+#include <iterator>
+#include <vector>
+#include <utility>
+#include <experimental/filesystem>
 
+// seqan3 headers
+#include <seqan3/alphabet/all.hpp>
+#include <seqan3/range/view/all.hpp>
+#include <seqan3/std/ranges>
+#include <seqan3/io/sequence_file/all.hpp>
 
 #include "seqio.hpp"
 
+using namespace seqan3;
 
-SeqBuf::SeqBuf(std::string& filename)
-    :buf_idx(0), out('\0')
+SeqBuf::SeqBuf(const std::string& filename)
 {
-    // TODO make sure the sequence read is not repeated for every k-mer length
+    /* 
+    *   Reads in sequence to memory
+    */
     sequence_file_input reference_in{filename};
     for (auto & [seq, id, qual] : reference_in)
     {
@@ -17,51 +45,74 @@ SeqBuf::SeqBuf(std::string& filename)
         rev_comp_sequence.push_back(sequence.back() | std::view::reverse | seqan3::view::complement);
     }
 
-    reset(self);
+    this->reset();
 }
 
 void SeqBuf::reset()
 {
-    out = '\0';
+    /* 
+    *   Returns to start of sequences
+    */
     current_seq = sequence.begin();
     current_base = current_seq->begin();
     current_revseq = rev_comp_sequence.begin();
-    current_revbase = current_revseq->begin(); 
+    current_revbase = current_revseq->begin();
+    base_out = nullptr;
+    revbase_out = nullptr;
+    end = false;
 }
 
+bool SeqBuf::eat(size_t word_length)
+{
+    /* 
+    *   Moves along to next character in sequence and reverse complement
+    *   Loops around to next sequence if end reached
+    *   Keeps track of base before k-mer length 
+    */
+    current_base++;
+    current_revbase++;
+    
+    bool next_seq = false;
+    if (current_base == current_seq->end() || current_revbase == current_revseq->end())
+    {
+        next_seq = true;
+        if (current_seq == sequence.end() || current_revseq == rev_comp_sequence.end())
+        {
+            end = true;
+            current_base = nullptr;
+            current_revbase = nullptr;
+        }
+        else
+        {
+            current_base = ++current_seq->begin();
+            current_revbase = ++current_revseq->begin();
+        }
+        
+        base_out = nullptr;
+        revbase_out = nullptr;
+    }
+    else
+    {
+        if (base_out != nullptr)
+        {
+            base_out++;
+        }
+        else if ((current_base - word_length) >= current_seq->begin())
+        {
+            base_out = current_seq->begin();
+        }
 
+        if (revbase_out != nullptr)
+        {
+            revbase_out++;
+        }
+        else if ((current_revbase - word_length) >= current_revseq->begin())
+        {
+            revbase_out = current_revseq->begin();
+        }
+    } 
 
-bool CBuf::ceof() {
-	return bufidx + 1 >= readsize && readsize < BUFSIZE;
+    return next_seq;
 }
-
-
-uint64_t CBuf::eatnext() {
-	unsigned char ch2 = fgetc_visible();
-	if ('>' == ch2 || '@' == ch2) {
-		while (!ceof() && (ch2 = fgetc_buf()) != '\n'); // { printf("%c,", ch2); }
-		slen = 0;
-		_nseqs++;
-	} else if ('+' == ch2) {
-		for (unsigned int i = 0; i < 2; i++) {
-			while (!ceof() && (ch2 = fgetc_buf()) != '\n'); // { printf("(%u,%c), ", i, ch2); }
-		}
-		slen = 0;
-	} else {
-		slen++;
-		chfreqs[(unsigned int)ch2]++;
-	}
-	return slen;
-};
-
-
-unsigned char SeqBuf::getith(size_t i) {
-	return (current_base + i)->to_char();
-    buf[(idx + size + i) % size];
-};
-
-unsigned char CBuf::getnewest() {
-	return buf[(idx + size - 1) % size];
-};
 
 
