@@ -54,18 +54,15 @@ T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
 }
 
-size_t calc_intersize(const Reference &r1, 
-                      const Reference &r2, 
-                      const size_t kmer_len, 
+size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
+                      const std::vector<uint64_t> * sketch2, 
                       const size_t sketchsize64, 
                       const size_t bbits) 
 {
 	// assert (e1.usigs.size() == e2.usigs.size());	
 	// assert (e1.usigs.size() == sketchsize64 * bbits);
 	size_t samebits = 0;
-	const std::vector<uint64_t>& sketch1 = r1.get_sketch(kmer_len);
-	const std::vector<uint64_t>& sketch2 = r2.get_sketch(kmer_len);
-    
+
     for (size_t i = 0; i < sketchsize64; i++) 
     {
 		uint64_t bits = ~((uint64_t)0ULL);
@@ -73,7 +70,7 @@ size_t calc_intersize(const Reference &r1,
 		for (size_t j = 0; j < bbits; j++) 
         {
 			// assert(e1.usigs.size() > i * bbits + j || !fprintf(stderr, "i=%lu j=%lu bbits=%lu vsize=%lu\n", i, j, bbits, e1.usigs.size()));
-			bits &= ~(sketch1[i * bbits + j] ^ sketch2[i * bbits + j]);
+			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
 			// std::cout << " bits = " << std::hex << bits << std::endl;
 		}
 

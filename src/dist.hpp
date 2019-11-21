@@ -4,13 +4,14 @@
  * bindash dist method
  *
  */
+#pragma once
 
+#include <vector>
+#include <cstdint>
 #include <cstddef>
 
-#include "reference.hpp"
-
-size_t calc_intersize(const Reference &r1, 
-                      const Reference &r2, 
+size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
+                      const std::vector<uint64_t> * sketch2, 
                       const size_t kmer_len, 
                       const size_t sketchsize64, 
                       const size_t bbits);

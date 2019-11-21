@@ -5,6 +5,7 @@
  *
  */
 
+#include "seqio.hpp"
 #include <stdint.h>
 KSEQ_INIT(gzFile, gzread)
 
@@ -16,8 +17,6 @@ KSEQ_INIT(gzFile, gzread)
 #include <iterator>
 #include <utility>
 
-#include "seqio.hpp"
-
 SeqBuf::SeqBuf(const std::string& filename)
 {
     /* 
@@ -28,7 +27,7 @@ SeqBuf::SeqBuf(const std::string& filename)
     
     // from kseq.h
     fp = gzopen(filename.c_str(), "r");
-    seq = kseq_init(fp);
+    kseq_t *seq = kseq_init(fp);
     int l;
     while ((l = kseq_read(seq)) >= 0) 
     {

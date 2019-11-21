@@ -12,7 +12,6 @@
 #include <exception>
 
 #include "sketch.hpp"
-#include "seqio.hpp"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -129,7 +128,7 @@ void hashinit(SeqBuf & seq,
     for (size_t k = 0; k < kmer_len; ++k) 
     {
 		std::get<0>(hf).eat(seq.getnext());
-		rev_comp.append(RCMAP[(int)seq.getnext()]);
+		rev_comp += (RCMAP[(int)seq.getnext()]);
         bool looped = seq.eat(kmer_len);
         if (looped)
         {

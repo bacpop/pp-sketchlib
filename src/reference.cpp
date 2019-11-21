@@ -7,7 +7,6 @@
 
 #include "reference.hpp"
 
-#include "seqio.hpp"
 #include "sketch.hpp"
 #include "dist.hpp"
 
@@ -30,11 +29,17 @@ Reference::Reference(const std::string& _name,
     {
         usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, bbits, isstrandpreserved);
     }
+    // SeqBuf containing sequences will get deleted here
+    // usigs (the sketch) will be retained
 }
 
 double Reference::dist(const Reference &query, const int kmer_len)
 {
-    size_t intersize = calc_intersize(*this, query, sketchsize64, kmer_len, bbits);
+    size_t intersize = calc_intersize(this->get_sketch(kmer_len), 
+                                      query.get_sketch(kmer_len), 
+                                      sketchsize64, 
+                                      kmer_len, 
+                                      bbits);
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
     return(intersize/(double)unionsize);
 }
