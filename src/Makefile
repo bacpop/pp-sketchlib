@@ -1,5 +1,9 @@
 
 CXXFLAGS=-Wall -Wextra -O2 -std=c++14
+ifdef DEBUG
+  CXXFLAGS=-Wall -Wextra -O0 -g -std=c++14
+endif
+
 
 CPPFLAGS=-I../dlib -I../rollinghashcpp -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
 

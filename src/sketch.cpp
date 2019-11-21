@@ -127,12 +127,15 @@ void hashinit(SeqBuf & seq,
     std::string rev_comp;
     for (size_t k = 0; k < kmer_len; ++k) 
     {
-		std::get<0>(hf).eat(seq.getnext());
-		rev_comp += (RCMAP[(int)seq.getnext()]);
         bool looped = seq.eat(kmer_len);
         if (looped)
         {
             throw std::runtime_error("Hashing sequence shorter than k-mer length");
+        }
+        else
+        {
+            std::get<0>(hf).eat(seq.getnext());
+            rev_comp += (RCMAP[(int)seq.getnext()]);
         }
 	}
     for (auto k_rev = rev_comp.crbegin(); k_rev != rev_comp.crend(); k_rev++)
@@ -168,7 +171,6 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const size_t bbits,
                              const bool isstrandpreserved)
 {
-
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
