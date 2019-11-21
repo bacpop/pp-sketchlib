@@ -12,6 +12,5 @@
 
 size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
                       const std::vector<uint64_t> * sketch2, 
-                      const size_t kmer_len, 
                       const size_t sketchsize64, 
                       const size_t bbits);

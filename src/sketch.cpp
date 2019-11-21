@@ -11,12 +11,12 @@
 #include <vector>
 #include <exception>
 
+#include <cyclichash.h>
+
 #include "sketch.hpp"
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define NBITS(x) (8*sizeof(x))
-#define BITATPOS(x, pos) ((x & (1ULL << pos)) >> pos)
+#include "bitfuncs.hpp"
+
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL; 
 
 const int hashseed = 86;

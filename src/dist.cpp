@@ -10,9 +10,7 @@
 
 #include "dist.hpp"
 
-#define BITATPOS(x, pos) ((x & (1ULL << pos)) >> pos)
-#define NBITS(x) (8*sizeof(x))
-#define ROUNDDIV(a, b) (((a) + (b)/2) / (b))
+#include "bitfuncs.hpp"
 
 // Start of macros and method copied from https://github.com/kimwalisch/libpopcnt
 

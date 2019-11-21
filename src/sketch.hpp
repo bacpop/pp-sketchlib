@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#include <cyclichash.h>
+
 #include "seqio.hpp"
 
 std::vector<uint64_t> sketch(const std::string & name,

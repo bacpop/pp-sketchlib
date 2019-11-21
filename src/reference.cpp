@@ -5,6 +5,8 @@
  *
  */
 
+#include <iostream>
+
 #include "reference.hpp"
 
 #include "sketch.hpp"
@@ -14,7 +16,7 @@ const size_t def_bbits = 14;
 const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
 
-#define NBITS(x) (8*sizeof(x))
+#include "bitfuncs.hpp"
 
 // Initialisation
 Reference::Reference(const std::string& _name, 
@@ -35,10 +37,9 @@ Reference::Reference(const std::string& _name,
 
 double Reference::dist(const Reference &query, const int kmer_len)
 {
-    size_t intersize = calc_intersize(this->get_sketch(kmer_len), 
-                                      query.get_sketch(kmer_len), 
+    size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
+                                      &query.get_sketch(kmer_len), 
                                       sketchsize64, 
-                                      kmer_len, 
                                       bbits);
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
     return(intersize/(double)unionsize);
