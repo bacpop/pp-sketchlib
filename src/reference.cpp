@@ -25,7 +25,11 @@ Reference::Reference(const std::string& _name,
    :name(_name), bbits(def_bbits), sketchsize64(def_sketchsize64), isstrandpreserved(def_isstrandpreserved)
 {
     // Read in sequence
-    SeqBuf sequence(filename);
+    SeqBuf sequence(filename, kmer_lengths.back());
+    if (sequence.nseqs() == 0)
+    {
+        throw std::runtime_error(filename + " contains no sequence");
+    }
 
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
@@ -42,7 +46,8 @@ double Reference::dist(const Reference &query, const int kmer_len)
                                       sketchsize64, 
                                       bbits);
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
-    return(intersize/(double)unionsize);
+    double jaccard = intersize/(double)unionsize;
+    return(jaccard);
 }
 
 const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
@@ -53,6 +58,6 @@ const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Kmer length " << kmer_len << " not found in sketch" << std::endl;
+        throw std::runtime_error("Kmer length " + std::to_string(kmer_len) + " not found in sketch");
     }
 }

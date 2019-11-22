@@ -17,7 +17,7 @@ KSEQ_INIT(gzFile, gzread)
 #include <iterator>
 #include <utility>
 
-SeqBuf::SeqBuf(const std::string& filename)
+SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
 {
     /* 
     *   Reads entire sequence to memory
@@ -31,11 +31,15 @@ SeqBuf::SeqBuf(const std::string& filename)
     int l;
     while ((l = kseq_read(seq)) >= 0) 
     {
-        sequence.push_back(seq->seq.s);
+        if (strlen(seq->seq.s) >= kmer_len)
+        {
+            sequence.push_back(seq->seq.s);
+        }
     }
     
     // If put back into object, move this to destructor below
     kseq_destroy(seq);
+    this->reset();
 }
 
 SeqBuf::~SeqBuf()
@@ -68,6 +72,7 @@ bool SeqBuf::eat(size_t word_length)
         
         if (next_base == current_seq->end())
         {
+            current_seq++;
             next_seq = true;
             if (current_seq == sequence.end())
             {
@@ -75,7 +80,7 @@ bool SeqBuf::eat(size_t word_length)
             }
             else
             {
-                next_base = ++current_seq->begin();
+                next_base = current_seq->begin();
                 out_base = current_seq->end();
             }
         }
