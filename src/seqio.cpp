@@ -52,13 +52,16 @@ void SeqBuf::reset()
     /* 
     *   Returns to start of sequences
     */
-    current_seq = sequence.begin();
-    next_base = current_seq->begin();
-    out_base = current_seq->end();
+    if (sequence.size() > 0)
+    {
+        current_seq = sequence.begin();
+        next_base = current_seq->begin();
+        out_base = current_seq->end();
+    }
     end = false;
 }
 
-bool SeqBuf::eat(size_t word_length)
+bool SeqBuf::move_next(size_t word_length)
 {
     /* 
     *   Moves along to next character in sequence and reverse complement

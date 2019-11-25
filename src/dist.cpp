@@ -70,7 +70,7 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
         {
 			// assert(sketch.size() > i * bbits + j || !fprintf(stderr, "i=%lu j=%lu bbits=%lu vsize=%lu\n", i, j, bbits, sketch1.size()));
 			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
-			std::cout << " bits = " << std::hex << bits << std::endl;
+			// std::cout << " bits = " << std::hex << bits << std::endl;
 		}
 
 #if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll) 
@@ -79,7 +79,7 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
 		samebits += popcount64(bits)
 #endif
 	}
-	std::cout << " samebits = " << std::hex << samebits << std::endl;
+	// std::cout << " samebits = " << std::hex << samebits << std::endl;
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t); 
 	const size_t expected_samebits = (maxnbits >> bbits);
 	if (expected_samebits) {

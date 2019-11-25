@@ -115,8 +115,41 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
+void binupdate(std::vector<uint64_t> &signs, 
+		       rollinghash& hf, 
+		       bool isstrandpreserved, 
+               uint64_t binsize)
+{
+    // std::cout << std::get<0>(hf).hashvalue % SIGN_MOD << "\t" << std::get<1>(hf).hashvalue % SIGN_MOD << std::endl;
+    auto signval = std::get<0>(hf).hashvalue % SIGN_MOD;
+    
+    // Take canonical k-mer
+    if (!isstrandpreserved) 
+    {
+        auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
+        signval = doublehash(signval, signval2);
+    }
+    binsign(signs, signval, binsize);
+}
+
+void hashupdate(SeqBuf & seq, 
+               std::vector<uint64_t> &signs, 
+		       rollinghash& hf, 
+		       bool isstrandpreserved, 
+               uint64_t binsize) 
+{
+    std::get<0>(hf).update(seq.getout(), seq.getnext());
+	std::get<1>(hf).reverse_update(RCMAP[(int)seq.getout()], RCMAP[(int)seq.getnext()]);
+	// std::cout << seq.getout() << "\t" << seq.getnext() << std::endl;
+
+    binupdate(signs, hf, isstrandpreserved, binsize);
+}
+
 void hashinit(SeqBuf & seq, 
-              rollinghash& hf,
+              std::vector<uint64_t> &signs, 
+		      rollinghash& hf, 
+		      bool isstrandpreserved, 
+              uint64_t binsize,
               size_t kmer_len) 
 {
 	std::get<0>(hf).reset();
@@ -128,38 +161,24 @@ void hashinit(SeqBuf & seq,
     for (size_t k = 0; k < kmer_len; ++k) 
     {
         std::get<0>(hf).eat(seq.getnext());
+        // std::cout << seq.getnext(); 
         rev_comp += (RCMAP[(int)seq.getnext()]);
         
-        bool looped = seq.eat(kmer_len);
+        // At end of loop this move_next() leaves next unhashed - so call hashupdate below
+        bool looped = seq.move_next(kmer_len); 
         if (looped)
         {
             throw std::runtime_error("Hashing sequence shorter than k-mer length");
         }
 	}
+    // std::cout << std::endl;
+    
     for (auto k_rev = rev_comp.crbegin(); k_rev != rev_comp.crend(); k_rev++)
     {
         std::get<1>(hf).eat(*k_rev); 
     }
-}
-
-void hashupdate(SeqBuf & seq, 
-                std::vector<uint64_t> &signs, 
-		        rollinghash& hf, 
-		        bool isstrandpreserved, 
-                uint64_t binsize) 
-{
-	std::get<0>(hf).update(seq.getout(), seq.getnext());
-	std::get<1>(hf).reverse_update(RCMAP[(int)seq.getout()], RCMAP[(int)seq.getnext()]);
-	
-    auto signval = std::get<0>(hf).hashvalue % SIGN_MOD;
-    
-    // Take canonical k-mer
-    if (!isstrandpreserved) 
-    {
-        auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
-        signval = doublehash(signval, signval2);
-    }
-    binsign(signs, signval, binsize);
+    binupdate(signs, hf, isstrandpreserved, binsize);
+    hashupdate(seq, signs, hf, isstrandpreserved, binsize);
 }
 
 std::vector<uint64_t> sketch(const std::string & name,
@@ -175,17 +194,21 @@ std::vector<uint64_t> sketch(const std::string & name,
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
     
     rollinghash hf = init_hashes(kmer_len); 
-    hashinit(seq, hf, kmer_len);
+    hashinit(seq, signs, hf, isstrandpreserved, binsize, kmer_len);
     
     // Rolling hash through string
     while (!seq.eof()) 
     {
-        hashupdate(seq, signs, hf, isstrandpreserved, binsize);
-        bool looped = seq.eat(kmer_len);
+        bool looped = seq.move_next(kmer_len);
         if (looped && ! seq.eof()) 
         { 
-            hashinit(seq, hf, kmer_len);
+            hashinit(seq, signs, hf, isstrandpreserved, binsize, kmer_len);
         }
+        else
+        {
+            hashupdate(seq, signs, hf, isstrandpreserved, binsize);
+        }
+        
     }
     
     // Apply densifying function
