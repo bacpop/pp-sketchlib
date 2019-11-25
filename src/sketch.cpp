@@ -139,8 +139,9 @@ void hashupdate(SeqBuf & seq,
                uint64_t binsize) 
 {
     std::get<0>(hf).update(seq.getout(), seq.getnext());
-	std::get<1>(hf).reverse_update(RCMAP[(int)seq.getout()], RCMAP[(int)seq.getnext()]);
+	std::get<1>(hf).reverse_update(RCMAP[(int)seq.getnext()], RCMAP[(int)seq.getout()]);
 	// std::cout << seq.getout() << "\t" << seq.getnext() << std::endl;
+	// std::cout << RCMAP[(int)seq.getout()] << "\t" << RCMAP[(int)seq.getnext()] << std::endl;
 
     binupdate(signs, hf, isstrandpreserved, binsize);
 }
@@ -175,8 +176,10 @@ void hashinit(SeqBuf & seq,
     
     for (auto k_rev = rev_comp.crbegin(); k_rev != rev_comp.crend(); k_rev++)
     {
+        // std::cout << *k_rev; 
         std::get<1>(hf).eat(*k_rev); 
     }
+    // std::cout << std::endl;
     binupdate(signs, hf, isstrandpreserved, binsize);
     hashupdate(seq, signs, hf, isstrandpreserved, binsize);
 }
