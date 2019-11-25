@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <algorithm>
 
 #include "reference.hpp"
 
@@ -17,6 +18,9 @@ const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
 
 #include "bitfuncs.hpp"
+
+auto key_selector = [](auto pair){return pair.first;};
+auto value_selector = [](auto pair){return pair.second;};
 
 // Initialisation
 Reference::Reference(const std::string& _name, 
@@ -60,4 +64,11 @@ const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
     {
         throw std::runtime_error("Kmer length " + std::to_string(kmer_len) + " not found in sketch");
     }
+}
+
+const std::vector<int> const Reference::kmer_lengths()
+{
+    std::vector<int> keys(usigs.size());
+    std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);
+    return keys;
 }

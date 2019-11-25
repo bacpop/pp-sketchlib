@@ -21,6 +21,9 @@ class Reference
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         double dist(const Reference &query, const int kmer_len);
+        std::vector<int> const kmer_lengths();
+
+        std::string name() const { return _name; }
 
     private:
         // Info
