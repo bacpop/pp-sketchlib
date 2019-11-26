@@ -1,6 +1,6 @@
 /*
- * regression_bindings.cpp
- * Python bindings for linear_regression
+ * sketchlib_bindings.cpp
+ * Python bindings for pp-sketchlib
  *
  */
 

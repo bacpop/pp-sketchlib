@@ -25,7 +25,8 @@ class Reference
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
-        double dist(const Reference &query, const int kmer_len);
+        double jaccard_dist(const Reference &query, const int kmer_len);
+        std::tuple<float, float> Reference::core_acc_dist(const Reference &query);
         std::vector<int> kmer_lengths() const;
 
         std::string name() const { return _name; }

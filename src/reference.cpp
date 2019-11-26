@@ -55,7 +55,7 @@ Reference::Reference(const std::string& name,
     
 }
 
-double Reference::dist(const Reference &query, const int kmer_len)
+double Reference::jaccard_dist(const Reference &query, const int kmer_len)
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
@@ -64,6 +64,21 @@ double Reference::dist(const Reference &query, const int kmer_len)
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     double jaccard = intersize/(double)unionsize;
     return(jaccard);
+}
+
+// TODO: This being here is a circular dependency
+std::tuple<float, float> Reference::core_acc_dist(const Reference &query)
+{
+    std::vector<int> kmers = this->kmer_lengths();
+    if (kmers != query.kmer_lengths())
+    {
+        throw std::runtime_error("Incompatible k-mer lengths");
+    }
+
+    std::tuple<float, float> core_acc = regress_kmers(this, 
+                                                      &query, 
+                                                      kmers); 
+    return(core_acc);
 }
 
 const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
@@ -87,5 +102,6 @@ std::vector<int> Reference::kmer_lengths() const
 {
     std::vector<int> keys(usigs.size());
     std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);
+    std::sort(keys.begin(), keys.end());
     return keys;
 }

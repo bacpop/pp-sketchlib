@@ -1,3 +1,5 @@
+#pragma once
+
 // dlib headers
 #include <dlib/matrix.h>
 typedef dlib::matrix<double,0,1> column_vector;
