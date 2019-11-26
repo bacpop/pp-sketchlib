@@ -18,3 +18,13 @@ int main (int argc, char* argv[])
 
     return 0;
 }
+
+void create_db() 
+{
+    // Sketches a set of genomes
+}
+
+void query_db() 
+{
+    // Calculates distances against another database
+}

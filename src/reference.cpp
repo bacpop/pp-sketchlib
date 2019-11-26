@@ -16,6 +16,7 @@
 const size_t def_bbits = 14;
 const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
+const int def_hashseed = 86;
 
 #include "bitfuncs.hpp"
 
@@ -23,10 +24,11 @@ auto key_selector = [](auto pair){return pair.first;};
 auto value_selector = [](auto pair){return pair.second;};
 
 // Initialisation
-Reference::Reference(const std::string& _name, 
+Reference::Reference(const std::string& name, 
                      const std::string& filename, 
                      const std::vector<size_t>& kmer_lengths)
-   :name(_name), bbits(def_bbits), sketchsize64(def_sketchsize64), isstrandpreserved(def_isstrandpreserved)
+   :_name(name), _bbits(def_bbits), _sketchsize64(def_sketchsize64), 
+    _isstrandpreserved(def_isstrandpreserved), _seed(def_hashseed)
 {
     // Read in sequence
     SeqBuf sequence(filename, kmer_lengths.back());
@@ -37,7 +39,7 @@ Reference::Reference(const std::string& _name,
 
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, bbits, isstrandpreserved);
+        usigs[*kmer_it] = sketch(_name, sequence, _sketchsize64, *kmer_it, _bbits, _isstrandpreserved, _seed);
     }
     // SeqBuf containing sequences will get deleted here
     // usigs (the sketch) will be retained
@@ -47,9 +49,9 @@ double Reference::dist(const Reference &query, const int kmer_len)
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
-                                      sketchsize64, 
-                                      bbits);
-	size_t unionsize = NBITS(uint64_t) * sketchsize64;
+                                      _sketchsize64, 
+                                      _bbits);
+	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     double jaccard = intersize/(double)unionsize;
     return(jaccard);
 }

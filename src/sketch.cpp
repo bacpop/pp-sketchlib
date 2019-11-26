@@ -56,7 +56,7 @@ uint64_t univhash(uint64_t s, uint64_t t)
 	return (48271 * x + 11) % ((1ULL << 31) - 1);
 }
 
-rollinghash init_hashes(const size_t kmer_len)
+rollinghash init_hashes(const size_t kmer_len, const int hashseed)
 {
     std::minstd_rand0 g1(hashseed);
 	auto s1 = g1();
@@ -189,14 +189,15 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
-                             const bool isstrandpreserved)
+                             const bool isstrandpreserved,
+                             const int hashseed)
 {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
     
-    rollinghash hf = init_hashes(kmer_len); 
+    rollinghash hf = init_hashes(kmer_len, hashseed); 
     hashinit(seq, signs, hf, isstrandpreserved, binsize, kmer_len);
     
     // Rolling hash through string
