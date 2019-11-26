@@ -13,6 +13,8 @@
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
 
+const int deflate_level = 9;
+
 // Initialisation
 Database::Database(const std::string& filename)
     :_filename(filename), 
@@ -46,14 +48,24 @@ void Database::add_sketch(const Reference& ref)
     HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
     kmers_a.write(kmer_lengths); 
 
+    
+    /*
+        // Chunking and compression doesn't help with small sketches    
+        HighFive::DataSetCreateProps save_properties;
+        save_properties.add(HighFive::Chunking(std::vector<hsize_t>{ref.sketchsize64()}));
+        save_properties.add(HighFive::Shuffle());
+        save_properties.add(HighFive::Deflate(deflate_level));
+    */
+    
     // Write a new dataset for each k-mer length within this group
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
-        auto sketch = ref.get_sketch(*kmer_it);
-        
         std::string dataset_name = sketch_name + "/" + std::to_string(*kmer_it);
-        HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch));
+        
+        auto sketch = ref.get_sketch(*kmer_it);
+        HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch), save_properties);
         sketch_dataset.write(sketch);
+        
         HighFive::Attribute kmer_size_a = sketch_dataset.createAttribute<int>("kmer-size", HighFive::DataSpace::From(*kmer_it));
         kmer_size_a.write(*kmer_it);
     }
