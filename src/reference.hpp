@@ -18,10 +18,15 @@ class Reference
         Reference(const std::string& name, 
                   const std::string& filename, 
                   const std::vector<size_t>& kmer_lengths); // read and run sketch
+        Reference(const std::string& name,
+                  const size_t bbits,
+                  const size_t sketchsize64,
+                  const int seed); // For loading from DB
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
+        void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         double dist(const Reference &query, const int kmer_len);
-        std::vector<int> const kmer_lengths();
+        std::vector<int> kmer_lengths() const;
 
         std::string name() const { return _name; }
         size_t bbits() const { return _bbits; }

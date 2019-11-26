@@ -26,7 +26,7 @@ SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
     */
     
     // from kseq.h
-    fp = gzopen(filename.c_str(), "r");
+    gzFile fp = gzopen(filename.c_str(), "r");
     kseq_t *seq = kseq_init(fp);
     int l;
     while ((l = kseq_read(seq)) >= 0) 
@@ -39,12 +39,8 @@ SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
     
     // If put back into object, move this to destructor below
     kseq_destroy(seq);
-    this->reset();
-}
-
-SeqBuf::~SeqBuf()
-{
     gzclose(fp);
+    this->reset();
 }
 
 void SeqBuf::reset()

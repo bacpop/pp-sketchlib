@@ -9,55 +9,50 @@
 
 #include "database.hpp"
 
-using namespace H5;
+#include <highfive/H5Group.hpp>
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5DataSpace.hpp>
 
 // Initialisation
 Database::Database(const std::string& filename)
-    :_filename(filename)
+    :_filename(filename), 
+    _h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
 {
-    try
-    {
-        h5_file = h5::open(filename.c_str(),H5F_ACC_RDWR);
-        try
-        {
-            sketch_group = Group(h5_file.openGroup("/sketches"));
-        }
-        catch (GroupIException not_found_error)
-        {
-            std::cerr << "Database " + _filename + " does not contain expected groups" << std::endl;
-            throw std::runtime_error("HDF5 database misformatted");
-        }
-    }
-    catch(const std::exception& e)
-    {
-        h5_file = h5::create(_filename.c_str(),H5F_ACC_EXCL);
-        sketch_group = Group(h5_file.createGroup("/sketches"));
-    }
+    HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 }
 
-
-Database::add_sketch(const Reference& ref)
+Database::Database(HighFive::File& _h5_file)
+    :_h5_file(h5_file)
 {
-    
-    /*
-    try 
-    {
-        sketch_group = Group(sketch_group.openGroup(ref.name()));
-    }
-    catch(GroupIException not_found_error)
-    {
-        sketch_group = Group(sketch_group.createGroup(ref.name()));
-    }
-    */
+    _filename = _h5_file.getName();
+}
+
+void Database::add_sketch(const Reference& ref)
+{
+    std::string sketch_name = "/sketches/" + ref.name();
+    HighFive::Group sketch_group = _h5_file.createGroup(sketch_name, true);
 
     const std::vector<int> kmer_lengths = ref.kmer_lengths();
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
-        std::string sketch_name = "/sketches/" + ref.name() + "/" + std::to_string(*kmer_it)
-        ds_t h5_sketch = h5::write(h5_file, sketch_name, ref.get_sketch(*kmer_it));
-        h5_sketch["kmer-size"] = *kmer_it;
-        h5_sketch["sketchsize64"] = ref.sketchsize64();
-        h5_sketch["bbits"] = ref.bbits();
-        h5_sketch["seed"] = ref.seed();
+        auto sketch = ref.get_sketch(*kmer_it);
+        
+        std::string dataset_name = sketch_name + "/" + std::to_string(*kmer_it);
+        HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch));
+        sketch_dataset.write(sketch);
+
+        HighFive::Attribute kmer_size_a = sketch_dataset.createAttribute<int>("kmer-size", HighFive::DataSpace::From(*kmer_it));
+        kmer_size_a.write(*kmer_it);
+        HighFive::Attribute sketch_size_a = sketch_dataset.createAttribute<size_t>("sketchsize64", HighFive::DataSpace::From(ref.sketchsize64()));
+        sketch_size_a.write(ref.sketchsize64());
+        HighFive::Attribute bbits_a = sketch_dataset.createAttribute<size_t>("bbits", HighFive::DataSpace::From(ref.bbits()));
+        bbits_a.write(ref.bbits());
+        HighFive::Attribute seed_a = sketch_dataset.createAttribute<int>("seed", HighFive::DataSpace::From(ref.seed()));
+        seed_a.write(ref.seed());
     }
+}
+
+HighFive::File open_h5(const std::string& filename)
+{
+    return(HighFive::File(filename.c_str(), HighFive::File::ReadWrite)); 
 }

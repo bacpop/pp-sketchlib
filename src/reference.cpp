@@ -45,6 +45,16 @@ Reference::Reference(const std::string& name,
     // usigs (the sketch) will be retained
 }
 
+Reference::Reference(const std::string& name,
+                     const size_t bbits,
+                     const size_t sketchsize64,
+                     const int seed)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), 
+    _isstrandpreserved(def_isstrandpreserved), _seed(seed)
+{
+    
+}
+
 double Reference::dist(const Reference &query, const int kmer_len)
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
@@ -68,7 +78,7 @@ const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
     }
 }
 
-const std::vector<int> const Reference::kmer_lengths()
+std::vector<int> Reference::kmer_lengths() const 
 {
     std::vector<int> keys(usigs.size());
     std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);

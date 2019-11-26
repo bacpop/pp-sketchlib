@@ -4,6 +4,6 @@
 [submodule "rollinghashcpp"]
 	path = rollinghashcpp
 	url = https://github.com/lemire/rollinghashcpp.git
-[submodule "seqan3"]
-	path = seqan3
-	url = https://github.com/seqan/seqan3.git
+[submodule "HighFive"]
+	path = HighFive
+	url = https://github.com/BlueBrain/HighFive.git

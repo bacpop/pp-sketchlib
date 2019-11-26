@@ -12,22 +12,22 @@
 #include <unordered_map>
 #include <string>
 
-#include <H5Cpp.h>
+#include <highfive/H5File.hpp>
 
 #include "reference.hpp"
 
 class Database 
 {
     public:
-        Database(const std::string& filename); // Open or create H5 file
+        Database(const std::string& filename); // Overwrite or create new H5 file
+        Database(HighFive::File& _h5_file); // Open a H5 file
         
         void add_sketch(const Reference& ref); // Write a new sketch to the HDF5
         Reference load_sketch(); // Retrieve a sketch
 
     private:
         std::string _filename;
-
-        h5::hid_t h5_file;
-        Group sketch_group(); 
-
+        HighFive::File _h5_file;
 };
+
+HighFive::File open_h5(const std::string& filename);

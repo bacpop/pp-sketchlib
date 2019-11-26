@@ -21,7 +21,6 @@ class SeqBuf
 {
     public:
         SeqBuf(const std::string& filename, const size_t kmer_len);
-        ~SeqBuf();
 
 	    unsigned char getnext() const { return toupper(*next_base); }
 	    unsigned char getout() const { return toupper(*out_base); }
@@ -33,8 +32,6 @@ class SeqBuf
      
 
     private:
-    	gzFile fp;  
-        
         std::vector<std::string> sequence;
 
         std::vector<std::string>::iterator current_seq;

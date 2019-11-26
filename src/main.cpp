@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "reference.hpp"
+#include "database.hpp"
 
 int main (int argc, char* argv[])
 {
@@ -15,6 +16,10 @@ int main (int argc, char* argv[])
     std::cout << ref.dist(query, 13) << std::endl;
     std::cout << ref.dist(query, 17) << std::endl;
     std::cout << query.dist(ref, 17) << std::endl;
+
+    Database sketch_db("sketch.h5");
+    sketch_db.add_sketch(ref);
+    sketch_db.add_sketch(query);
 
     return 0;
 }
