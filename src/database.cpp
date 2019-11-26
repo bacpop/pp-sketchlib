@@ -21,7 +21,7 @@ Database::Database(const std::string& filename)
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 }
 
-Database::Database(HighFive::File& _h5_file)
+Database::Database(HighFive::File& h5_file)
     :_h5_file(h5_file)
 {
     _filename = _h5_file.getName();
@@ -29,10 +29,24 @@ Database::Database(HighFive::File& _h5_file)
 
 void Database::add_sketch(const Reference& ref)
 {
+    // Create group for sketches
     std::string sketch_name = "/sketches/" + ref.name();
     HighFive::Group sketch_group = _h5_file.createGroup(sketch_name, true);
+    
+    // Write group attributes
+    HighFive::Attribute sketch_size_a = sketch_group.createAttribute<size_t>("sketchsize64", HighFive::DataSpace::From(ref.sketchsize64()));
+    sketch_size_a.write(ref.sketchsize64());
+    HighFive::Attribute bbits_a = sketch_group.createAttribute<size_t>("bbits", HighFive::DataSpace::From(ref.bbits()));
+    bbits_a.write(ref.bbits());
+    HighFive::Attribute seed_a = sketch_group.createAttribute<int>("seed", HighFive::DataSpace::From(ref.seed()));
+    seed_a.write(ref.seed());
 
+    // Write k-mer length vector as another group attribute
     const std::vector<int> kmer_lengths = ref.kmer_lengths();
+    HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
+    kmers_a.write(kmer_lengths); 
+
+    // Write a new dataset for each k-mer length within this group
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
         auto sketch = ref.get_sketch(*kmer_it);
@@ -40,16 +54,33 @@ void Database::add_sketch(const Reference& ref)
         std::string dataset_name = sketch_name + "/" + std::to_string(*kmer_it);
         HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch));
         sketch_dataset.write(sketch);
-
         HighFive::Attribute kmer_size_a = sketch_dataset.createAttribute<int>("kmer-size", HighFive::DataSpace::From(*kmer_it));
         kmer_size_a.write(*kmer_it);
-        HighFive::Attribute sketch_size_a = sketch_dataset.createAttribute<size_t>("sketchsize64", HighFive::DataSpace::From(ref.sketchsize64()));
-        sketch_size_a.write(ref.sketchsize64());
-        HighFive::Attribute bbits_a = sketch_dataset.createAttribute<size_t>("bbits", HighFive::DataSpace::From(ref.bbits()));
-        bbits_a.write(ref.bbits());
-        HighFive::Attribute seed_a = sketch_dataset.createAttribute<int>("seed", HighFive::DataSpace::From(ref.seed()));
-        seed_a.write(ref.seed());
     }
+}
+
+Reference Database::load_sketch(const std::string& name)
+{
+    // Read in attributes
+    HighFive::Group sketch_group = _h5_file.getGroup("/sketches/" + name);
+    std::vector<int> kmer_lengths;
+    sketch_group.getAttribute("kmers").read(kmer_lengths);
+    size_t sketchsize64;
+    sketch_group.getAttribute("sketchsize64").read(sketchsize64);
+    size_t bbits;
+    sketch_group.getAttribute("bbits").read(bbits);
+    int seed;
+    sketch_group.getAttribute("seed").read(seed);
+
+    Reference new_ref(name, bbits, sketchsize64, seed);
+    for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
+    {
+        std::vector<uint64_t> usigs;
+        sketch_group.getDataSet(std::to_string(*kmer_it)).read(usigs);
+        new_ref.add_kmer_sketch(usigs, *kmer_it);
+    }
+
+    return(new_ref);
 }
 
 HighFive::File open_h5(const std::string& filename)

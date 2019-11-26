@@ -78,6 +78,11 @@ const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
     }
 }
 
+void Reference::add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len)
+{
+    usigs[kmer_len] = sketch;
+}
+
 std::vector<int> Reference::kmer_lengths() const 
 {
     std::vector<int> keys(usigs.size());

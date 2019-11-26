@@ -6,6 +6,8 @@
 
 int main (int argc, char* argv[])
 {
+    // Runs a test of functionality
+    
     std::vector<size_t> kmer_lengths {13, 17};
     Reference ref(argv[1], argv[2], kmer_lengths);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
@@ -20,6 +22,10 @@ int main (int argc, char* argv[])
     Database sketch_db("sketch.h5");
     sketch_db.add_sketch(ref);
     sketch_db.add_sketch(query);
+
+    Reference ref_read = sketch_db.load_sketch(argv[1]);
+    Reference query_read = sketch_db.load_sketch(argv[3]);
+    std::cout << ref_read.dist(query_read, 13) << std::endl;
 
     return 0;
 }
