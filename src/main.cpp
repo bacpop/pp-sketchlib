@@ -9,9 +9,9 @@ int main (int argc, char* argv[])
     // Runs a test of functionality
     
     std::vector<size_t> kmer_lengths {13, 17};
-    Reference ref(argv[1], argv[2], kmer_lengths);
+    Reference ref(argv[1], argv[2], kmer_lengths, 32);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
-    Reference query(argv[3], argv[4], kmer_lengths);
+    Reference query(argv[3], argv[4], kmer_lengths, 32);
 
     std::cout << ref.dist(ref, 13) << std::endl;      // Should be 1
     // std::cout << ref.dist(ref_copy, 13) << std::endl; // Should be 1 (test of consistent randomness in sketch)

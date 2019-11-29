@@ -11,13 +11,17 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <tuple>
+
+#include "link_function.hpp" // Include dlib and column_vector
 
 class Reference
 {
     public:
         Reference(const std::string& name, 
                   const std::string& filename, 
-                  const std::vector<size_t>& kmer_lengths); // read and run sketch
+                  const std::vector<size_t>& kmer_lengths,
+                  const size_t sketchsize64); // read and run sketch
         Reference(const std::string& name,
                   const size_t bbits,
                   const size_t sketchsize64,
@@ -27,6 +31,7 @@ class Reference
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len);
         std::tuple<float, float> Reference::core_acc_dist(const Reference &query);
+        std::tuple<float, float> Reference::core_acc_dist(const Reference &query, const column_vector &kmers);
         std::vector<int> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -45,3 +50,8 @@ class Reference
         // sketch - map keys are k-mer length
         std::unordered_map<int, std::vector<uint64_t>> usigs;
 };
+
+// Defined in linear_regression.cpp
+std::tuple<float, float> core_acc = regress_kmers(const Reference * r1, 
+                                                  const Reference * r2, 
+                                                  const column_vector& kmers);

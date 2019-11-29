@@ -4,7 +4,7 @@
  *
  */
 
-#include "linear_regression.hpp"
+#include "reference.hpp"
 #include <dlib/optimization.h>
 
 #include <math.h>
@@ -16,7 +16,7 @@ const column_vector x_upper(2, 0);
 
 std::tuple<float, float> core_acc = regress_kmers(const Reference * r1, 
                                                   const Reference * r2, 
-                                                  const column_vector& kmers) // TODO pass this once to avoid a loop
+                                                  const column_vector& kmers)
 {
     column_vector y_vec(kmers.nr());
     for (unsigned int i = 0; i < y_vec.nr(); ++i)

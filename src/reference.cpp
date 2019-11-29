@@ -14,7 +14,7 @@
 #include "dist.hpp"
 
 const size_t def_bbits = 14;
-const size_t def_sketchsize64 = 32;
+// const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
 const int def_hashseed = 86;
 
@@ -26,9 +26,12 @@ auto value_selector = [](auto pair){return pair.second;};
 // Initialisation
 Reference::Reference(const std::string& name, 
                      const std::string& filename, 
-                     const std::vector<size_t>& kmer_lengths)
-   :_name(name), _bbits(def_bbits), _sketchsize64(def_sketchsize64), 
-    _isstrandpreserved(def_isstrandpreserved), _seed(def_hashseed)
+                     const std::vector<size_t>& kmer_lengths,
+                     const size_t sketchsize64)
+   :_name(name), 
+    _bbits(def_bbits),  
+    _isstrandpreserved(def_isstrandpreserved), 
+    _seed(def_hashseed)
 {
     // Read in sequence
     SeqBuf sequence(filename, kmer_lengths.back());
@@ -66,7 +69,6 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len)
     return(jaccard);
 }
 
-// TODO: This being here is a circular dependency
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query)
 {
     std::vector<int> kmers = this->kmer_lengths();
@@ -75,6 +77,16 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query)
         throw std::runtime_error("Incompatible k-mer lengths");
     }
 
+    std::tuple<float, float> core_acc = regress_kmers(this, 
+                                                      &query, 
+                                                      kmers); 
+    return(core_acc);
+}
+
+// Without k-mer sizes check
+std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
+                                                  const column_vector &kmers)
+{
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
                                                       kmers); 
