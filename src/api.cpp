@@ -34,11 +34,43 @@ void self_dist_block(MatrixXd& distMat,
                      const size_t start,
                      const size_t end)
 {
-    // TODO iterate pattern, call core_acc
-    
-    for (unsigned int i = start; i < end, i++)
+    // Iterate upper triangle, alternately forwards and backwards along rows
+    size_t calcs = 0;
+    auto ref_sketch = sketches.cbegin();
+    auto query_sketch = sketches.cbegin() + 1;
+    size_t pos = 0;
+    bool row_forward = true;
+    while (calcs < (end - start))
     {
-        sketches[start + i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
+        if (pos >= start)
+        {
+            std::tuple<double, double> dists = ref_sketch->core_acc_dist(*query_sketch);
+            distMat(pos, 0) = std::get<0>(dists);
+            distMat(pos, 1) = std::get<1>(dists);
+            calcs++;
+        }
+        
+        // Move to next element
+        if (row_forward)
+        {
+            query_sketch++;
+            if (query_sketch == sketches.end())
+            {
+                row_forward = false;
+                ref_sketch++;
+            }
+        }
+        else
+        {
+            query_sketch--;
+            if (query_sketch == ref_sketch)
+            {
+                row_forward = true;
+                ref_sketch++;
+                query_sketch = ref_sketch + 1;
+            }
+        }
+        pos++;
     }
 }
 
@@ -116,6 +148,7 @@ MatrixXd create_db(std::string& db_name,
     work_threads.clear();
     work_threads.reserve(num_threads);
     start = 0;
+    
     for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) // Loop over threads
     {
         // First 'big' threads have an extra job
