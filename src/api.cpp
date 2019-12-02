@@ -12,7 +12,7 @@
 
 void self_dist_block(MatrixXd& distMat,
                      const std::vector<Reference>& sketches,
-                     column_vector& kmer_lengths,
+                     const column_vector& kmer_lengths,
                      const size_t start,
                      const size_t end);
 
@@ -22,14 +22,14 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<size_t>& kmer_lengths,
                                     const size_t sketchsize64,
                                     const size_t start,
-                                    const size_t end)
+                                    const size_t end);
 
-MatrixXd create_db(std::string& db_name,
-               std::vector<std::string>& names, 
-               std::vector<std::string>& files, 
-               std::vector<size_t>& kmer_lengths,
-               const size_t sketchsize64,
-               const size_t num_threads) 
+MatrixXd create_db(const std::string& db_name,
+                   const std::vector<std::string>& names, 
+                   const std::vector<std::string>& files, 
+                   const std::vector<size_t>& kmer_lengths,
+                   const size_t sketchsize64,
+                   const size_t num_threads) 
 {
     // Sketches a set of genomes
     std::cerr << "Sketching " << names.size() << " genomes using " << num_threads << " threads" << std::endl;
@@ -37,7 +37,8 @@ MatrixXd create_db(std::string& db_name,
 
     // Create threaded queue for distance calculations
     std::vector<Reference> sketches(names.size());
-    std::vector<std::thread> work_threads(num_threads);
+    //std::vector<Reference> sketches;
+    std::vector<std::thread> sketch_threads(num_threads);
     const unsigned long int calc_per_thread = (unsigned long int)sketches.size() / num_threads;
     const unsigned int num_big_threads = sketches.size() % num_threads;
 
@@ -52,7 +53,7 @@ MatrixXd create_db(std::string& db_name,
             thread_jobs++;
         }
         
-        work_threads.push_back(std::thread(&sketch_block,
+        sketch_threads.push_back(std::thread(&sketch_block,
                                            std::ref(sketches),
                                            std::cref(names),
                                            std::cref(files),
@@ -63,7 +64,7 @@ MatrixXd create_db(std::string& db_name,
         start += thread_jobs + 1;
     }
     // Wait for threads to complete
-    for (auto it = work_threads.begin(); it != work_threads.end(); it++)
+    for (auto it = sketch_threads.begin(); it != sketch_threads.end(); it++)
     {
         it->join();
     }
@@ -82,8 +83,7 @@ MatrixXd create_db(std::string& db_name,
     size_t dist_rows = static_cast<int>(0.5*(names.size())*(names.size() - 1));
     MatrixXd distMat(dist_rows, 2);
     
-    work_threads.clear();
-    work_threads.reserve(num_threads);
+    std::vector<std::thread> dist_threads(num_threads);
     start = 0;
     
     for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) // Loop over threads
@@ -95,7 +95,7 @@ MatrixXd create_db(std::string& db_name,
             thread_jobs++;
         }
         
-        work_threads.push_back(std::thread(&self_dist_block,
+        dist_threads.push_back(std::thread(&self_dist_block,
                                            std::ref(distMat),
                                            std::cref(sketches),
                                            std::cref(kmer_vec),
@@ -104,15 +104,13 @@ MatrixXd create_db(std::string& db_name,
         start += thread_jobs + 1;
     }
     // Wait for threads to complete
-    for (auto it = work_threads.begin(); it != work_threads.end(); it++)
+    for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
     {
         it->join();
     }
 
     return(distMat);
 }
-
-
 
 void query_db() 
 {
@@ -131,7 +129,7 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end)
 {
-    for (unsigned int i = start; i < end, i++)
+    for (unsigned int i = start; i < end; i++)
     {
         sketches[start + i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
     }
@@ -140,7 +138,7 @@ void sketch_block(std::vector<Reference>& sketches,
 // Calculates dists (run in thread)
 void self_dist_block(MatrixXd& distMat,
                      const std::vector<Reference>& sketches,
-                     column_vector& kmer_lengths,
+                     const column_vector& kmer_lengths,
                      const size_t start,
                      const size_t end)
 {
@@ -154,7 +152,7 @@ void self_dist_block(MatrixXd& distMat,
     {
         if (pos >= start)
         {
-            std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_sketch->core_acc_dist(*query_sketch);
+            std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_sketch->core_acc_dist(*query_sketch, kmer_lengths);
             calcs++;
         }
         
@@ -181,18 +179,5 @@ void self_dist_block(MatrixXd& distMat,
         }
         pos++;
     }
-}
-
-// Need T -> double to be possible
-template <class T>
-column_vector vec_to_dlib(const std::vector<T>& invec)
-{
-    column_vector dlib_vec;
-    dlib_vec.set_size(invec.size());
-    for (unsigned int i = 0; i < invec.size(); i++)
-    {
-        dlib_vec(i) = invec.at(i);
-    }
-    return(dlib_vec);
 }
 

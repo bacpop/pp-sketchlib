@@ -14,16 +14,16 @@ const double convergence_limit = 1e-7;
 const column_vector x_lower(2, -std::numeric_limits<double>::infinity());
 const column_vector x_upper(2, 0);
 
-std::tuple<float, float> core_acc = regress_kmers(const Reference * r1, 
-                                                  const Reference * r2, 
-                                                  const column_vector& kmers)
+std::tuple<float, float> regress_kmers(const Reference * r1, 
+                                       const Reference * r2, 
+                                       const column_vector& kmers)
 {
     column_vector y_vec(kmers.nr());
     for (unsigned int i = 0; i < y_vec.nr(); ++i)
     {
-        y_vec(i) = log(r1.jaccard_dist(r2, kmers[i])); 
+        y_vec(i) = log(r1->jaccard_dist(*r2, kmers(i))); 
     }
-    LinearLink linear_fit(klist, y_vec);
+    LinearLink linear_fit(kmers, y_vec);
 
     column_vector starting_point(2);
     starting_point(0) = -0.01;

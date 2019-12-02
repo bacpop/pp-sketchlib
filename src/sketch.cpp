@@ -19,8 +19,6 @@
 
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL; 
 
-const int hashseed = 86;
-
 typedef std::tuple<CyclicHash<uint64_t>, CyclicHash<uint64_t>> rollinghash;
 
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }

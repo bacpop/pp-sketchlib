@@ -18,6 +18,7 @@
 class Reference
 {
     public:
+        Reference();
         Reference(const std::string& name, 
                   const std::string& filename, 
                   const std::vector<size_t>& kmer_lengths,
@@ -29,9 +30,9 @@ class Reference
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
-        double jaccard_dist(const Reference &query, const int kmer_len);
-        std::tuple<float, float> Reference::core_acc_dist(const Reference &query);
-        std::tuple<float, float> Reference::core_acc_dist(const Reference &query, const column_vector &kmers);
+        double jaccard_dist(const Reference &query, const int kmer_len) const;
+        std::tuple<float, float> core_acc_dist(const Reference &query) const;
+        std::tuple<float, float> core_acc_dist(const Reference &query, const column_vector &kmers) const;
         std::vector<int> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -52,6 +53,19 @@ class Reference
 };
 
 // Defined in linear_regression.cpp
-std::tuple<float, float> core_acc = regress_kmers(const Reference * r1, 
-                                                  const Reference * r2, 
-                                                  const column_vector& kmers);
+std::tuple<float, float> regress_kmers(const Reference * r1, 
+                                       const Reference * r2, 
+                                       const column_vector& kmers);
+
+// Need T -> double to be possible
+template <class T>
+column_vector vec_to_dlib(const std::vector<T>& invec)
+{
+    column_vector dlib_vec;
+    dlib_vec.set_size(invec.size());
+    for (unsigned int i = 0; i < invec.size(); i++)
+    {
+        dlib_vec(i) = invec.at(i);
+    }
+    return(dlib_vec);
+}

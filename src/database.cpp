@@ -63,7 +63,8 @@ void Database::add_sketch(const Reference& ref)
         std::string dataset_name = sketch_name + "/" + std::to_string(*kmer_it);
         
         auto sketch = ref.get_sketch(*kmer_it);
-        HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch), save_properties);
+        //HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch), save_properties);
+        HighFive::DataSet sketch_dataset = _h5_file.createDataSet<uint64_t>(dataset_name, HighFive::DataSpace::From(sketch));
         sketch_dataset.write(sketch);
         
         HighFive::Attribute kmer_size_a = sketch_dataset.createAttribute<int>("kmer-size", HighFive::DataSpace::From(*kmer_it));

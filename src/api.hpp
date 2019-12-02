@@ -10,12 +10,12 @@
 #include <cstdint>
 #include <string>
 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 using Eigen::MatrixXd;
 
-MatrixXd create_db(std::string& db_name,
-               std::vector<std::string>& names, 
-               std::vector<std::string>& files, 
-               std::vector<size_t>& kmer_lengths,
-               const size_t sketchsize64,
-               const size_t num_threads);
+MatrixXd create_db(const std::string& db_name,
+                   const std::vector<std::string>& names, 
+                   const std::vector<std::string>& files, 
+                   const std::vector<size_t>& kmer_lengths,
+                   const size_t sketchsize64,
+                   const size_t num_threads);

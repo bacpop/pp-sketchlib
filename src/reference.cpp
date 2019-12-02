@@ -24,6 +24,13 @@ auto key_selector = [](auto pair){return pair.first;};
 auto value_selector = [](auto pair){return pair.second;};
 
 // Initialisation
+Reference::Reference()
+   :_bbits(def_bbits),  
+    _isstrandpreserved(def_isstrandpreserved), 
+    _seed(def_hashseed)
+{
+}
+
 Reference::Reference(const std::string& name, 
                      const std::string& filename, 
                      const std::vector<size_t>& kmer_lengths,
@@ -42,7 +49,7 @@ Reference::Reference(const std::string& name,
 
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        usigs[*kmer_it] = sketch(_name, sequence, _sketchsize64, *kmer_it, _bbits, _isstrandpreserved, _seed);
+        usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, _isstrandpreserved, _seed);
     }
     // SeqBuf containing sequences will get deleted here
     // usigs (the sketch) will be retained
@@ -55,10 +62,9 @@ Reference::Reference(const std::string& name,
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), 
     _isstrandpreserved(def_isstrandpreserved), _seed(seed)
 {
-    
 }
 
-double Reference::jaccard_dist(const Reference &query, const int kmer_len)
+double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
@@ -69,7 +75,7 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len)
     return(jaccard);
 }
 
-std::tuple<float, float> Reference::core_acc_dist(const Reference &query)
+std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 {
     std::vector<int> kmers = this->kmer_lengths();
     if (kmers != query.kmer_lengths())
@@ -79,13 +85,13 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query)
 
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      kmers); 
+                                                      vec_to_dlib(kmers)); 
     return(core_acc);
 }
 
 // Without k-mer sizes check
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
-                                                  const column_vector &kmers)
+                                                  const column_vector &kmers) const
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
