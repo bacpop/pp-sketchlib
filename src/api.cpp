@@ -5,12 +5,13 @@
  */
 
 #include <thread>
+#include <sys/stat.h>
 
 #include "api.hpp"
 #include "reference.hpp"
 #include "database.hpp"
 
-void self_dist_block(MatrixXd& distMat,
+void self_dist_block(MatrixXf& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      const size_t start,
@@ -24,7 +25,12 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end);
 
-MatrixXd create_db(const std::string& db_name,
+bool file_exists (const std::string& name) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
+}
+
+MatrixXf create_db(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::string>& files, 
                    const std::vector<size_t>& kmer_lengths,
@@ -32,60 +38,101 @@ MatrixXd create_db(const std::string& db_name,
                    const size_t num_threads) 
 {
     // Sketches a set of genomes
-    std::cerr << "Sketching " << names.size() << " genomes using " << num_threads << " threads" << std::endl;
-    // std::vector<size_t> kmer_lengths {13, 17};
-
-    // Create threaded queue for distance calculations
     std::vector<Reference> sketches(names.size());
-    std::vector<std::thread> sketch_threads;
-    const unsigned long int calc_per_thread = (unsigned long int)sketches.size() / num_threads;
-    const unsigned int num_big_threads = sketches.size() % num_threads;
 
-    // Spawn worker threads
-    size_t start = 0;
-    for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) // Loop over threads
+    bool resketch = true;
+    if (file_exists(db_name + ".h5"))
     {
-        // First 'big' threads have an extra job
-        unsigned long int thread_jobs = calc_per_thread;
-        if (thread_idx < num_big_threads)
+        resketch = false;
+        try
         {
-            thread_jobs++;
+            HighFive::File h5_db(db_name + ".h5");
+            Database prev_db(h5_db);
+            
+            std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
+            size_t i = 0;
+            for (auto name_it = names.cbegin(); name_it != names.end(); name_it++)
+            {
+                sketches[i] = prev_db.load_sketch(*name_it);
+                if (sketches[i].kmer_lengths() != kmer_lengths)
+                {
+                    throw std::runtime_error("kmer lengths in old database do not match those requested");
+                }
+                i++;
+            }
         }
-        
-        sketch_threads.push_back(std::thread(&sketch_block,
-                                           std::ref(sketches),
-                                           std::cref(names),
-                                           std::cref(files),
-                                           std::cref(kmer_lengths),
-                                           sketchsize64,
-                                           start,
-                                           start + thread_jobs));
-        start += thread_jobs + 1;
-    }
-    // Wait for threads to complete
-    for (auto it = sketch_threads.begin(); it != sketch_threads.end(); it++)
-    {
-        it->join();
+        catch (const std::exception& e)
+        {
+            resketch = true;
+        }
     }
 
-    // Save sketches
-    std::cerr << "Writing sketches to file" << std::endl;
-    Database sketch_db(db_name + ".h5");
-    for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++)
+    if (resketch)
     {
-        sketch_db.add_sketch(*sketch_it);
+        // Create threaded queue for distance calculations
+        size_t num_sketch_threads = num_threads;
+        if (sketches.size() < num_threads)
+        {
+            num_sketch_threads = sketches.size(); 
+        } 
+        unsigned long int calc_per_thread = (unsigned long int)sketches.size() / num_sketch_threads;
+        unsigned int num_big_threads = sketches.size() % num_sketch_threads;
+        std::vector<std::thread> sketch_threads;
+
+        // Spawn worker threads
+        size_t start = 0;
+        std::cerr << "Sketching " << names.size() << " genomes using " << num_sketch_threads << " thread(s)" << std::endl;
+        for (unsigned int thread_idx = 0; thread_idx < num_sketch_threads; ++thread_idx) // Loop over threads
+        {
+            // First 'big' threads have an extra job
+            unsigned long int thread_jobs = calc_per_thread;
+            if (thread_idx < num_big_threads)
+            {
+                thread_jobs++;
+            }
+            
+            sketch_threads.push_back(std::thread(&sketch_block,
+                                            std::ref(sketches),
+                                            std::cref(names),
+                                            std::cref(files),
+                                            std::cref(kmer_lengths),
+                                            sketchsize64,
+                                            start,
+                                            start + thread_jobs));
+            start += thread_jobs;
+        }
+        // Wait for threads to complete
+        for (auto it = sketch_threads.begin(); it != sketch_threads.end(); it++)
+        {
+            it->join();
+        }
+
+        // Save sketches
+        std::cerr << "Writing sketches to file" << std::endl;
+        Database sketch_db(db_name + ".h5");
+        for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++)
+        {
+            sketch_db.add_sketch(*sketch_it);
+        }
     }
 
     // calculate dists
-    std::cerr << "Calculating distances using " << num_threads << " threads" << std::endl;
-    dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
     size_t dist_rows = static_cast<int>(0.5*(names.size())*(names.size() - 1));
-    MatrixXd distMat(dist_rows, 2);
+    size_t num_dist_threads = num_threads;
+    if (dist_rows < num_threads)
+    {
+        num_dist_threads = dist_rows; 
+    }
+    unsigned long int calc_per_thread = (unsigned long int)dist_rows / num_dist_threads;
+    unsigned int num_big_threads = dist_rows % num_dist_threads; 
+    std::cerr << "Calculating distances using " << num_dist_threads << " thread(s)" << std::endl;
+    dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
+    MatrixXf distMat(dist_rows, 2);
     
     std::vector<std::thread> dist_threads;
-    start = 0;
+    size_t start = 0;
     
-    for (unsigned int thread_idx = 0; thread_idx < num_threads; ++thread_idx) // Loop over threads
+    for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx) // Loop over threads
     {
         // First 'big' threads have an extra job
         unsigned long int thread_jobs = calc_per_thread;
@@ -130,14 +177,12 @@ void sketch_block(std::vector<Reference>& sketches,
 {
     for (unsigned int i = start; i < end; i++)
     {
-        Reference sketch = Reference(names.at(i), files.at(i), kmer_lengths, sketchsize64); 
-        sketches[start + i] = sketch;
-        // sketches[start + i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
+        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
     }
 }
 
 // Calculates dists (run in thread)
-void self_dist_block(MatrixXd& distMat,
+void self_dist_block(MatrixXf& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      const size_t start,
@@ -149,7 +194,7 @@ void self_dist_block(MatrixXd& distMat,
     auto query_sketch = sketches.cbegin() + 1;
     size_t pos = 0;
     bool row_forward = true;
-    while (calcs < (end - start - 1))
+    while (calcs < (end - start))
     {
         if (pos >= start)
         {

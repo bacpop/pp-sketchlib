@@ -11,9 +11,9 @@
 #include <string>
 
 #include <eigen3/Eigen/Dense>
-using Eigen::MatrixXd;
+using Eigen::MatrixXf;
 
-MatrixXd create_db(const std::string& db_name,
+MatrixXf create_db(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::string>& files, 
                    const std::vector<size_t>& kmer_lengths,

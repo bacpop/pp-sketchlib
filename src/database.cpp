@@ -44,7 +44,7 @@ void Database::add_sketch(const Reference& ref)
     seed_a.write(ref.seed());
 
     // Write k-mer length vector as another group attribute
-    const std::vector<int> kmer_lengths = ref.kmer_lengths();
+    const std::vector<size_t> kmer_lengths = ref.kmer_lengths();
     HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
     kmers_a.write(kmer_lengths); 
 

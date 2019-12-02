@@ -79,7 +79,7 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
 
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 {
-    std::vector<int> kmers = this->kmer_lengths();
+    std::vector<size_t> kmers = this->kmer_lengths();
     if (kmers != query.kmer_lengths())
     {
         throw std::runtime_error("Incompatible k-mer lengths");
@@ -118,9 +118,9 @@ void Reference::add_kmer_sketch(const std::vector<uint64_t>& sketch, const int k
     usigs[kmer_len] = sketch;
 }
 
-std::vector<int> Reference::kmer_lengths() const 
+std::vector<size_t> Reference::kmer_lengths() const 
 {
-    std::vector<int> keys(usigs.size());
+    std::vector<size_t> keys(usigs.size());
     std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);
     std::sort(keys.begin(), keys.end());
     return keys;

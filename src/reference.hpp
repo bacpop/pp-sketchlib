@@ -33,7 +33,7 @@ class Reference
         double jaccard_dist(const Reference &query, const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
         std::tuple<float, float> core_acc_dist(const Reference &query, const dlib::matrix<double,0,2> &kmers) const;
-        std::vector<int> kmer_lengths() const;
+        std::vector<size_t> kmer_lengths() const;
 
         std::string name() const { return _name; }
         size_t bbits() const { return _bbits; }
