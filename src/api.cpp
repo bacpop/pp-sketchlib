@@ -6,13 +6,16 @@
 
 #include <thread>
 
-#include <Eigen/Dense>
-using Eigen::MatrixXd;
-
+#include "api.hpp"
 #include "reference.hpp"
 #include "database.hpp"
 
-// Creates sketches (run in thread)
+void self_dist_block(MatrixXd& distMat,
+                     const std::vector<Reference>& sketches,
+                     column_vector& kmer_lengths,
+                     const size_t start,
+                     const size_t end);
+
 void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<std::string>& names, 
                                     const std::vector<std::string>& files, 
@@ -20,72 +23,6 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t sketchsize64,
                                     const size_t start,
                                     const size_t end)
-{
-    for (unsigned int i = start; i < end, i++)
-    {
-        sketches[start + i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
-    }
-}
-
-// Calculates dists (run in thread)
-void self_dist_block(MatrixXd& distMat,
-                     const std::vector<Reference>& sketches,
-                     column_vector& kmer_lengths,
-                     const size_t start,
-                     const size_t end)
-{
-    // Iterate upper triangle, alternately forwards and backwards along rows
-    size_t calcs = 0;
-    auto ref_sketch = sketches.cbegin();
-    auto query_sketch = sketches.cbegin() + 1;
-    size_t pos = 0;
-    bool row_forward = true;
-    while (calcs < (end - start))
-    {
-        if (pos >= start)
-        {
-            std::tuple<double, double> dists = ref_sketch->core_acc_dist(*query_sketch);
-            distMat(pos, 0) = std::get<0>(dists);
-            distMat(pos, 1) = std::get<1>(dists);
-            calcs++;
-        }
-        
-        // Move to next element
-        if (row_forward)
-        {
-            query_sketch++;
-            if (query_sketch == sketches.end())
-            {
-                row_forward = false;
-                ref_sketch++;
-            }
-        }
-        else
-        {
-            query_sketch--;
-            if (query_sketch == ref_sketch)
-            {
-                row_forward = true;
-                ref_sketch++;
-                query_sketch = ref_sketch + 1;
-            }
-        }
-        pos++;
-    }
-}
-
-// Need T -> double to be possible
-template <class T>
-column_vector vec_to_dlib(const std::vector<T>& invec)
-{
-    column_vector dlib_vec;
-    dlib_vec.set_size(invec.size());
-    for (unsigned int i = 0; i < invec.size(); i++)
-    {
-        dlib_vec(i) = invec.at(i);
-    }
-    return(dlib_vec);
-}
 
 MatrixXd create_db(std::string& db_name,
                std::vector<std::string>& names, 
@@ -184,3 +121,78 @@ void query_db()
     // Check if ref = query, then run as self mode
     // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
 }
+
+// Creates sketches (run in thread)
+void sketch_block(std::vector<Reference>& sketches,
+                                    const std::vector<std::string>& names, 
+                                    const std::vector<std::string>& files, 
+                                    const std::vector<size_t>& kmer_lengths,
+                                    const size_t sketchsize64,
+                                    const size_t start,
+                                    const size_t end)
+{
+    for (unsigned int i = start; i < end, i++)
+    {
+        sketches[start + i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
+    }
+}
+
+// Calculates dists (run in thread)
+void self_dist_block(MatrixXd& distMat,
+                     const std::vector<Reference>& sketches,
+                     column_vector& kmer_lengths,
+                     const size_t start,
+                     const size_t end)
+{
+    // Iterate upper triangle, alternately forwards and backwards along rows
+    size_t calcs = 0;
+    auto ref_sketch = sketches.cbegin();
+    auto query_sketch = sketches.cbegin() + 1;
+    size_t pos = 0;
+    bool row_forward = true;
+    while (calcs < (end - start))
+    {
+        if (pos >= start)
+        {
+            std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_sketch->core_acc_dist(*query_sketch);
+            calcs++;
+        }
+        
+        // Move to next element
+        if (row_forward)
+        {
+            query_sketch++;
+            if (query_sketch == sketches.end())
+            {
+                row_forward = false;
+                ref_sketch++;
+                query_sketch--;
+            }
+        }
+        else
+        {
+            query_sketch--;
+            if (query_sketch == ref_sketch)
+            {
+                row_forward = true;
+                ref_sketch++;
+                query_sketch = ref_sketch + 1;
+            }
+        }
+        pos++;
+    }
+}
+
+// Need T -> double to be possible
+template <class T>
+column_vector vec_to_dlib(const std::vector<T>& invec)
+{
+    column_vector dlib_vec;
+    dlib_vec.set_size(invec.size());
+    for (unsigned int i = 0; i < invec.size(); i++)
+    {
+        dlib_vec(i) = invec.at(i);
+    }
+    return(dlib_vec);
+}
+
