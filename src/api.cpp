@@ -7,6 +7,8 @@
 #include <thread>
 #include <sys/stat.h>
 
+#include <H5Cpp.h>
+
 #include "api.hpp"
 #include "reference.hpp"
 #include "database.hpp"
@@ -44,6 +46,13 @@ MatrixXf create_db(const std::string& db_name,
     if (file_exists(db_name + ".h5"))
     {
         resketch = false;
+
+        /* Turn off HDF5 error messages */
+        H5E_auto2_t errorPrinter;
+        void** clientData;
+        H5::Exception::getAutoPrint(errorPrinter, clientData);
+        H5::Exception::dontPrint();
+
         try
         {
             HighFive::File h5_db(db_name + ".h5");
@@ -56,13 +65,24 @@ MatrixXf create_db(const std::string& db_name,
                 sketches[i] = prev_db.load_sketch(*name_it);
                 if (sketches[i].kmer_lengths() != kmer_lengths)
                 {
-                    throw std::runtime_error("kmer lengths in old database do not match those requested");
+                    throw std::runtime_error("k-mer lengths in old database do not match those requested");
                 }
                 i++;
             }
         }
+        catch (const HighFive::Exception& e)
+        {
+            // Triggered if sketch not found
+            std::cerr << "Missing sketch: " << e.what() << std::endl;
+            resketch = true;
+            
+            /* Restore previous error handler */
+            H5::Exception::setAutoPrint(errorPrinter, clientData);
+        }
         catch (const std::exception& e)
         {
+            // Triggered if k-mer lengths mismatch
+            std::cerr << "Mismatched data: " << e.what() << std::endl;
             resketch = true;
         }
     }
