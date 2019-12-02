@@ -14,7 +14,7 @@
 #include "dist.hpp"
 
 const size_t def_bbits = 14;
-// const size_t def_sketchsize64 = 32;
+const size_t def_sketchsize64 = 32;
 const bool def_isstrandpreserved = false;
 const int def_hashseed = 86;
 
@@ -26,6 +26,7 @@ auto value_selector = [](auto pair){return pair.second;};
 // Initialisation
 Reference::Reference()
    :_bbits(def_bbits),  
+    _sketchsize64(def_sketchsize64),
     _isstrandpreserved(def_isstrandpreserved), 
     _seed(def_hashseed)
 {
@@ -37,6 +38,7 @@ Reference::Reference(const std::string& name,
                      const size_t sketchsize64)
    :_name(name), 
     _bbits(def_bbits),  
+    _sketchsize64(sketchsize64),
     _isstrandpreserved(def_isstrandpreserved), 
     _seed(def_hashseed)
 {
@@ -85,13 +87,13 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      vec_to_dlib(kmers)); 
+                                                      add_intercept(vec_to_dlib(kmers))); 
     return(core_acc);
 }
 
 // Without k-mer sizes check
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
-                                                  const column_vector &kmers) const
+                                                  const dlib::matrix<double,0,2> &kmers) const
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 

@@ -4,34 +4,33 @@
  *
  */
 
-#include "reference.hpp"
-#include <dlib/optimization.h>
-
+#include <limits>
 #include <math.h>
 
-const double convergence_limit = 1e-7;
+#include "reference.hpp"
+#include <dlib/optimization.h>
+typedef dlib::matrix<double,0,1> column_vector;
 
-const column_vector x_lower(2, -std::numeric_limits<double>::infinity());
-const column_vector x_upper(2, 0);
+const double convergence_limit = 1e-7;
+const dlib::matrix<double,2,1> x_lower = {-std::numeric_limits<double>::max(), -std::numeric_limits<double>::max()};
+const dlib::matrix<double,2,1> x_upper = {0, 0};
 
 std::tuple<float, float> regress_kmers(const Reference * r1, 
                                        const Reference * r2, 
-                                       const column_vector& kmers)
+                                       const dlib::matrix<double,0,2>& kmers)
 {
     column_vector y_vec(kmers.nr());
     for (unsigned int i = 0; i < y_vec.nr(); ++i)
     {
-        y_vec(i) = log(r1->jaccard_dist(*r2, kmers(i))); 
+        y_vec(i) = log(r1->jaccard_dist(*r2, kmers(i, 1))); 
     }
     LinearLink linear_fit(kmers, y_vec);
 
-    column_vector starting_point(2);
-    starting_point(0) = -0.01;
-    starting_point(1) = 0;
+    dlib::matrix<double,2,1> starting_point = {-0.01, -0.01};
 
     try
     {
-        dlib::find_max_box_constrained(
+        dlib::find_min_box_constrained(
             dlib::bfgs_search_strategy(),
             dlib::objective_delta_stop_strategy(convergence_limit),
             [&linear_fit](const column_vector& a) {
@@ -58,4 +57,13 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
         std::cerr << std::endl << "Check for low quality genomes" << std::endl;
         exit(1);
     }
+}
+
+// Makes a design matrix
+dlib::matrix<double,0,2> add_intercept(const column_vector& kmer_vec)
+{
+    dlib::matrix<double> design(kmer_vec.nr(), 2);
+    dlib::set_colm(design, 0) = dlib::ones_matrix<double>(kmer_vec.size(), 1);
+    dlib::set_colm(design, 1) = kmer_vec;
+    return(design);
 }

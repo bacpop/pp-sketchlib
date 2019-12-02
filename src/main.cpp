@@ -9,7 +9,7 @@ int main (int argc, char* argv[])
 {
     // Runs a test of functionality
     
-    std::vector<size_t> kmer_lengths {13, 17};
+    std::vector<size_t> kmer_lengths {13, 17, 21, 25, 29};
     Reference ref(argv[1], argv[2], kmer_lengths, 32);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
     Reference query(argv[3], argv[4], kmer_lengths, 32);
@@ -28,7 +28,7 @@ int main (int argc, char* argv[])
     Reference query_read = sketch_db.load_sketch(argv[3]);
     std::cout << ref_read.jaccard_dist(query_read, 13) << std::endl;
 
-    MatrixXd dists = create_db("full.h5",
+    MatrixXd dists = create_db("full",
                                {argv[1], argv[3]}, 
                                {argv[2], argv[4]}, 
                                kmer_lengths,

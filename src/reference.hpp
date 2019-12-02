@@ -32,7 +32,7 @@ class Reference
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
-        std::tuple<float, float> core_acc_dist(const Reference &query, const column_vector &kmers) const;
+        std::tuple<float, float> core_acc_dist(const Reference &query, const dlib::matrix<double,0,2> &kmers) const;
         std::vector<int> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -55,7 +55,7 @@ class Reference
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(const Reference * r1, 
                                        const Reference * r2, 
-                                       const column_vector& kmers);
+                                       const dlib::matrix<double,0,2>& kmers);
 
 // Need T -> double to be possible
 template <class T>
@@ -69,3 +69,6 @@ column_vector vec_to_dlib(const std::vector<T>& invec)
     }
     return(dlib_vec);
 }
+
+// Defined in linear_regression.cpp
+dlib::matrix<double,0,2> add_intercept(const column_vector& kmer_vec);

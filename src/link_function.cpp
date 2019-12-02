@@ -13,7 +13,6 @@ double LinearLink::likelihood(const column_vector& parameters) const
 // Evaluate the gradient of the linear regression objective function.
 column_vector LinearLink::gradient(const column_vector& parameters) const
 {
-   // Convert from dlib column matrix to armadillo column matrix
    column_vector gradient_value(parameters.nr());
 
    // dL(b)/db = X.t()(Xb - y)

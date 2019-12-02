@@ -8,7 +8,7 @@ class LinearLink
 {
    public:
       // Initialisation
-      LinearLink(const column_vector& predictors, const column_vector& responses)
+      LinearLink(const dlib::matrix<double,0,2>& predictors, const column_vector& responses)
          : _predictors(predictors), _responses(responses)
       {
       }
@@ -20,6 +20,6 @@ class LinearLink
          const;
 
    protected:
-      column_vector _predictors;
+      dlib::matrix<double,0,2> _predictors;
       column_vector _responses;
 };
