@@ -5,6 +5,8 @@
  */
 
 #include <thread>
+#include <algorithm>
+#include <queue>
 #include <sys/stat.h>
 
 #include <H5Cpp.h>
@@ -112,23 +114,24 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 
 // Calculates distances against another database
 // Input is vectors of sketches
-DistMatrix query_db(const std::vector<Reference>& ref_sketches,
-                  const std::vector<Reference>& query_sketches,
-                  const std::vector<size_t>& kmer_lengths,
-                  const size_t num_threads) 
+DistMatrix query_db(std::vector<Reference>& ref_sketches,
+                    std::vector<Reference>& query_sketches,
+                    const std::vector<size_t>& kmer_lengths,
+                    const size_t num_threads) 
 {
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     DistMatrix distMat;
     dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
     
-    // TODO
-    // Check if ref = query, then run as self mode (sort first, need to add function to reference.hpp)
-    // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
+    // Check if ref = query, then run as self mode
+    // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere 
+    std::sort(ref_sketches.begin(), ref_sketches.end());
+    std::sort(query_sketches.begin(), query_sketches.end());
 
-    if (self)
+    if (ref_sketches == query_sketches)
     {
         // calculate dists
-        size_t dist_rows = static_cast<int>(0.5*(names.size())*(names.size() - 1));
+        size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
         distMat.resize(dist_rows, 2);
         
         size_t num_dist_threads = num_threads;
@@ -165,7 +168,45 @@ DistMatrix query_db(const std::vector<Reference>& ref_sketches,
             it->join();
         }
     }
+    // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
+    else
+    {
+        // calculate dists
+        size_t dist_rows = ref_sketches.size() * query_sketches.size();
+        distMat.resize(dist_rows, 2);
+        
+        size_t num_dist_threads = num_threads;
+        if (dist_rows < num_threads)
+        {
+            num_dist_threads = dist_rows; 
+        }
+        
+        // Loop over threads, one per ref, with FIFO queue
+        std::queue<std::thread> dist_threads;
+        size_t row_start = 0;
+        for (auto ref_it = ref_sketches.begin(); ref_it < ref_sketches.end(); ++ref_sketches)
+        {
+            // If all threads being used, wait for one to finish
+            if (dist_threads.size() == num_dist_threads)
+            {
+                dist_threads.pop().join();
+            }
 
+            dist_threads.push(std::thread(&query_dist_row,
+                              std::ref(distMat),
+                              std::cref(ref_it),
+                              std::cref(query_sketches),
+                              std::cref(kmer_mat),
+                              row_start));
+            row_start += query_sketches.size();
+        }
+        // Wait for threads to complete
+        while(!dist_threads.empty())
+        {
+            dist_threads.pop().join();
+        } 
+    }
+    
     return(distMat);
 }
 
@@ -242,7 +283,7 @@ void sketch_block(std::vector<Reference>& sketches,
     }
 }
 
-// Calculates dists (run in thread)
+// Calculates dists self v self (run in thread)
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
@@ -288,3 +329,18 @@ void self_dist_block(DistMatrix& distMat,
     }
 }
 
+// Calculates dists ref v query (run in thread)
+void query_dist_row(DistMatrix& distMat,
+                    const Reference * ref_sketch_ptr,
+                    const std::vector<Reference>& query_sketches,
+                    const dlib::matrix<double,0,2>& kmer_lengths,
+                    const size_t row_start)
+{
+    size_t current_row = row_start;
+    for (auto query_it = query_sketches.cbegin(); query_it != query_sketches.cend(); query_it++)
+    {
+        std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
+                ref_sketch_ptr->core_acc_dist(*query_it, kmer_lengths);
+        current_row++;
+    }
+}

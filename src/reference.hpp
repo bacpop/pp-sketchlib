@@ -40,6 +40,12 @@ class Reference
         size_t sketchsize64() const { return _sketchsize64; }
         int seed() const { return _seed; }
 
+        // For sorting, order by name
+        bool operator < (Reference const & a, Reference const & b) const
+        { return a._name < b._name; }
+        bool operator == (Reference const & a, Reference const & b) const
+        { return a._name == b._name; }
+
     private:
         // Info
         std::string _name;
