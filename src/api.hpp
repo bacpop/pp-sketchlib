@@ -13,7 +13,9 @@
 #include <eigen3/Eigen/Dense>
 using Eigen::MatrixXf;
 
-MatrixXf create_db(const std::string& db_name,
+typedef Matrix<float, Dynamic, 2> DistMatrix;
+
+DistMatrix create_db(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::string>& files, 
                    const std::vector<size_t>& kmer_lengths,

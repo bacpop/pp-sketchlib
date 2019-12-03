@@ -13,7 +13,7 @@
 #include "reference.hpp"
 #include "database.hpp"
 
-void self_dist_block(MatrixXf& distMat,
+void self_dist_block(DistMatrix& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      const size_t start,
@@ -27,68 +27,38 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end);
 
-bool file_exists (const std::string& name) {
+inline bool file_exists (const std::string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
-MatrixXf create_db(const std::string& db_name,
+// Create sketches, save to file
+std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::string>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
-                   const size_t num_threads) 
+                   const size_t num_threads)
 {
-    // Sketches a set of genomes
-    std::vector<Reference> sketches(names.size());
+    // Store sketches in vector
+    std::vector<Reference> sketches();
 
+    // Try loading sketches from file
     bool resketch = true;
     if (file_exists(db_name + ".h5"))
     {
-        resketch = false;
-
-        /* Turn off HDF5 error messages */
-        H5E_auto2_t errorPrinter;
-        void** clientData;
-        H5::Exception::getAutoPrint(errorPrinter, clientData);
-        H5::Exception::dontPrint();
-
-        try
+        sketches = load_sketches(db_name, names, kmer_lengths);
+        if (sketches.size() == names.size())
         {
-            HighFive::File h5_db(db_name + ".h5");
-            Database prev_db(h5_db);
-            
-            std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
-            size_t i = 0;
-            for (auto name_it = names.cbegin(); name_it != names.end(); name_it++)
-            {
-                sketches[i] = prev_db.load_sketch(*name_it);
-                if (sketches[i].kmer_lengths() != kmer_lengths)
-                {
-                    throw std::runtime_error("k-mer lengths in old database do not match those requested");
-                }
-                i++;
-            }
-        }
-        catch (const HighFive::Exception& e)
-        {
-            // Triggered if sketch not found
-            std::cerr << "Missing sketch: " << e.what() << std::endl;
-            resketch = true;
-            
-            /* Restore previous error handler */
-            H5::Exception::setAutoPrint(errorPrinter, clientData);
-        }
-        catch (const std::exception& e)
-        {
-            // Triggered if k-mer lengths mismatch
-            std::cerr << "Mismatched data: " << e.what() << std::endl;
-            resketch = true;
+            resketch = false;
         }
     }
 
+    // If not found or not matching, sketch from scratch
     if (resketch)
     {
+        sketch.resize(names.size());
+        
         // Create threaded queue for distance calculations
         size_t num_sketch_threads = num_threads;
         if (sketches.size() < num_threads)
@@ -136,64 +106,135 @@ MatrixXf create_db(const std::string& db_name,
         }
     }
 
-    // calculate dists
-    size_t dist_rows = static_cast<int>(0.5*(names.size())*(names.size() - 1));
-    size_t num_dist_threads = num_threads;
-    if (dist_rows < num_threads)
-    {
-        num_dist_threads = dist_rows; 
-    }
-    unsigned long int calc_per_thread = (unsigned long int)dist_rows / num_dist_threads;
-    unsigned int num_big_threads = dist_rows % num_dist_threads; 
-    std::cerr << "Calculating distances using " << num_dist_threads << " thread(s)" << std::endl;
+    return sketches;
+}
+
+
+// Calculates distances against another database
+// Input is vectors of sketches
+DistMatrix query_db(const std::vector<Reference>& ref_sketches,
+                  const std::vector<Reference>& query_sketches,
+                  const std::vector<size_t>& kmer_lengths,
+                  const size_t num_threads) 
+{
+    std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
+    DistMatrix distMat;
     dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
-    MatrixXf distMat(dist_rows, 2);
     
-    std::vector<std::thread> dist_threads;
-    size_t start = 0;
-    
-    for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx) // Loop over threads
+    // TODO
+    // Check if ref = query, then run as self mode (sort first, need to add function to reference.hpp)
+    // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
+
+    if (self)
     {
-        // First 'big' threads have an extra job
-        unsigned long int thread_jobs = calc_per_thread;
-        if (thread_idx < num_big_threads)
-        {
-            thread_jobs++;
-        }
+        // calculate dists
+        size_t dist_rows = static_cast<int>(0.5*(names.size())*(names.size() - 1));
+        distMat.resize(dist_rows, 2);
         
-        dist_threads.push_back(std::thread(&self_dist_block,
-                                           std::ref(distMat),
-                                           std::cref(sketches),
-                                           std::cref(kmer_mat),
-                                           start,
-                                           start + thread_jobs));
-        start += thread_jobs + 1;
-    }
-    // Wait for threads to complete
-    for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
-    {
-        it->join();
+        size_t num_dist_threads = num_threads;
+        if (dist_rows < num_threads)
+        {
+            num_dist_threads = dist_rows; 
+        }
+        unsigned long int calc_per_thread = (unsigned long int)dist_rows / num_dist_threads;
+        unsigned int num_big_threads = dist_rows % num_dist_threads; 
+        
+        // Loop over threads
+        std::vector<std::thread> dist_threads;
+        size_t start = 0;
+        for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
+        {
+            // First 'big' threads have an extra job
+            unsigned long int thread_jobs = calc_per_thread;
+            if (thread_idx < num_big_threads)
+            {
+                thread_jobs++;
+            }
+            
+            dist_threads.push_back(std::thread(&self_dist_block,
+                                            std::ref(distMat),
+                                            std::cref(ref_sketches),
+                                            std::cref(kmer_mat),
+                                            start,
+                                            start + thread_jobs));
+            start += thread_jobs + 1;
+        }
+        // Wait for threads to complete
+        for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
+        {
+            it->join();
+        }
     }
 
     return(distMat);
 }
 
-void query_db() 
+// Load sketches from a HDF5 file
+// Returns empty vector on failure
+std::vector<Reference> load_sketches(const std::string& db_name,
+                                     const std::vector<std::string>& names,
+                                     const std::vector<size_t>& kmer_lengths)
 {
-    // Calculates distances against another database
-    // Input is arbitrary lists of sample names
-    // Check if ref = query, then run as self mode
-    // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
+    // Vector of set size to store results
+    std::vector<Reference> sketches(names.size());
+    
+    /* Turn off HDF5 error messages */
+    H5E_auto2_t errorPrinter;
+    void** clientData;
+    H5::Exception::getAutoPrint(errorPrinter, clientData);
+    H5::Exception::dontPrint();
+
+    try
+    {
+        HighFive::File h5_db(db_name + ".h5");
+        Database prev_db(h5_db);
+        
+        std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
+        size_t i = 0;
+        for (auto name_it = names.cbegin(); name_it != names.end(); name_it++)
+        {
+            sketches[i] = prev_db.load_sketch(*name_it);
+            if (sketches[i].kmer_lengths() != kmer_lengths)
+            {
+                throw std::runtime_error("k-mer lengths in old database do not match those requested");
+            }
+            i++;
+        }
+    }
+    catch (const HighFive::Exception& e)
+    {
+        // Triggered if sketch not found
+        std::cerr << "Missing sketch: " << e.what() << std::endl;
+        sketches.clear()
+        
+        /* Restore previous error handler */
+        H5::Exception::setAutoPrint(errorPrinter, clientData);
+    }
+    catch (const std::exception& e)
+    {
+        // Triggered if k-mer lengths mismatch
+        std::cerr << "Mismatched data: " << e.what() << std::endl;
+        sketches.clear();
+    }
+    // Other errors (likely not safe to continue)
+    catch ()
+    {
+        std::cerr << "Error in reading previous database" << std::endl;
+        sketches.clear()
+        throw std::runtime_error("Database read error");
+    }
+
+    return(sketches);
 }
 
 // Creates sketches (run in thread)
 void sketch_block(std::vector<Reference>& sketches,
-                                    const std::vector<std::string>& names, 
-                                    const std::vector<std::string>& files, 
-                                    const std::vector<size_t>& kmer_lengths,
-                                    const size_t sketchsize64,
-                                    const size_t start,
-                                    const size_t end)
+                  const std::vector<std::string>& names, 
+                  const std::vector<std::string>& files, 
+                  const std::vector<size_t>& kmer_lengths,
+                  const size_t sketchsize64,
+                  const size_t start,
+                  const size_t end)
 {
     for (unsigned int i = start; i < end; i++)
     {
@@ -202,7 +243,7 @@ void sketch_block(std::vector<Reference>& sketches,
 }
 
 // Calculates dists (run in thread)
-void self_dist_block(MatrixXf& distMat,
+void self_dist_block(DistMatrix& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      const size_t start,

@@ -6,6 +6,12 @@
 
 #include "linear_regression.hpp"
 
+/*
+ * TODO - create new API.cpp with following functions (rename existing API.cpp)
+ * Create reference - check for existing DB (move existing code), creates sketches if none, runs query_db
+ * Query db - creates query sketches, loads ref sketches, runs query_db
+ */
+
 void fit_all(const py::array_t<float, py::array::c_style | py::array::forcecast>& raw,
              py::array_t<double, py::array::c_style | py::array::forcecast>& dists,
              const py::array_t<double, py::array::c_style | py::array::forcecast>& klist,
