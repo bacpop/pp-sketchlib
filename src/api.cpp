@@ -18,8 +18,10 @@
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     const size_t start,
-                     const size_t end);
+                     std::vector<Reference>::const_iterator ref_it,
+                     std::vector<Reference>::const_iterator query_it,
+                     size_t pos,
+                     const size_t calcs);
 
 void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<std::string>& names, 
@@ -32,6 +34,25 @@ void sketch_block(std::vector<Reference>& sketches,
 inline bool file_exists (const std::string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
+}
+
+void advance_iterators_upper_tri(const std::vector<Reference>& sketches,
+                                 std::vector<Reference>::const_iterator& ref_it,
+                                 std::vector<Reference>::const_iterator& query_it,)
+{
+    // Iterate upper triangle, alternately forwards and backwards along rows
+    query_it++;
+    if (query_it == sketches.end())
+    {
+        query_it = sketches.crbegin();
+        ref_it++;
+    }
+    else if (query_it == ref_it)
+    {
+        ref_it++;
+        query_it = sketches.cbegin();
+        query_it = ref_it + 1;
+    }
 }
 
 // Create sketches, save to file
@@ -145,6 +166,8 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Loop over threads
         std::vector<std::thread> dist_threads;
         size_t start = 0;
+        auto ref_sketch = sketches.cbegin();
+        auto query_sketch = sketches.cbegin() + 1;
         for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
         {
             // First 'big' threads have an extra job
@@ -153,14 +176,23 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
             {
                 thread_jobs++;
             }
-            
+
+
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
                                             std::cref(ref_sketches),
                                             std::cref(kmer_mat),
+                                            ref_sketch,
+                                            query_sketch,
                                             start,
-                                            start + thread_jobs));
-            start += thread_jobs + 1;
+                                            thread_jobs));
+            
+            // Move to start point for next thread
+            for (int i = 0; i < thread_jobs; i++)
+            {
+                start++;
+                advance_iterators_upper_tri(ref_sketches, ref_sketches, query_sketches);
+            }
         }
         // Wait for threads to complete
         for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
@@ -287,44 +319,18 @@ void sketch_block(std::vector<Reference>& sketches,
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     const size_t start,
-                     const size_t end)
+                     std::vector<Reference>::const_iterator ref_it,
+                     std::vector<Reference>::const_iterator query_it,
+                     size_t pos,
+                     const size_t calcs)
 {
     // Iterate upper triangle, alternately forwards and backwards along rows
-    size_t calcs = 0;
-    auto ref_sketch = sketches.cbegin();
-    auto query_sketch = sketches.cbegin() + 1;
-    size_t pos = 0;
-    bool row_forward = true;
-    while (calcs < (end - start))
+    size_t done_calcs = 0;
+    while (done_calcs < calcs)
     {
-        if (pos >= start)
-        {
-            std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_sketch->core_acc_dist(*query_sketch, kmer_lengths);
-            calcs++;
-        }
-        
-        // Move to next element
-        if (row_forward)
-        {
-            query_sketch++;
-            if (query_sketch == sketches.end())
-            {
-                row_forward = false;
-                ref_sketch++;
-                query_sketch--;
-            }
-        }
-        else
-        {
-            query_sketch--;
-            if (query_sketch == ref_sketch)
-            {
-                row_forward = true;
-                ref_sketch++;
-                query_sketch = ref_sketch + 1;
-            }
-        }
+        std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_it->core_acc_dist(*query_it, kmer_lengths);
+        advance_iterators_upper_tri(sketches, ref_it, query_it);
+        done_calcs++;
         pos++;
     }
 }
