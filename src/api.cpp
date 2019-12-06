@@ -53,7 +53,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
  *
  */ 
 upperTriIterator::upperTriIterator(const std::vector<Reference>& sketches)
-    :_query_forwards(false),
+    :_query_forwards(true),
      _end_it(sketches.cend()),
      _ref_it(sketches.cbegin()),
      _query_it(sketches.cbegin() + 1)
@@ -91,6 +91,7 @@ void upperTriIterator::advance()
         {
             _ref_it++;
             _query_it = _ref_it + 1;
+            _query_forwards = true;
         }
     }
 }
