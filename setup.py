@@ -86,13 +86,13 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='poppunk',
-    version=find_version("PopPUNK/__init__.py"),
-    description='PopPUNK (POPulation Partitioning Using Nucleotide Kmers)',
+    name='pp_sketchlib',
+    version=find_version("pp_sketch/__init__.py"),
+    description='Library of sketching functions used by PopPUNK',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/johnlees/PopPUNK',
-    author='John Lees and Nicholas Croucher',
+    url='https://github.com/johnlees/pp-sketchlib',
+    author='John Lees',
     author_email='john@johnlees.me',
     license='Apache Software License',
     classifiers=[
@@ -102,33 +102,17 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3.7',
     ],
-    python_requires='>=3.4.0',
+    python_requires='>=3.6.0',
     keywords='bacteria genomics population-genetics k-mer',
-    packages=['PopPUNK'],
+    packages=['pp_sketch'],
     entry_points={
         "console_scripts": [
-            'poppunk = PopPUNK.__main__:main',
-            'poppunk_prune = PopPUNK.prune_db:main',
-            'poppunk_references = PopPUNK.reference_pick:main',
-            'poppunk_tsne = PopPUNK.tsne:main'
+            'poppunk_sketch = pp_sketch.__main__:main'
             ]
     },
-    scripts=['scripts/poppunk_calculate_rand_indices.py', 
-             'scripts/poppunk_extract_components.py',
-             'scripts/poppunk_calculate_silhouette.py', 
-             'scripts/poppunk_extract_distances.py'],
     install_requires=['numpy',
-                      'scipy',
-                      'scikit-learn',
-                      'DendroPy',
-                      'sharedmem',
-                      'numba',
-                      'pandas',
-                      'networkx>=2.0',
-                      'matplotlib',
-                      'hdbscan'],
-    test_suite="test",
-    ext_modules=[CMakeExtension('kmer_regression')],
+                      'h5py'],
+    ext_modules=[CMakeExtension('pp_sketchlib')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False
 )

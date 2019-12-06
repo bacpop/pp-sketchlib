@@ -22,7 +22,7 @@ inline bool file_exists (const std::string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
-// Function definitions
+// Internal function definitions
 void self_dist_block(DistMatrix& distMat,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      upperTriIterator refQueryIt,
@@ -47,6 +47,11 @@ std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
                                      const std::vector<size_t>& kmer_lengths);
 
+
+/*
+ * Routines for iteration over upper triangle
+ *
+ */ 
 upperTriIterator::upperTriIterator(const std::vector<Reference>& sketches)
     :_query_forwards(false),
      _end_it(sketches.cend()),
@@ -66,9 +71,9 @@ upperTriIterator::upperTriIterator(const std::vector<Reference> & sketches,
 {
 }
 
+// Iterate upper triangle, alternately forwards and backwards along rows
 void upperTriIterator::advance()
 {
-    // Iterate upper triangle, alternately forwards and backwards along rows
     if (_query_forwards)
     {
         _query_it++;
@@ -89,6 +94,13 @@ void upperTriIterator::advance()
         }
     }
 }
+
+/*
+ * Main functions
+ * 1) Create new sketches (tries calling 3) first)
+ * 2) Calculate distances from sketches
+ * 3) Load skteches from a database
+ */
 
 // Create sketches, save to file
 std::vector<Reference> create_sketches(const std::string& db_name,
@@ -166,7 +178,6 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 
     return sketches;
 }
-
 
 // Calculates distances against another database
 // Input is vectors of sketches
@@ -334,7 +345,14 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     return(sketches);
 }
 
-// Creates sketches (run in thread)
+/* 
+ * Internal functions used by main exported functions above
+ * Loading from file
+ * Simple in thread function definitions
+ */
+
+// Creates sketches 
+// (run this function in a thread)
 void sketch_block(std::vector<Reference>& sketches,
                   const std::vector<std::string>& names, 
                   const std::vector<std::string>& files, 
@@ -349,7 +367,8 @@ void sketch_block(std::vector<Reference>& sketches,
     }
 }
 
-// Calculates dists self v self (run in thread)
+// Calculates dists self v self
+// (run this function in a thread)
 void self_dist_block(DistMatrix& distMat,
                      const dlib::matrix<double,0,2>& kmer_lengths,
                      upperTriIterator refQueryIt,
@@ -367,7 +386,8 @@ void self_dist_block(DistMatrix& distMat,
     }
 }
 
-// Calculates dists ref v query (run in thread)
+// Calculates dists ref v query
+// (run this function in a thread) 
 void query_dist_row(DistMatrix& distMat,
                     const Reference * ref_sketch_ptr,
                     const std::vector<Reference>& query_sketches,

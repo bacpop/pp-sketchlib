@@ -4,64 +4,103 @@
  *
  */
 
-#include "linear_regression.hpp"
+// pybind11 headers
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/eigen.h>
+
+namespace py = pybind11;
+
+#include "api.hpp"
 
 /*
- * TODO - create new API.cpp with following functions (rename existing API.cpp)
+ * Gives the same functions as mash.py 
  * Create reference - check for existing DB (move existing code), creates sketches if none, runs query_db
  * Query db - creates query sketches, loads ref sketches, runs query_db
  */
 
-void fit_all(const py::array_t<float, py::array::c_style | py::array::forcecast>& raw,
-             py::array_t<double, py::array::c_style | py::array::forcecast>& dists,
-             const py::array_t<double, py::array::c_style | py::array::forcecast>& klist,
-             int num_threads)
+/*
+* 
+* Here are the functions exported from api.hpp
+*
+* std::vector<Reference> create_sketches(const std::string& db_name,
+*                   const std::vector<std::string>& names, 
+*                    const std::vector<std::string>& files, 
+*                    const std::vector<size_t>& kmer_lengths,
+*                    const size_t sketchsize64,
+*                    const size_t num_threads);
+* 
+* DistMatrix query_db(std::vector<Reference>& ref_sketches,
+*                     std::vector<Reference>& query_sketches,
+*                     const std::vector<size_t>& kmer_lengths,
+*                     const size_t num_threads);
+* std::vector<Reference> load_sketches(const std::string& db_name,
+*                                     const std::vector<std::string>& names,
+*                                     const std::vector<size_t>& kmer_lengths);
+*
+*
+*/
+
+DistMatrix queryDatabase(std::string ref_db_name,
+                         std::string query_db_name,
+                         std::vector<std::string> ref_names,
+                         std::vector<std::string> query_names,
+                         std::vector<size_t> kmer_lengths,
+                         size_t num_threads = 1)
 {
-    // Check input
-    if (num_threads < 1)
-    {
-        num_threads = 1;
-    }
-
-    if (raw.shape()[0] != dists.shape()[0])
-    {
-        throw std::runtime_error("Number of rows in raw and dists must match");
-    }
-    if (raw.shape()[1] != klist.shape()[0])
-    {
-        throw std::runtime_error("Number of columns in raw must match length of klist");
-    }
-    if (dists.ndim() != 2 || dists.shape()[1] != 2)
-    {
-        throw std::runtime_error("Dists must be a 2D array with two columns");
-    }
-    if (raw.ndim() != 2)
-    {
-        throw std::runtime_error("Raw must be a 2D array");
-    }
-    if (klist.ndim() != 1)
-    {
-        throw std::runtime_error("klist must be a vector");
-    }
-
-    // convert klist
-    column_vector k_vec(klist.size());
-    auto r = klist.unchecked<1>();
-    for (unsigned int i = 0; i < klist.size(); ++i)
-    {
-        k_vec(i) = r(i);
-    }
-    //std::memcpy(k_vec.data(), klist.data(), klist.size()*sizeof(double));
-
-    // call C++ function which changes dists in place
-    // returns (Na, ta) tuple
-    fitKmers(raw, dists, k_vec, num_threads);
+    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths);
+    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths);
+    return(query_db(ref_sketches,
+                    query_sketches,
+                    kmer_lengths,
+                    num_threads));
 }
 
-PYBIND11_MODULE(kmer_regression, m)
+DistMatrix constructAndQuery(std::string db_name,
+                             std::vector<std::string> sample_names,
+                             std::vector<std::string> file_names,
+                             std::vector<size_t> kmer_lengths,
+                             size_t sketch_size,
+                             size_t num_threads = 1)
 {
-  m.doc() = "Performs regressions on k-mer lengths";
+    std::vector<Reference> ref_sketches = create_sketches(db_name,
+                                                            sample_names, 
+                                                            file_names, 
+                                                            kmer_lengths,
+                                                            sketch_size,
+                                                            num_threads);
+    return(query_db(ref_sketches,
+                    ref_sketches,
+                    kmer_lengths,
+                    num_threads));  
+}
 
-  m.def("fit_all", &fit_all, "Calculate core and accessory distances",
-        py::arg("raw").noconvert(), py::arg("dists").noconvert(), py::arg("klist"), py::arg("num_threads") = 1);
+
+PYBIND11_MODULE(pp_sketch, m)
+{
+  m.doc() = "Sketch implementation for PopPUNK";
+
+  m.def("constructDatabase", &create_sketches, "Create and save sketches", 
+        py::arg("db_name"),
+        py::arg("samples"),
+        py::arg("files"),
+        py::arg("klist"),
+        py::arg("sketch_size"),
+        py::arg("num_threads") = 1);
+  
+  m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches", 
+        py::arg("ref_db_name"),
+        py::arg("query_db_name"),
+        py::arg("rList"),
+        py::arg("qList"),
+        py::arg("klist"),
+        py::arg("num_threads") = 1);
+
+  m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
+        py::arg("db_name"),
+        py::arg("samples"),
+        py::arg("files"),
+        py::arg("klist"),
+        py::arg("sketch_size"),
+        py::arg("num_threads") = 1);
 }

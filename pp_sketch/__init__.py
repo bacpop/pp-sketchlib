@@ -1,6 +1,6 @@
 # vim: set fileencoding=<utf-8> :
-# Copyright 2019 John Lees
+# Copyright 2020 John Lees
 
-'''PopPUNK (POPulation Partitioning Using Nucleotide Kmers)'''
+'''PopPUNK sketching functions'''
 
-__version__ = '0.1.0'
+__version__ = '1.0.0'

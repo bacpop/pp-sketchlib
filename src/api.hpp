@@ -11,13 +11,14 @@
 #include <cstddef>
 #include <string>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 using Eigen::MatrixXf;
 
 #include "reference.hpp"
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, 2> DistMatrix;
 
+// These are the three functions called by python bindings
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::string>& files, 
@@ -30,6 +31,11 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads);
 
+std::vector<Reference> load_sketches(const std::string& db_name,
+                                     const std::vector<std::string>& names,
+                                     const std::vector<size_t>& kmer_lengths);
+
+// Simple class to iterate over upper triangle of distance matrix
 class upperTriIterator
 {
     public:
