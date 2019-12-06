@@ -41,6 +41,22 @@ namespace py = pybind11;
 *
 */
 
+// Calls function, but returns void
+void constructDatabase(std::string db_name,
+                       std::vector<std::string> sample_names,
+                       std::vector<std::string> file_names,
+                       std::vector<size_t> kmer_lengths,
+                       size_t sketch_size,
+                       size_t num_threads = 1)
+{
+    std::vector<Reference> ref_sketches = create_sketches(db_name,
+                                                            sample_names, 
+                                                            file_names, 
+                                                            kmer_lengths,
+                                                            sketch_size,
+                                                            num_threads);
+}
+
 DistMatrix queryDatabase(std::string ref_db_name,
                          std::string query_db_name,
                          std::vector<std::string> ref_names,
@@ -80,7 +96,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
 {
   m.doc() = "Sketch implementation for PopPUNK";
 
-  m.def("constructDatabase", &create_sketches, "Create and save sketches", 
+  m.def("constructDatabase", &constructDatabase, "Create and save sketches", 
         py::arg("db_name"),
         py::arg("samples"),
         py::arg("files"),

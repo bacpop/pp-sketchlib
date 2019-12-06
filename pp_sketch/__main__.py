@@ -74,21 +74,19 @@ def main():
                 names.append(name)
                 sequences.append(sequence)
 
-        pp_sketchlib.constructDatabase(args.db, names, sequences, kmers, args.sketch_size, args.cpus)
+        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, args.sketch_size, args.cpus)
 
     elif args.query:
         # TODO: add option to get names from HDF5 files
         rList = []
         ref = h5py.File(args.ref_db, 'r')
-        for sample_name in list(ref.keys()):
-            sketches, name = sample_name.split("/")
-            rList.append(name)
+        for sample_name in list(ref['sketches'].keys()):
+            rList.append(sample_name)
 
         qList = []
         query = h5py.File(args.query_db, 'r')
-        for sample_name in list(query.keys()):
-            sketches, name = sample_name.split("/")
-            qList.append(name)
+        for sample_name in list(query['sketches'].keys()):
+            qList.append(sample_name)
 
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, args.cpus)
           
