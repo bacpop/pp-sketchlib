@@ -8,10 +8,13 @@ add_definitions(-D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
 include_directories(${PROJECT_SOURCE_DIR}/dlib)
 include_directories(${PROJECT_SOURCE_DIR}/rollinghashcpp)
 include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
+include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
+include_directories(/Users/jlees/miniconda3/envs/pp_sketch/include) # local testing only
+link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib) # local testing only
+#find_package(HDF5 COMPONENTS C CXX HL NO_MODULE REQUIRED shared)
 #set(HighFive_DIR "${CMAKE_SOURCE_DIR}/HighFive/CMake")
 #find_package (HighFive REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(HDF5 COMPONENTS C CXX HL NO_MODULE REQUIRED shared)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

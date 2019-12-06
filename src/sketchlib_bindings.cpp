@@ -76,7 +76,7 @@ DistMatrix constructAndQuery(std::string db_name,
 }
 
 
-PYBIND11_MODULE(pp_sketch, m)
+PYBIND11_MODULE(pp_sketchlib, m)
 {
   m.doc() = "Sketch implementation for PopPUNK";
 

@@ -7,7 +7,7 @@ import os, sys
 import numpy as np
 import h5py
 
-import pp_sketch
+import pp_sketchlib
 
 from .__init__ import __version__
 
@@ -74,7 +74,7 @@ def main():
                 names.append(name)
                 sequences.append(sequence)
 
-        constructDatabase(args.db, names, sequences, kmers, args.sketch_size, args.cpus)
+        pp_sketchlib.constructDatabase(args.db, names, sequences, kmers, args.sketch_size, args.cpus)
 
     elif args.query:
         # TODO: add option to get names from HDF5 files
@@ -90,7 +90,7 @@ def main():
             sketches, name = sample_name.split("/")
             qList.append(name)
 
-        distMat = queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, args.cpus)
+        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, args.cpus)
           
         print(distMat)
 

@@ -34,6 +34,7 @@ requirements:
     - openblas
   run:
     - python
+    - numpy
     - zlib
     - bzip2
     - hdf5
