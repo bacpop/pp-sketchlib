@@ -109,7 +109,7 @@ const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
     }
     catch (const std::exception &e)
     {
-        throw std::runtime_error("Kmer length " + std::to_string(kmer_len) + " not found in sketch");
+        throw std::runtime_error("Kmer length " + std::to_string(kmer_len) + " not found in sketch " + _name);
     }
 }
 

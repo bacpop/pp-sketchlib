@@ -1,4 +1,5 @@
 
+#include <fstream>
 #include <iostream>
 
 #include "reference.hpp"
@@ -41,6 +42,21 @@ int main (int argc, char* argv[])
                               2);
 
     std::cout << dists << std::endl;
+
+    HighFive::File h5_db("listeria.h5");
+    Database listeria_db(h5_db);
+    std::ifstream rfile(argv[5]);
+    std::string name, file;
+    std::vector<Reference> listeria_sketches;
+    while (rfile >> name >> file)
+    {
+        listeria_sketches.push_back(listeria_db.load_sketch(name));
+    }
+    MatrixXf listeria_dists = query_db(listeria_sketches,
+                            listeria_sketches,
+                            kmer_lengths,
+                            1); 
+    std::cout << listeria_dists << std::endl;
 
     return 0;
 }

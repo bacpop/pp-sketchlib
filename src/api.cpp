@@ -186,6 +186,11 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads) 
 {
+    if (ref_sketches.size() < 1 or query_sketches.size() < 1)
+    {
+        throw std::runtime_error("Query with empty ref or query list!");
+    }
+    
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     DistMatrix distMat;
     dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
