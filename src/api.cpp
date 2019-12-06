@@ -15,13 +15,25 @@
 #include "reference.hpp"
 #include "database.hpp"
 
+using namespace Eigen;
+
+inline bool file_exists (const std::string& name) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
+}
+
+// Function definitions
 void self_dist_block(DistMatrix& distMat,
-                     const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     std::vector<Reference>::const_iterator ref_it,
-                     std::vector<Reference>::const_iterator query_it,
+                     upperTriIterator refQueryIt,
                      size_t pos,
                      const size_t calcs);
+
+void query_dist_row(DistMatrix& distMat,
+                    const Reference * ref_sketch_ptr,
+                    const std::vector<Reference>& query_sketches,
+                    const dlib::matrix<double,0,2>& kmer_lengths,
+                    const size_t row_start);
 
 void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<std::string>& names, 
@@ -31,27 +43,50 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end);
 
-inline bool file_exists (const std::string& name) {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
+std::vector<Reference> load_sketches(const std::string& db_name,
+                                     const std::vector<std::string>& names,
+                                     const std::vector<size_t>& kmer_lengths);
+
+upperTriIterator::upperTriIterator(const std::vector<Reference>& sketches)
+    :_query_forwards(false),
+     _end_it(sketches.cend()),
+     _ref_it(sketches.cbegin()),
+     _query_it(sketches.cbegin() + 1)
+{
 }
 
-void advance_iterators_upper_tri(const std::vector<Reference>& sketches,
-                                 std::vector<Reference>::const_iterator& ref_it,
-                                 std::vector<Reference>::const_iterator& query_it,)
+upperTriIterator::upperTriIterator(const std::vector<Reference> & sketches,
+                                   const std::vector<Reference>::const_iterator& ref_start,
+                                   const std::vector<Reference>::const_iterator& query_start,
+                                   const bool query_forwards)
+    :_query_forwards(query_forwards),
+     _end_it(sketches.cend()),
+     _ref_it(ref_start),
+     _query_it(query_start)
+{
+}
+
+void upperTriIterator::advance()
 {
     // Iterate upper triangle, alternately forwards and backwards along rows
-    query_it++;
-    if (query_it == sketches.end())
+    if (_query_forwards)
     {
-        query_it = sketches.crbegin();
-        ref_it++;
+        _query_it++;
+        if (_query_it == _end_it)
+        {
+            _query_it--;
+            _ref_it++;
+            _query_forwards = false;
+        }
     }
-    else if (query_it == ref_it)
+    else
     {
-        ref_it++;
-        query_it = sketches.cbegin();
-        query_it = ref_it + 1;
+        _query_it--;
+        if (_query_it == _ref_it)
+        {
+            _ref_it++;
+            _query_it = _ref_it + 1;
+        }
     }
 }
 
@@ -64,7 +99,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const size_t num_threads)
 {
     // Store sketches in vector
-    std::vector<Reference> sketches();
+    std::vector<Reference> sketches;
 
     // Try loading sketches from file
     bool resketch = true;
@@ -80,7 +115,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
     // If not found or not matching, sketch from scratch
     if (resketch)
     {
-        sketch.resize(names.size());
+        sketches.resize(names.size());
         
         // Create threaded queue for distance calculations
         size_t num_sketch_threads = num_threads;
@@ -166,8 +201,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Loop over threads
         std::vector<std::thread> dist_threads;
         size_t start = 0;
-        auto ref_sketch = sketches.cbegin();
-        auto query_sketch = sketches.cbegin() + 1;
+        upperTriIterator refQueryIt(ref_sketches);
         for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
         {
             // First 'big' threads have an extra job
@@ -180,18 +214,16 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
-                                            std::cref(ref_sketches),
                                             std::cref(kmer_mat),
-                                            ref_sketch,
-                                            query_sketch,
+                                            refQueryIt,
                                             start,
                                             thread_jobs));
             
             // Move to start point for next thread
-            for (int i = 0; i < thread_jobs; i++)
+            for (size_t i = 0; i < thread_jobs; i++)
             {
                 start++;
-                advance_iterators_upper_tri(ref_sketches, ref_sketches, query_sketches);
+                refQueryIt.advance();
             }
         }
         // Wait for threads to complete
@@ -216,17 +248,18 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Loop over threads, one per ref, with FIFO queue
         std::queue<std::thread> dist_threads;
         size_t row_start = 0;
-        for (auto ref_it = ref_sketches.begin(); ref_it < ref_sketches.end(); ++ref_sketches)
+        for (auto ref_it = ref_sketches.cbegin(); ref_it < ref_sketches.cend(); ref_it++)
         {
             // If all threads being used, wait for one to finish
             if (dist_threads.size() == num_dist_threads)
             {
-                dist_threads.pop().join();
+                dist_threads.front().join();
+                dist_threads.pop();            
             }
 
             dist_threads.push(std::thread(&query_dist_row,
                               std::ref(distMat),
-                              std::cref(ref_it),
+                              &(*ref_it),
                               std::cref(query_sketches),
                               std::cref(kmer_mat),
                               row_start));
@@ -235,7 +268,8 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Wait for threads to complete
         while(!dist_threads.empty())
         {
-            dist_threads.pop().join();
+            dist_threads.front().join();
+            dist_threads.pop();
         } 
     }
     
@@ -253,7 +287,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     
     /* Turn off HDF5 error messages */
     H5E_auto2_t errorPrinter;
-    void** clientData;
+    void** clientData = nullptr;
     H5::Exception::getAutoPrint(errorPrinter, clientData);
     H5::Exception::dontPrint();
 
@@ -278,7 +312,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     {
         // Triggered if sketch not found
         std::cerr << "Missing sketch: " << e.what() << std::endl;
-        sketches.clear()
+        sketches.clear();
         
         /* Restore previous error handler */
         H5::Exception::setAutoPrint(errorPrinter, clientData);
@@ -290,10 +324,10 @@ std::vector<Reference> load_sketches(const std::string& db_name,
         sketches.clear();
     }
     // Other errors (likely not safe to continue)
-    catch ()
+    catch (...)
     {
         std::cerr << "Error in reading previous database" << std::endl;
-        sketches.clear()
+        sketches.clear();
         throw std::runtime_error("Database read error");
     }
 
@@ -317,10 +351,8 @@ void sketch_block(std::vector<Reference>& sketches,
 
 // Calculates dists self v self (run in thread)
 void self_dist_block(DistMatrix& distMat,
-                     const std::vector<Reference>& sketches,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     std::vector<Reference>::const_iterator ref_it,
-                     std::vector<Reference>::const_iterator query_it,
+                     upperTriIterator refQueryIt,
                      size_t pos,
                      const size_t calcs)
 {
@@ -328,8 +360,8 @@ void self_dist_block(DistMatrix& distMat,
     size_t done_calcs = 0;
     while (done_calcs < calcs)
     {
-        std::tie(distMat(pos, 0), distMat(pos, 1)) = ref_it->core_acc_dist(*query_it, kmer_lengths);
-        advance_iterators_upper_tri(sketches, ref_it, query_it);
+        std::tie(distMat(pos, 0), distMat(pos, 1)) = refQueryIt.getRefIt()->core_acc_dist(*(refQueryIt.getQueryIt()), kmer_lengths);
+        refQueryIt.advance();
         done_calcs++;
         pos++;
     }

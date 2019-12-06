@@ -41,9 +41,9 @@ class Reference
         int seed() const { return _seed; }
 
         // For sorting, order by name
-        bool operator < (Reference const & a, Reference const & b) const
+        friend bool operator < (Reference const & a, Reference const & b)
         { return a._name < b._name; }
-        bool operator == (Reference const & a, Reference const & b) const
+        friend bool operator == (Reference const & a, Reference const & b)
         { return a._name == b._name; }
 
     private:
