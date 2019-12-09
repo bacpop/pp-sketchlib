@@ -79,12 +79,12 @@ def main():
     elif args.query:
         # TODO: add option to get names from HDF5 files
         rList = []
-        ref = h5py.File(args.ref_db, 'r')
+        ref = h5py.File(args.ref_db + ".h5", 'r')
         for sample_name in list(ref['sketches'].keys()):
             rList.append(sample_name)
 
         qList = []
-        query = h5py.File(args.query_db, 'r')
+        query = h5py.File(args.query_db + ".h5", 'r')
         for sample_name in list(query['sketches'].keys()):
             qList.append(sample_name)
 

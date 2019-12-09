@@ -303,9 +303,10 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     std::vector<Reference> sketches(names.size());
     
     /* Turn off HDF5 error messages */
-    H5E_auto2_t errorPrinter;
-    void** clientData = nullptr;
-    H5::Exception::getAutoPrint(errorPrinter, clientData);
+    /* This errors when called from python but is ok from C++ */
+    //H5E_auto2_t errorPrinter;
+    //void** clientData = nullptr;
+    //H5::Exception::getAutoPrint(errorPrinter, clientData);
     H5::Exception::dontPrint();
 
     try
@@ -330,9 +331,6 @@ std::vector<Reference> load_sketches(const std::string& db_name,
         // Triggered if sketch not found
         std::cerr << "Missing sketch: " << e.what() << std::endl;
         sketches.clear();
-        
-        /* Restore previous error handler */
-        H5::Exception::setAutoPrint(errorPrinter, clientData);
     }
     catch (const std::exception& e)
     {
@@ -348,6 +346,8 @@ std::vector<Reference> load_sketches(const std::string& db_name,
         throw std::runtime_error("Database read error");
     }
 
+    /* Restore previous error handler */
+    //H5::Exception::setAutoPrint(errorPrinter, clientData);
     return(sketches);
 }
 
