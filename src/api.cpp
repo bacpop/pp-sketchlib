@@ -304,9 +304,11 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     
     /* Turn off HDF5 error messages */
     /* This errors when called from python but is ok from C++ */
-    //H5E_auto2_t errorPrinter;
-    //void** clientData = nullptr;
-    //H5::Exception::getAutoPrint(errorPrinter, clientData);
+#ifndef PYTHON_EXT
+    H5E_auto2_t errorPrinter;
+    void** clientData = nullptr;
+    H5::Exception::getAutoPrint(errorPrinter, clientData);
+#endif
     H5::Exception::dontPrint();
 
     try
@@ -346,8 +348,10 @@ std::vector<Reference> load_sketches(const std::string& db_name,
         throw std::runtime_error("Database read error");
     }
 
+#ifndef PYTHON_EXT
     /* Restore previous error handler */
-    //H5::Exception::setAutoPrint(errorPrinter, clientData);
+    H5::Exception::setAutoPrint(errorPrinter, clientData);
+#endif
     return(sketches);
 }
 

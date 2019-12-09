@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 # Variable definitions
 set(TARGET_NAME pp_sketchlib)
+add_compile_definitions(PYTHON_EXT)
 
 # Add -O0 to remove optimizations when using gcc
 IF(CMAKE_COMPILER_IS_GNUCC)

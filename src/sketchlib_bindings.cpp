@@ -11,6 +11,8 @@
 
 namespace py = pybind11;
 
+#include <highfive/H5Exception.hpp>
+
 #include "api.hpp"
 
 /*
@@ -96,6 +98,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
 {
   m.doc() = "Sketch implementation for PopPUNK";
 
+  // Exported functions
   m.def("constructDatabase", &constructDatabase, "Create and save sketches", 
         py::arg("db_name"),
         py::arg("samples"),
@@ -119,4 +122,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("sketch_size"),
         py::arg("num_threads") = 1);
+
+    // Exceptions
+    py::register_exception<HighFive::Exception>(m, "HDF5Exception");
 }
