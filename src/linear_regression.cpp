@@ -44,7 +44,7 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
             x_upper);
 
         // Store core/accessory in dists
-        return(std::make_tuple(1 - exp(starting_point(1)), exp(starting_point(0))));
+        return(std::make_tuple(1 - exp(starting_point(1)), 1 - exp(starting_point(0))));
     }
     catch (const std::exception& e)
     {

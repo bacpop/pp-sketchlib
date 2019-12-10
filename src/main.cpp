@@ -10,16 +10,18 @@ int main (int argc, char* argv[])
 {
     // Runs a test of functionality
     
-    std::vector<size_t> kmer_lengths {13, 17, 21, 25, 29};
-    Reference ref(argv[1], argv[2], kmer_lengths, 32);
+    std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
+    Reference ref(argv[1], argv[2], kmer_lengths, 156);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
-    Reference query(argv[3], argv[4], kmer_lengths, 32);
+    Reference query(argv[3], argv[4], kmer_lengths, 156);
 
-    std::cout << ref.jaccard_dist(ref, 13) << std::endl;      // Should be 1
-    // std::cout << ref.dist(ref_copy, 13) << std::endl; // Should be 1 (test of consistent randomness in sketch)
-    std::cout << ref.jaccard_dist(query, 13) << std::endl;
-    std::cout << ref.jaccard_dist(query, 17) << std::endl;
-    std::cout << query.jaccard_dist(ref, 17) << std::endl;
+    std::cout << ref.jaccard_dist(ref, 15) << std::endl;      // Should be 1
+    std::cout << ref.jaccard_dist(query, 15) << std::endl;
+    std::cout << ref.jaccard_dist(query, 29) << std::endl;
+    std::cout << query.jaccard_dist(ref, 29) << std::endl;
+
+    auto core_acc = ref.core_acc_dist(query); 
+    std::cout << std::get<0>(core_acc) << std::get<1>(core_acc) << std::endl;
 
     Database sketch_db("sketch.h5");
     sketch_db.add_sketch(ref);

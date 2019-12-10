@@ -11,6 +11,37 @@ import pp_sketchlib
 
 from .__init__ import __version__
 
+def iterDistRows(refSeqs, querySeqs, self=True):
+    """Gets the ref and query ID for each row of the distance matrix
+
+    Returns an iterable with ref and query ID pairs by row.
+
+    Args:
+        refSeqs (list)
+            List of reference sequence names.
+        querySeqs (list)
+            List of query sequence names.
+        self (bool)
+            Whether a self-comparison, used when constructing a database.
+
+            Requires refSeqs == querySeqs
+
+            Default is True
+    Returns:
+        ref, query (str, str)
+            Iterable of tuples with ref and query names for each distMat row.
+    """
+    if self:
+        if refSeqs != querySeqs:
+            raise RuntimeError('refSeqs must equal querySeqs for db building (self = true)')
+        for i, ref in enumerate(refSeqs):
+            for j in range(i + 1, len(refSeqs)):
+                yield(refSeqs[j], ref)
+    else:
+        for query in querySeqs:
+            for ref in refSeqs:
+                yield(ref, query)
+
 def get_options():
     import argparse
 
@@ -89,8 +120,12 @@ def main():
             qList.append(sample_name)
 
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, args.cpus)
-          
-        print(distMat)
+        
+        # get names order
+        names = iterDistRows(rList, qList, rList == qList)
+        sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
+        for i, (ref, query) in enumerate(names):
+            sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
 
     sys.exit(0)
 
