@@ -30,6 +30,7 @@ class Reference
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
+        void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
         std::tuple<float, float> core_acc_dist(const Reference &query, const dlib::matrix<double,0,2> &kmers) const;

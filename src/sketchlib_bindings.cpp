@@ -93,6 +93,14 @@ DistMatrix constructAndQuery(std::string db_name,
                     num_threads));  
 }
 
+double jaccardDist(std::string db_name,
+                   std::string sample1,
+                   std::string sample2,
+                   size_t kmer_size)
+{
+    auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
+    return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size));
+}
 
 PYBIND11_MODULE(pp_sketchlib, m)
 {
@@ -122,6 +130,12 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("sketch_size"),
         py::arg("num_threads") = 1);
+
+  m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",
+        py::arg("db_name"),
+        py::arg("ref_name"),
+        py::arg("query_name"),
+        py::arg("kmer_length"));
 
     // Exceptions
     py::register_exception<HighFive::Exception>(m, "HDF5Exception");

@@ -118,6 +118,11 @@ void Reference::add_kmer_sketch(const std::vector<uint64_t>& sketch, const int k
     usigs[kmer_len] = sketch;
 }
 
+void Reference::remove_kmer_sketch(const size_t kmer_len)
+{
+    usigs.erase(kmer_len);
+}
+
 std::vector<size_t> Reference::kmer_lengths() const 
 {
     std::vector<size_t> keys(usigs.size());

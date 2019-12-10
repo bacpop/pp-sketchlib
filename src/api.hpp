@@ -33,7 +33,8 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 
 std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
-                                     const std::vector<size_t>& kmer_lengths);
+                                     std::vector<size_t> kmer_lengths,
+                                     const bool messages = true);
 
 // Simple class to iterate over upper triangle of distance matrix
 class upperTriIterator

@@ -43,14 +43,8 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end);
 
-std::vector<Reference> load_sketches(const std::string& db_name,
-                                     const std::vector<std::string>& names,
-                                     const std::vector<size_t>& kmer_lengths);
-
-
 /*
  * Routines for iteration over upper triangle
- *
  */ 
 upperTriIterator::upperTriIterator(const std::vector<Reference>& sketches)
     :_query_forwards(true),
@@ -297,13 +291,15 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 // Returns empty vector on failure
 std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
-                                     const std::vector<size_t>& kmer_lengths)
+                                     std::vector<size_t> kmer_lengths,
+                                     const bool messages)
 {
     // Vector of set size to store results
     std::vector<Reference> sketches(names.size());
-    
+    std::sort(kmer_lengths.begin(), kmer_lengths.end());
+
     /* Turn off HDF5 error messages */
-    /* This errors when called from python but is ok from C++ */
+    /* getAutoPrint throws and unknown exception when called from python, but is ok from C++ */
 #ifndef PYTHON_EXT
     H5E_auto2_t errorPrinter;
     void** clientData = nullptr;
@@ -316,15 +312,37 @@ std::vector<Reference> load_sketches(const std::string& db_name,
         HighFive::File h5_db(db_name + ".h5");
         Database prev_db(h5_db);
         
-        std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
+        if (messages)
+        {
+            std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
+        }
         size_t i = 0;
         for (auto name_it = names.cbegin(); name_it != names.end(); name_it++)
         {
             sketches[i] = prev_db.load_sketch(*name_it);
-            if (sketches[i].kmer_lengths() != kmer_lengths)
+
+            // Remove unwanted k-mer lengths from sketch dict
+            auto loaded_sizes = sketches[i].kmer_lengths();
+            std::sort(loaded_sizes.begin(), loaded_sizes.end());
+            auto kmer_it = kmer_lengths.begin(); auto loaded_it = loaded_sizes.begin();
+            while (kmer_it != kmer_lengths.end() && loaded_it != loaded_sizes.end())
+            {
+                if (*kmer_it == *loaded_it)
+                {
+                    kmer_it++;
+                }
+                else
+                {
+                    sketches[i].remove_kmer_sketch(*loaded_it);
+                }
+                loaded_it++;
+            }
+            // throw if any of the requested k-mer lengths were not found
+            if (kmer_it != kmer_lengths.end())
             {
                 throw std::runtime_error("k-mer lengths in old database do not match those requested");
             }
+
             i++;
         }
     }
