@@ -177,7 +177,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
                                             std::cref(kmer_mat),
-                                            ref_sketches,
+                                            std::cref(ref_sketches),
                                             start,
                                             thread_jobs));
             start += thread_jobs; 

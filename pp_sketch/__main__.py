@@ -72,7 +72,7 @@ def get_options():
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
-    kmerGroup.add_argument('--sketch-size', default=32, type=int, help='Kmer sketch size [default = 32]')
+    kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
 
     other = parser.add_argument_group('Other')
     other.add_argument('--cpus',
@@ -105,7 +105,7 @@ def main():
                 names.append(name)
                 sequences.append(sequence)
 
-        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, args.sketch_size, args.cpus)
+        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, int(round(args.sketch_size/64)), args.cpus)
 
     elif args.query:
         # TODO: add option to get names from HDF5 files
