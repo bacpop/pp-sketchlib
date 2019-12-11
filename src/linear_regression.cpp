@@ -11,7 +11,7 @@
 #include <dlib/optimization.h>
 typedef dlib::matrix<double,0,1> column_vector;
 
-const double convergence_limit = 1e-7;
+const double convergence_limit = 1e-10;
 const dlib::matrix<double,2,1> x_lower = {-std::numeric_limits<double>::max(), -std::numeric_limits<double>::max()};
 const dlib::matrix<double,2,1> x_upper = {0, 0};
 
@@ -26,7 +26,7 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
     }
     LinearLink linear_fit(kmers, y_vec);
 
-    dlib::matrix<double,2,1> starting_point = {-0.01, -0.01};
+    dlib::matrix<double,2,1> starting_point = {0, 0};
 
     try
     {
