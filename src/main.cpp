@@ -21,7 +21,7 @@ int main (int argc, char* argv[])
     std::cout << query.jaccard_dist(ref, 29) << std::endl;
 
     auto core_acc = ref.core_acc_dist(query); 
-    std::cout << std::get<0>(core_acc) << std::get<1>(core_acc) << std::endl;
+    std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
 
     Database sketch_db("sketch.h5");
     sketch_db.add_sketch(ref);
@@ -29,7 +29,7 @@ int main (int argc, char* argv[])
 
     Reference ref_read = sketch_db.load_sketch(argv[1]);
     Reference query_read = sketch_db.load_sketch(argv[3]);
-    std::cout << ref_read.jaccard_dist(query_read, 13) << std::endl;
+    std::cout << ref_read.jaccard_dist(query_read, 15) << std::endl;
 
     std::vector<Reference> ref_sketches = create_sketches("full",
                                {argv[1], argv[3]}, 

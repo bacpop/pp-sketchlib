@@ -25,8 +25,8 @@ inline bool file_exists (const std::string& name) {
 // Internal function definitions
 void self_dist_block(DistMatrix& distMat,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     upperTriIterator refQueryIt,
-                     size_t pos,
+                     const std::vector<Reference>& sketches,
+                     const size_t start_pos,
                      const size_t calcs);
 
 void query_dist_row(DistMatrix& distMat,
@@ -42,53 +42,6 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t sketchsize64,
                                     const size_t start,
                                     const size_t end);
-
-/*
- * Routines for iteration over upper triangle
- */ 
-upperTriIterator::upperTriIterator(const std::vector<Reference>& sketches)
-    :_query_forwards(true),
-     _end_it(sketches.cend()),
-     _ref_it(sketches.cbegin()),
-     _query_it(sketches.cbegin() + 1)
-{
-}
-
-upperTriIterator::upperTriIterator(const std::vector<Reference> & sketches,
-                                   const std::vector<Reference>::const_iterator& ref_start,
-                                   const std::vector<Reference>::const_iterator& query_start,
-                                   const bool query_forwards)
-    :_query_forwards(query_forwards),
-     _end_it(sketches.cend()),
-     _ref_it(ref_start),
-     _query_it(query_start)
-{
-}
-
-// Iterate upper triangle, alternately forwards and backwards along rows
-void upperTriIterator::advance()
-{
-    if (_query_forwards)
-    {
-        _query_it++;
-        if (_query_it == _end_it)
-        {
-            _query_it--;
-            _ref_it++;
-            _query_forwards = false;
-        }
-    }
-    else
-    {
-        _query_it--;
-        if (_query_it == _ref_it)
-        {
-            _ref_it++;
-            _query_it = _ref_it + 1;
-            _query_forwards = true;
-        }
-    }
-}
 
 /*
  * Main functions
@@ -212,7 +165,6 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Loop over threads
         std::vector<std::thread> dist_threads;
         size_t start = 0;
-        upperTriIterator refQueryIt(ref_sketches);
         for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
         {
             // First 'big' threads have an extra job
@@ -222,20 +174,13 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                 thread_jobs++;
             }
 
-
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
                                             std::cref(kmer_mat),
-                                            refQueryIt,
+                                            ref_sketches,
                                             start,
                                             thread_jobs));
-            
-            // Move to start point for next thread
-            for (size_t i = 0; i < thread_jobs; i++)
-            {
-                start++;
-                refQueryIt.advance();
-            }
+            start += thread_jobs; 
         }
         // Wait for threads to complete
         for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
@@ -399,18 +344,32 @@ void sketch_block(std::vector<Reference>& sketches,
 // (run this function in a thread)
 void self_dist_block(DistMatrix& distMat,
                      const dlib::matrix<double,0,2>& kmer_lengths,
-                     upperTriIterator refQueryIt,
-                     size_t pos,
+                     const std::vector<Reference>& sketches,
+                     const size_t start_pos,
                      const size_t calcs)
 {
-    // Iterate upper triangle, alternately forwards and backwards along rows
+    // Iterate upper triangle
     size_t done_calcs = 0;
-    while (done_calcs < calcs)
+    size_t pos = 0;
+    for (size_t i = 0; i < sketches.size(); i++)
     {
-        std::tie(distMat(pos, 0), distMat(pos, 1)) = refQueryIt.getRefIt()->core_acc_dist(*(refQueryIt.getQueryIt()), kmer_lengths);
-        refQueryIt.advance();
-        done_calcs++;
-        pos++;
+        for (size_t j = i + 1; j < sketches.size(); j++)
+        {
+            if (pos >= start_pos)
+            {
+                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches.at(i).core_acc_dist(sketches.at(j), kmer_lengths);
+                done_calcs++;
+                if (done_calcs >= calcs)
+                {
+                    break;
+                }
+            }
+            pos++;
+        }
+        if (done_calcs >= calcs)
+        {
+            break;
+        }
     }
 }
 
