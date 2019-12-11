@@ -44,21 +44,37 @@ int main (int argc, char* argv[])
                               2);
 
     std::cout << dists << std::endl;
+    
+    std::ifstream rfile(argv[5]);
+    std::string name, file;
+    std::vector<std::string> names, files;
+    while (rfile >> name >> file)
+    {
+        names.push_back(name);
+        files.push_back(file);
+    } 
+
+    create_sketches("listeria",
+                    names, 
+                    files, 
+                    kmer_lengths,
+                    156,
+                    4);
 
     HighFive::File h5_db("listeria.h5");
     Database listeria_db(h5_db);
-    std::ifstream rfile(argv[5]);
-    std::string name, file;
     std::vector<Reference> listeria_sketches;
-    while (rfile >> name >> file)
+    for (auto name_it = names.cbegin(); name_it != names.cend(); name_it++)
     {
-        listeria_sketches.push_back(listeria_db.load_sketch(name));
+        listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
     }
     MatrixXf listeria_dists = query_db(listeria_sketches,
                             listeria_sketches,
                             kmer_lengths,
                             4); 
     std::cout << listeria_dists << std::endl;
+
+
 
     return 0;
 }
