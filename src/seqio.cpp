@@ -17,6 +17,19 @@ KSEQ_INIT(gzFile, gzread)
 #include <iterator>
 #include <utility>
 
+// code from https://stackoverflow.com/questions/735204/convert-a-string-in-c-to-upper-case
+char ascii_toupper_char(char c) {
+    return ('a' <= c && c <= 'z') ? c^0x20 : c;    // ^ autovectorizes to PXOR: runs on more ports than paddb
+}
+
+size_t strtoupper_autovec(char *dst, const char *src) {
+    size_t len = strlen(src);
+    for (size_t i=0 ; i<len ; ++i) {
+        dst[i] = ascii_toupper_char(src[i]);  // gcc does the vector range check with psubusb / pcmpeqb instead of pcmpgtb
+    }
+    return len;
+}
+
 SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
 {
     /* 
@@ -33,7 +46,9 @@ SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
     {
         if (strlen(seq->seq.s) >= kmer_len)
         {
-            sequence.push_back(seq->seq.s);
+            char upper_seq[strlen(seq->seq.s)];
+            strtoupper_autovec(upper_seq, seq->seq.s);
+            sequence.push_back(upper_seq);
         }
     }
     

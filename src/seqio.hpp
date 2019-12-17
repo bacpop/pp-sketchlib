@@ -22,8 +22,8 @@ class SeqBuf
     public:
         SeqBuf(const std::string& filename, const size_t kmer_len);
 
-	    unsigned char getnext() const { return toupper(*next_base); }
-	    unsigned char getout() const { return toupper(*out_base); }
+	    unsigned char getnext() const { return *next_base; }
+	    unsigned char getout() const { return *out_base; }
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return end; }
 
