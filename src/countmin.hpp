@@ -19,7 +19,7 @@ class CountMin
     public:
         CountMin(const uint8_t min_count);
 
-        uint8_t add_count(const uint64_t doublehash);
+        uint8_t add_count(uint64_t doublehash);
         bool above_min(const uint64_t doublehash);
 
     private:

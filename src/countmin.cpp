@@ -22,7 +22,7 @@ CountMin::CountMin(const uint8_t min_count)
     }
 }
 
-uint8_t CountMin::add_count(const uint64_t doublehash)
+uint8_t CountMin::add_count(uint64_t doublehash)
 {
     uint8_t min_count = 0;
     for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr++)
@@ -35,7 +35,12 @@ uint8_t CountMin::add_count(const uint64_t doublehash)
             {
                 min_count = hash_table[hash_nr][hash];
             }
-        } 
+        }
+        else
+        {
+            min_count = std::numeric_limits<uint8_t>::max();
+        }
+        
     }
     return(min_count);
 }
