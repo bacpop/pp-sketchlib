@@ -7,6 +7,7 @@
 #include <thread>
 #include <algorithm>
 #include <queue>
+#include <limits>
 #include <sys/stat.h>
 
 #include <H5Cpp.h>
@@ -40,6 +41,7 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<std::vector<std::string>>& files, 
                                     const std::vector<size_t>& kmer_lengths,
                                     const size_t sketchsize64,
+                                    const uint8_t min_count,
                                     const size_t start,
                                     const size_t end);
 
@@ -56,6 +58,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::vector<std::string>>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   size_t min_count,
                    const size_t num_threads)
 {
     // Store sketches in vector
@@ -76,6 +79,12 @@ std::vector<Reference> create_sketches(const std::string& db_name,
     if (resketch)
     {
         sketches.resize(names.size());
+
+        // Truncate min_count if above 8 bit range
+        if (min_count > std::numeric_limits<uint8_t>::max())
+        {
+            min_count = std::numeric_limits<uint8_t>::max(); 
+        }
         
         // Create threaded queue for distance calculations
         size_t num_sketch_threads = num_threads;
@@ -105,6 +114,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                                             std::cref(files),
                                             std::cref(kmer_lengths),
                                             sketchsize64,
+                                            min_count,
                                             start,
                                             start + thread_jobs));
             start += thread_jobs;
@@ -331,12 +341,13 @@ void sketch_block(std::vector<Reference>& sketches,
                   const std::vector<std::vector<std::string>>& files, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
+                  const uint8_t min_count,
                   const size_t start,
                   const size_t end)
 {
     for (unsigned int i = start; i < end; i++)
     {
-        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64);
+        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, min_count);
     }
 }
 

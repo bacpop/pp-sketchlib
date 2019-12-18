@@ -26,6 +26,7 @@ class SeqBuf
 	    unsigned char getout() const { return *out_base; }
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return end; }
+        bool is_reads() const { return _reads; }
 
         bool move_next(size_t word_length);
         void reset();
@@ -39,4 +40,5 @@ class SeqBuf
         std::string::iterator out_base;
 
         bool end;
+        bool _reads;
 };

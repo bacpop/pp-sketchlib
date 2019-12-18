@@ -18,4 +18,5 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const size_t kmer_len, 
                              const size_t bbits,
                              const bool isstrandpreserved,
-                             const int hashseed);
+                             const int hashseed,
+                             const uint8_t min_count = 0);

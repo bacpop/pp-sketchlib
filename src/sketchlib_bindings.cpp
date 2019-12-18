@@ -49,6 +49,7 @@ void constructDatabase(std::string db_name,
                        std::vector<std::vector<std::string>> file_names,
                        std::vector<size_t> kmer_lengths,
                        size_t sketch_size,
+                       size_t min_count = 0,
                        size_t num_threads = 1)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
@@ -56,6 +57,7 @@ void constructDatabase(std::string db_name,
                                                             file_names, 
                                                             kmer_lengths,
                                                             sketch_size,
+                                                            min_count,
                                                             num_threads);
 }
 
@@ -79,6 +81,7 @@ DistMatrix constructAndQuery(std::string db_name,
                              std::vector<std::vector<std::string>> file_names,
                              std::vector<size_t> kmer_lengths,
                              size_t sketch_size,
+                             size_t min_count = 0,
                              size_t num_threads = 1)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
@@ -86,6 +89,7 @@ DistMatrix constructAndQuery(std::string db_name,
                                                             file_names, 
                                                             kmer_lengths,
                                                             sketch_size,
+                                                            min_count,
                                                             num_threads);
     return(query_db(ref_sketches,
                     ref_sketches,
@@ -113,6 +117,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("files"),
         py::arg("klist"),
         py::arg("sketch_size"),
+        py::arg("min_count") = 0,
         py::arg("num_threads") = 1);
   
   m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches", 
@@ -129,6 +134,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("files"),
         py::arg("klist"),
         py::arg("sketch_size"),
+        py::arg("min_count") = 0,
         py::arg("num_threads") = 1);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",

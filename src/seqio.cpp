@@ -37,7 +37,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     *   May be faster as hashing at multiple k-mers?
     *   May be better to treat a C strings
     */
-    
+    _reads = false;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
         // from kseq.h
@@ -53,6 +53,12 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 strtoupper_autovec(upper_seq, seq->seq.s);
                 sequence.push_back(upper_seq);
                 delete upper_seq;
+            }
+            
+            // Presence of any quality scores - assume reads as input
+            if (seq->qual.l)
+            {
+                _reads = true;
             }
         }
         

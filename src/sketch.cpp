@@ -10,12 +10,14 @@
 #include <random>
 #include <vector>
 #include <exception>
+#include <memory>
 
 #include <cyclichash.h>
 
 #include "sketch.hpp"
 
 #include "bitfuncs.hpp"
+#include "countmin.hpp"
 
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL; 
 
@@ -113,7 +115,8 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-void binupdate(std::vector<uint64_t> &signs, 
+void binupdate(std::vector<uint64_t> &signs,
+               CountMin * read_counter,
 		       rollinghash& hf, 
 		       bool isstrandpreserved, 
                uint64_t binsize)
@@ -127,11 +130,16 @@ void binupdate(std::vector<uint64_t> &signs,
         auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
         signval = doublehash(signval, signval2);
     }
-    binsign(signs, signval, binsize);
+
+    if (read_counter == nullptr || read_counter->above_min(signval))
+    {
+        binsign(signs, signval, binsize);
+    }
 }
 
 void hashupdate(SeqBuf & seq, 
-               std::vector<uint64_t> &signs, 
+               std::vector<uint64_t> &signs,
+               CountMin * read_counter, 
 		       rollinghash& hf, 
 		       bool isstrandpreserved, 
                uint64_t binsize) 
@@ -141,11 +149,12 @@ void hashupdate(SeqBuf & seq,
 	// std::cout << seq.getout() << "\t" << seq.getnext() << std::endl;
 	// std::cout << RCMAP[(int)seq.getout()] << "\t" << RCMAP[(int)seq.getnext()] << std::endl;
 
-    binupdate(signs, hf, isstrandpreserved, binsize);
+    binupdate(signs, read_counter, hf, isstrandpreserved, binsize);
 }
 
 void hashinit(SeqBuf & seq, 
               std::vector<uint64_t> &signs, 
+              CountMin * read_counter,
 		      rollinghash& hf, 
 		      bool isstrandpreserved, 
               uint64_t binsize,
@@ -178,8 +187,8 @@ void hashinit(SeqBuf & seq,
         std::get<1>(hf).eat(*k_rev); 
     }
     // std::cout << std::endl;
-    binupdate(signs, hf, isstrandpreserved, binsize);
-    hashupdate(seq, signs, hf, isstrandpreserved, binsize);
+    binupdate(signs, read_counter, hf, isstrandpreserved, binsize);
+    hashupdate(seq, signs, read_counter, hf, isstrandpreserved, binsize);
 }
 
 std::vector<uint64_t> sketch(const std::string & name,
@@ -188,15 +197,23 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const size_t kmer_len, 
                              const size_t bbits,
                              const bool isstrandpreserved,
-                             const int hashseed)
+                             const int hashseed,
+                             const uint8_t min_count)
 {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
-    
+
+    // This is needed as we don't get optional until C++17
+    CountMin * read_counter = nullptr;
+    if (seq.is_reads())
+    {
+        read_counter = new CountMin(min_count);
+    }
+
     rollinghash hf = init_hashes(kmer_len, hashseed); 
-    hashinit(seq, signs, hf, isstrandpreserved, binsize, kmer_len);
+    hashinit(seq, signs, read_counter, hf, isstrandpreserved, binsize, kmer_len);
     
     // Rolling hash through string
     while (!seq.eof()) 
@@ -204,15 +221,16 @@ std::vector<uint64_t> sketch(const std::string & name,
         bool looped = seq.move_next(kmer_len);
         if (looped && ! seq.eof()) 
         { 
-            hashinit(seq, signs, hf, isstrandpreserved, binsize, kmer_len);
+            hashinit(seq, signs, read_counter, hf, isstrandpreserved, binsize, kmer_len);
         }
         else
         {
-            hashupdate(seq, signs, hf, isstrandpreserved, binsize);
+            hashupdate(seq, signs, read_counter, hf, isstrandpreserved, binsize);
         }
         
     }
-    
+    delete read_counter;
+
     // Apply densifying function
     int res = densifybin(signs);
     if (res != 0) 
