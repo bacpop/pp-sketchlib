@@ -37,7 +37,7 @@ void query_dist_row(DistMatrix& distMat,
 
 void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<std::string>& names, 
-                                    const std::vector<std::string>& files, 
+                                    const std::vector<std::vector<std::string>>& files, 
                                     const std::vector<size_t>& kmer_lengths,
                                     const size_t sketchsize64,
                                     const size_t start,
@@ -53,7 +53,7 @@ void sketch_block(std::vector<Reference>& sketches,
 // Create sketches, save to file
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
-                   const std::vector<std::string>& files, 
+                   const std::vector<std::vector<std::string>>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    const size_t num_threads)
@@ -328,7 +328,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
 // (run this function in a thread)
 void sketch_block(std::vector<Reference>& sketches,
                   const std::vector<std::string>& names, 
-                  const std::vector<std::string>& files, 
+                  const std::vector<std::vector<std::string>>& files, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
                   const size_t start,
@@ -357,7 +357,7 @@ void self_dist_block(DistMatrix& distMat,
         {
             if (pos >= start_pos)
             {
-                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches.at(i).core_acc_dist(sketches.at(j), kmer_lengths);
+                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_lengths);
                 done_calcs++;
                 if (done_calcs >= calcs)
                 {

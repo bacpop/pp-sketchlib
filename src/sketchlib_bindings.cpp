@@ -27,7 +27,7 @@ namespace py = pybind11;
 *
 * std::vector<Reference> create_sketches(const std::string& db_name,
 *                   const std::vector<std::string>& names, 
-*                    const std::vector<std::string>& files, 
+*                    const std::vector<std::vector<std::string>>& files, 
 *                    const std::vector<size_t>& kmer_lengths,
 *                    const size_t sketchsize64,
 *                    const size_t num_threads);
@@ -46,7 +46,7 @@ namespace py = pybind11;
 // Calls function, but returns void
 void constructDatabase(std::string db_name,
                        std::vector<std::string> sample_names,
-                       std::vector<std::string> file_names,
+                       std::vector<std::vector<std::string>> file_names,
                        std::vector<size_t> kmer_lengths,
                        size_t sketch_size,
                        size_t num_threads = 1)
@@ -76,7 +76,7 @@ DistMatrix queryDatabase(std::string ref_db_name,
 
 DistMatrix constructAndQuery(std::string db_name,
                              std::vector<std::string> sample_names,
-                             std::vector<std::string> file_names,
+                             std::vector<std::vector<std::string>> file_names,
                              std::vector<size_t> kmer_lengths,
                              size_t sketch_size,
                              size_t num_threads = 1)

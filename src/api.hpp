@@ -21,7 +21,7 @@ typedef Eigen::Matrix<float, Eigen::Dynamic, 2> DistMatrix;
 // These are the three functions called by python bindings
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
-                   const std::vector<std::string>& files, 
+                   const std::vector<std::vector<std::string>>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    const size_t num_threads);

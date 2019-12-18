@@ -11,9 +11,9 @@ int main (int argc, char* argv[])
     // Runs a test of functionality
     
     std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
-    Reference ref(argv[1], argv[2], kmer_lengths, 156);
+    Reference ref(argv[1], {argv[2]}, kmer_lengths, 156);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
-    Reference query(argv[3], argv[4], kmer_lengths, 156);
+    Reference query(argv[3], {argv[4]}, kmer_lengths, 156);
 
     std::cout << ref.jaccard_dist(ref, 15) << std::endl;      // Should be 1
     std::cout << ref.jaccard_dist(query, 15) << std::endl;
@@ -47,11 +47,13 @@ int main (int argc, char* argv[])
     
     std::ifstream rfile(argv[5]);
     std::string name, file;
-    std::vector<std::string> names, files;
+    std::vector<std::string> names;
+    std::vector<std::vector<std::string>> files;
     while (rfile >> name >> file)
     {
         names.push_back(name);
-        files.push_back(file);
+        std::vector<std::string> file_list = {file};
+        files.push_back(file_list);
     } 
 
     create_sketches("listeria",

@@ -20,7 +20,7 @@
 class SeqBuf 
 {
     public:
-        SeqBuf(const std::string& filename, const size_t kmer_len);
+        SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
 
 	    unsigned char getnext() const { return *next_base; }
 	    unsigned char getout() const { return *out_base; }

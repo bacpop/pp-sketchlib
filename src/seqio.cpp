@@ -30,7 +30,7 @@ size_t strtoupper_autovec(char *dst, const char *src) {
     return len;
 }
 
-SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
+SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
 {
     /* 
     *   Reads entire sequence to memory
@@ -38,23 +38,28 @@ SeqBuf::SeqBuf(const std::string& filename, const size_t kmer_len)
     *   May be better to treat a C strings
     */
     
-    // from kseq.h
-    gzFile fp = gzopen(filename.c_str(), "r");
-    kseq_t *seq = kseq_init(fp);
-    int l;
-    while ((l = kseq_read(seq)) >= 0) 
+    for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
-        if (strlen(seq->seq.s) >= kmer_len)
+        // from kseq.h
+        gzFile fp = gzopen(name_it->c_str(), "r");
+        kseq_t *seq = kseq_init(fp);
+        int l;
+        while ((l = kseq_read(seq)) >= 0) 
         {
-            char upper_seq[strlen(seq->seq.s)];
-            strtoupper_autovec(upper_seq, seq->seq.s);
-            sequence.push_back(upper_seq);
+            if (strlen(seq->seq.s) >= kmer_len)
+            {
+                // Need to allocate memory for long C string array
+                char * upper_seq = new char[strlen(seq->seq.s)]; 
+                strtoupper_autovec(upper_seq, seq->seq.s);
+                sequence.push_back(upper_seq);
+                delete upper_seq;
+            }
         }
+        
+        // If put back into object, move this to destructor below
+        kseq_destroy(seq);
+        gzclose(fp);
     }
-    
-    // If put back into object, move this to destructor below
-    kseq_destroy(seq);
-    gzclose(fp);
     this->reset();
 }
 

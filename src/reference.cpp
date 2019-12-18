@@ -33,7 +33,7 @@ Reference::Reference()
 }
 
 Reference::Reference(const std::string& name, 
-                     const std::string& filename, 
+                     const std::vector<std::string>& filenames, 
                      const std::vector<size_t>& kmer_lengths,
                      const size_t sketchsize64)
    :_name(name), 
@@ -43,10 +43,10 @@ Reference::Reference(const std::string& name,
     _seed(def_hashseed)
 {
     // Read in sequence
-    SeqBuf sequence(filename, kmer_lengths.back());
+    SeqBuf sequence(filenames, kmer_lengths.back());
     if (sequence.nseqs() == 0)
     {
-        throw std::runtime_error(filename + " contains no sequence");
+        throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
 
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)

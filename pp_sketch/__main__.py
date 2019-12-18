@@ -101,9 +101,9 @@ def main():
         
         with open(args.rfile, 'rU') as refFile:
             for refLine in refFile:
-                name, sequence = refLine.rstrip().split("\t")
-                names.append(name)
-                sequences.append(sequence)
+                refFields = refLine.rstrip().split("\t")
+                names.append(refFields[0])
+                sequences.append(list(refFields[1:]))
 
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, int(round(args.sketch_size/64)), args.cpus)
 
