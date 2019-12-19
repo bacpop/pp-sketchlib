@@ -52,7 +52,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 char * upper_seq = new char[strlen(seq->seq.s)]; 
                 strtoupper_autovec(upper_seq, seq->seq.s);
                 sequence.push_back(upper_seq);
-                delete upper_seq;
+                delete[] upper_seq;
             }
             
             // Presence of any quality scores - assume reads as input

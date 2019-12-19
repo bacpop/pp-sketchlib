@@ -229,6 +229,8 @@ std::vector<uint64_t> sketch(const std::string & name,
         }
         
     }
+
+    // Free memory from read_counter
     delete read_counter;
 
     // Apply densifying function

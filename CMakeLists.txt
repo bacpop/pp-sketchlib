@@ -46,4 +46,4 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
 # possible fix to version/module/exception name clash
 #set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
 
-target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_intel_sequential mkl_core iomp5 Threads::Threads m dl)
+target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_sequential mkl_core iomp5 Threads::Threads m dl)
