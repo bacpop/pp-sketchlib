@@ -11,41 +11,33 @@
 #include <iterator>
 #include <limits>
 
-constexpr uint64_t mask{ 0x1FFFFF }; // 21 lowest bits ON
-
 CountMin::CountMin(const uint8_t min_count)
 :_min_count(min_count)
 {
-    for (auto row_it = hash_table.begin(); row_it != hash_table.end(); row_it++)
-    {
-        row_it->fill(0);
-    }
 }
 
 uint8_t CountMin::add_count(uint64_t doublehash)
 {
-    uint8_t min_count = 0;
-    for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr++)
+    auto table_val = hash_table.find(doublehash);
+    if (table_val == hash_table.end())
     {
-        long hash = doublehash & mask;
-        doublehash = doublehash >> 21;
-        if (hash_table[hash_nr][hash] < std::numeric_limits<uint8_t>::max())
-        {
-            if (++hash_table[hash_nr][hash] > min_count)
-            {
-                min_count = hash_table[hash_nr][hash];
-            }
-        }
-        else
-        {
-            min_count = std::numeric_limits<uint8_t>::max();
-        }
-        
+        hash_table[doublehash] = 1;
     }
-    return(min_count);
+    else if (hash_table[doublehash] < std::numeric_limits<uint8_t>::max())
+    {
+        table_val->second++;
+    }
+    return(table_val->second);
+}
+
+
+// Duplicates code, just used in testing, remove later
+uint8_t CountMin::probe(uint64_t doublehash)
+{
+    return(hash_table[doublehash]);
 }
 
 bool CountMin::above_min(const uint64_t doublehash)
 {
-    return (add_count(doublehash) > _min_count);
+    return (add_count(doublehash) >= _min_count);
 }

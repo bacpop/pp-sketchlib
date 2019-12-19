@@ -12,8 +12,8 @@ int main (int argc, char* argv[])
 {
     // Runs a test of functionality
     
-    std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
-    Reference ref(argv[1], {argv[2], argv[3]}, kmer_lengths, 156, 20);
+    std::vector<size_t> kmer_lengths {15, 29};
+    Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, 20);
     Reference query(argv[3], {argv[4], argv[5]}, kmer_lengths, 156, 20);
 
     std::cout << ref.jaccard_dist(query, 15) << std::endl;

@@ -11,6 +11,7 @@
 #include <vector>
 #include <exception>
 #include <memory>
+#include <unordered_map>
 
 #include <cyclichash.h>
 
@@ -130,7 +131,7 @@ void binupdate(std::vector<uint64_t> &signs,
         auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
         signval = doublehash(signval, signval2);
     }
-
+    
     if (read_counter == nullptr || read_counter->above_min(signval))
     {
         binsign(signs, signval, binsize);
