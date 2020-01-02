@@ -131,8 +131,8 @@ void binupdate(std::vector<uint64_t> &signs,
         auto signval2 = std::get<1>(hf).hashvalue % SIGN_MOD;
         signval = doublehash(signval, signval2);
     }
-    
-    if (read_counter == nullptr || read_counter->above_min(signval))
+
+    if (read_counter == nullptr || read_counter->add_count(signval) == read_counter->min_count())
     {
         binsign(signs, signval, binsize);
     }

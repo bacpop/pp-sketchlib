@@ -20,6 +20,8 @@ class KmerCounter
     public:
         KmerCounter(const uint8_t min_count);
 
+        uint8_t min_count() const { return _min_count; }
+
         bool above_min(const uint64_t doublehash);
         virtual uint8_t add_count(uint64_t doublehash);
 

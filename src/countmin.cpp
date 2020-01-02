@@ -78,7 +78,6 @@ uint8_t HashCounter::add_count(uint64_t doublehash)
     return(table_val->second);
 }
 
-// Duplicates code, just used in testing, remove later
 uint8_t HashCounter::probe(uint64_t doublehash)
 {
     return(hash_table[doublehash]);
