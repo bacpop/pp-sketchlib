@@ -10,17 +10,42 @@
 #include <stdint.h>
 #include <cstddef>
 #include <unordered_map>
+#include <array>
 
-class CountMin 
+const long table_width = 2097152; // 2^21
+const int table_rows = 3;
+
+class KmerCounter 
+{
+    public:
+        KmerCounter(const uint8_t min_count);
+
+        bool above_min(const uint64_t doublehash);
+        virtual uint8_t add_count(uint64_t doublehash);
+
+    protected:
+        uint8_t _min_count;
+};
+
+class CountMin : public KmerCounter 
 {
     public:
         CountMin(const uint8_t min_count);
 
         uint8_t add_count(uint64_t doublehash);
+    
+    private:
+        std::array<std::array<uint8_t, table_rows>, table_width> hash_table;
+};
+
+class HashCounter : public KmerCounter 
+{
+    public:
+        HashCounter(const uint8_t min_count);
+        
+        uint8_t add_count(uint64_t doublehash);
         uint8_t probe(uint64_t doublehash);
-        bool above_min(const uint64_t doublehash);
 
     private:
         std::unordered_map<uint64_t, uint8_t> hash_table;
-        uint8_t _min_count;
 };

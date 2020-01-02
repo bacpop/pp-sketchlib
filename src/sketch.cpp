@@ -117,7 +117,7 @@ int densifybin(std::vector<uint64_t> &signs)
 }
 
 void binupdate(std::vector<uint64_t> &signs,
-               CountMin * read_counter,
+               HashCounter * read_counter,
 		       rollinghash& hf, 
 		       bool isstrandpreserved, 
                uint64_t binsize)
@@ -140,7 +140,7 @@ void binupdate(std::vector<uint64_t> &signs,
 
 void hashupdate(SeqBuf & seq, 
                std::vector<uint64_t> &signs,
-               CountMin * read_counter, 
+               HashCounter * read_counter, 
 		       rollinghash& hf, 
 		       bool isstrandpreserved, 
                uint64_t binsize) 
@@ -155,7 +155,7 @@ void hashupdate(SeqBuf & seq,
 
 void hashinit(SeqBuf & seq, 
               std::vector<uint64_t> &signs, 
-              CountMin * read_counter,
+              HashCounter * read_counter,
 		      rollinghash& hf, 
 		      bool isstrandpreserved, 
               uint64_t binsize,
@@ -207,10 +207,10 @@ std::vector<uint64_t> sketch(const std::string & name,
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
 
     // This is needed as we don't get optional until C++17
-    CountMin * read_counter = nullptr;
+    HashCounter * read_counter = nullptr;
     if (seq.is_reads())
     {
-        read_counter = new CountMin(min_count);
+        read_counter = new HashCounter(min_count);
     }
 
     rollinghash hf = init_hashes(kmer_len, hashseed); 
