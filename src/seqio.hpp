@@ -9,8 +9,8 @@
 // C/C++/C++11/C++17 headers
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <vector>
-#include <iterator>
 
 #include <zlib.h>
 #include <stdio.h>
@@ -22,23 +22,24 @@ class SeqBuf
     public:
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
 
-	    unsigned char getnext() const { return *next_base; }
-	    unsigned char getout() const { return *out_base; }
+	    std::string_view get_fwd(const size_t kmer_len) const { return seq_view.substr(current_base, kmer_len); }
+	    std::string_view get_rev(const size_t kmer_len) const { return rcseq_view.substr(current_base, kmer_len); }
 	    size_t nseqs() const { return sequence.size(); }
-        bool eof() const { return end; }
+        bool eof() const { return _end; }
         bool is_reads() const { return _reads; }
 
-        bool move_next(size_t word_length);
-        void reset();
-     
+        void move_next(const size_t kmer_len);
+        void reset(const size_t kmer_len);
 
     private:
         std::vector<std::string> sequence;
+        std::vector<std::string> rc_sequence;
 
-        std::vector<std::string>::iterator current_seq;
-        std::string::iterator next_base;
-        std::string::iterator out_base;
+        std::string_view seq_view;
+        std::string_view rcseq_view;
+        size_t current_seq;
+        size_t current_base;
 
-        bool end;
+        bool _end;
         bool _reads;
 };
