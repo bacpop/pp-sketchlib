@@ -10,9 +10,9 @@
 #include <vector>
 #include <exception>
 #include <memory>
-#include <unordered_map>
+#include <iostream>
 
-#include <xxhash/xxhash.h>
+#include <xxhash.h>
 
 #include "sketch.hpp"
 

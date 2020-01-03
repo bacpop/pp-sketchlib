@@ -106,10 +106,10 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         kseq_destroy(seq);
         gzclose(fp);
     }
-    this->reset(kmer_len);
+    this->reset();
 }
 
-void SeqBuf::reset(const size_t kmer_len)
+void SeqBuf::reset()
 {
     /* 
     *   Returns to start of sequences

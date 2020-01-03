@@ -29,7 +29,7 @@ class SeqBuf
         bool is_reads() const { return _reads; }
 
         void move_next(const size_t kmer_len);
-        void reset(const size_t kmer_len);
+        void reset();
 
     private:
         std::vector<std::string> sequence;

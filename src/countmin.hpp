@@ -23,7 +23,7 @@ class KmerCounter
         uint8_t min_count() const { return _min_count; }
 
         bool above_min(const uint64_t doublehash);
-        virtual uint8_t add_count(uint64_t doublehash);
+        virtual uint8_t add_count(uint64_t doublehash) = 0;
 
     protected:
         uint8_t _min_count;
@@ -34,7 +34,7 @@ class CountMin : public KmerCounter
     public:
         CountMin(const uint8_t min_count);
 
-        uint8_t add_count(uint64_t doublehash);
+        uint8_t add_count(uint64_t doublehash) override;
     
     private:
         std::array<std::array<uint8_t, table_rows>, table_width> hash_table;
@@ -45,7 +45,7 @@ class HashCounter : public KmerCounter
     public:
         HashCounter(const uint8_t min_count);
         
-        uint8_t add_count(uint64_t doublehash);
+        uint8_t add_count(uint64_t doublehash) override;
         uint8_t probe(uint64_t doublehash);
 
     private:
