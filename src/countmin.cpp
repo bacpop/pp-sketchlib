@@ -22,6 +22,8 @@ KmerCounter::KmerCounter(const uint8_t min_count)
 {
 }
 
+KmerCounter::~KmerCounter() {};
+
 CountMin::CountMin(const uint8_t min_count)
 :KmerCounter(min_count)
 {
