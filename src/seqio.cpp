@@ -83,12 +83,12 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
             {
                 // Need to allocate memory for long C string array
                 char * upper_seq = new char[strlen(seq->seq.s)]; 
-                char * rc_seq = new char[strlen(seq->seq.s)];
                 
                 strtoupper_autovec(upper_seq, seq->seq.s);
                 sequence.push_back(upper_seq);
 
                 // Calculate reverse complement once and store it in memory
+                char * rc_seq = new char[strlen(upper_seq)];
                 strtocomplement_autovec(rc_seq, upper_seq);
                 std::reverse(rc_seq, rc_seq + strlen(rc_seq));             
                 rc_sequence.push_back(rc_seq);

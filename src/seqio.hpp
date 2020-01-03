@@ -23,7 +23,7 @@ class SeqBuf
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
 
 	    std::string_view get_fwd(const size_t kmer_len) const { return seq_view.substr(current_base, kmer_len); }
-	    std::string_view get_rev(const size_t kmer_len) const { return rcseq_view.substr(current_base, kmer_len); }
+	    std::string_view get_rev(const size_t kmer_len) const { return rcseq_view.substr(seq_view.size() - kmer_len - current_base, kmer_len); }
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return _end; }
         bool is_reads() const { return _reads; }

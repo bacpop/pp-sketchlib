@@ -78,28 +78,6 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-void binupdate(std::vector<uint64_t> &signs,
-               HashCounter * read_counter,
-		       hash_vals& hf, 
-		       bool isstrandpreserved, 
-               uint64_t binsize)
-{
-    // std::cout << std::get<0>(hf).hashvalue % SIGN_MOD << "\t" << std::get<1>(hf).hashvalue % SIGN_MOD << std::endl;
-    auto signval = std::get<0>(hf) % SIGN_MOD;
-    
-    // Take canonical k-mer
-    if (!isstrandpreserved) 
-    {
-        auto signval2 = std::get<1>(hf) % SIGN_MOD;
-        signval = doublehash(signval, signval2);
-    }
-
-    if (read_counter == nullptr || read_counter->add_count(signval) == read_counter->min_count())
-    {
-        binsign(signs, signval, binsize);
-    }
-}
-
 std::vector<uint64_t> sketch(const std::string & name,
                              SeqBuf &seq,
                              const uint64_t sketchsize, 
@@ -124,19 +102,27 @@ std::vector<uint64_t> sketch(const std::string & name,
     // Rolling hash through string
     while (!seq.eof()) 
     {
-        XXH64_hash_t fwd_hash = XXH64(seq.get_fwd(kmer_len).data(), kmer_len * sizeof(char), hashseed);
-        XXH64_hash_t rev_hash = 0;
-        if (!isstrandpreserved)
+        XXH64_hash_t hash = 0;
+        if (seq.get_fwd(kmer_len) < seq.get_rev(kmer_len))
         {
-            rev_hash = XXH64(seq.get_rev(kmer_len).data(), kmer_len * sizeof(char), hashseed);
+            hash = XXH64(seq.get_fwd(kmer_len).data(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
         }
-        hash_vals hf = std::make_tuple(fwd_hash, rev_hash);
-        binupdate(signs, read_counter, hf, isstrandpreserved, binsize);
+        else
+        {
+            hash = XXH64(seq.get_rev(kmer_len).data(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
+        }
+        
+        if (read_counter == nullptr || read_counter->add_count(hash) == read_counter->min_count())
+        {
+            binsign(signs, hash, binsize);
+        } 
+        
         seq.move_next(kmer_len);
     }
 
     // Free memory from read_counter
     delete read_counter;
+    seq.reset();
 
     // Apply densifying function
     int res = densifybin(signs);
@@ -145,8 +131,6 @@ std::vector<uint64_t> sketch(const std::string & name,
         std::cerr << "Warning: the genome " << name << " is densified with flag " << res << std::endl;
     }
     fillusigs(usigs, signs, bbits);
-    
-    seq.reset();
 
     return(usigs);
 }
