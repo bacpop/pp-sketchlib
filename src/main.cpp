@@ -33,7 +33,7 @@ int main (int argc, char* argv[])
 
     std::vector<Reference> ref_sketches = create_sketches("full",
                                {argv[1], argv[3]}, 
-                               {argv[2], argv[4]}, 
+                               {{argv[2]}, {argv[4]}}, 
                                kmer_lengths,
                                32,
                                0,
