@@ -9,7 +9,7 @@
 // C/C++/C++11/C++17 headers
 #include <cstddef>
 #include <string>
-#include <string_view>
+#include <string_view> // O(1) substr operations
 #include <vector>
 
 #include <zlib.h>

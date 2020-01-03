@@ -125,7 +125,11 @@ std::vector<uint64_t> sketch(const std::string & name,
     while (!seq.eof()) 
     {
         XXH64_hash_t fwd_hash = XXH64(seq.get_fwd(kmer_len).data(), kmer_len * sizeof(char), hashseed);
-        XXH64_hash_t rev_hash = XXH64(seq.get_rev(kmer_len).data(), kmer_len * sizeof(char), hashseed);
+        XXH64_hash_t rev_hash = 0;
+        if (!isstrandpreserved)
+        {
+            rev_hash = XXH64(seq.get_rev(kmer_len).data(), kmer_len * sizeof(char), hashseed);
+        }
         hash_vals hf = std::make_tuple(fwd_hash, rev_hash);
         binupdate(signs, read_counter, hf, isstrandpreserved, binsize);
         seq.move_next(kmer_len);

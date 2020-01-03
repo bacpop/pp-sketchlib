@@ -19,6 +19,7 @@ class KmerCounter
 {
     public:
         KmerCounter(const uint8_t min_count);
+        virtual ~KmerCounter() = 0;
 
         uint8_t min_count() const { return _min_count; }
 
