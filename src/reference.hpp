@@ -54,7 +54,6 @@ class Reference
         std::string _name;
         size_t _bbits;
         size_t _sketchsize64;
-        bool _isstrandpreserved;
         int _seed;
 
         // sketch - map keys are k-mer length

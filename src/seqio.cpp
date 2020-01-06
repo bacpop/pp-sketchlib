@@ -48,22 +48,6 @@ char ascii_toupper_char(char c) {
     return ('a' <= c && c <= 'z') ? c^0x20 : c;    // ^ autovectorizes to PXOR: runs on more ports than paddb
 }
 
-size_t strtoupper_autovec(char *dst, const char *src) {
-    size_t len = strlen(src);
-    for (size_t i=0 ; i<len ; ++i) {
-        dst[i] = ascii_toupper_char(src[i]);  // gcc does the vector range check with psubusb / pcmpeqb instead of pcmpgtb
-    }
-    return len;
-}
-
-size_t strtocomplement_autovec(char *dst, const char *src) {
-    size_t len = strlen(src);
-    for (size_t i=0 ; i<len ; ++i) {
-        dst[i] = RCMAP[(int)src[i]];
-    }
-    return len;
-}
-
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
 {
     /* 

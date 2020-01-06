@@ -83,7 +83,6 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
-                             const bool isstrandpreserved,
                              const int hashseed,
                              const uint8_t min_count)
 {
@@ -103,7 +102,7 @@ std::vector<uint64_t> sketch(const std::string & name,
     while (!seq.eof()) 
     {
         XXH64_hash_t hash = 0;
-        if (strcmp(seq.get_fwd(), seq.get_rev(kmer_len)) > 0)
+        if (strncmp(seq.get_fwd(), seq.get_rev(kmer_len), kmer_len) > 0)
         {
             hash = XXH64(seq.get_fwd(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
         }
