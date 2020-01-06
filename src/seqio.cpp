@@ -81,20 +81,18 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         {
             if (strlen(seq->seq.s) >= kmer_len)
             {
-                // Need to allocate memory for long C string array
-                char * upper_seq = new char[strlen(seq->seq.s)]; 
-                
-                strtoupper_autovec(upper_seq, seq->seq.s);
-                sequence.push_back(upper_seq);
+                sequence.push_back(seq->seq.s);
+                for (char & c : sequence.back()) 
+                {
+                    c = ascii_toupper_char(c);
+                }
 
-                // Calculate reverse complement once and store it in memory
-                char * rc_seq = new char[strlen(upper_seq)];
-                strtocomplement_autovec(rc_seq, upper_seq);
-                std::reverse(rc_seq, rc_seq + strlen(rc_seq));             
-                rc_sequence.push_back(rc_seq);
-                
-                delete[] upper_seq;
-                delete[] rc_seq;
+                rc_sequence.push_back(sequence.back());
+                for (char & c : rc_sequence.back())
+                {
+                    c = RCMAP[(int)c];
+                }
+                std::reverse(rc_sequence.back().begin(), rc_sequence.back().end());             
             }
             
             // Presence of any quality scores - assume reads as input
