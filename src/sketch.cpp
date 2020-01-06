@@ -103,13 +103,13 @@ std::vector<uint64_t> sketch(const std::string & name,
     while (!seq.eof()) 
     {
         XXH64_hash_t hash = 0;
-        if (seq.get_fwd(kmer_len) < seq.get_rev(kmer_len))
+        if (strcmp(seq.get_fwd(), seq.get_rev(kmer_len)) > 0)
         {
-            hash = XXH64(seq.get_fwd(kmer_len).data(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
+            hash = XXH64(seq.get_fwd(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
         }
         else
         {
-            hash = XXH64(seq.get_rev(kmer_len).data(), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
+            hash = XXH64(seq.get_rev(kmer_len), kmer_len * sizeof(char), hashseed) % SIGN_MOD; 
         }
         
         if (read_counter == nullptr || read_counter->add_count(hash) == read_counter->min_count())

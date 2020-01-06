@@ -19,7 +19,7 @@ ifeq ($(UNAME_S),Darwin)
 	LALIBS=-llapack -lblas -pthread
 endif
 
-CPPFLAGS=-I.. -I../dlib -I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3 -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1 -Dnssv_CONFIG_SELECT_STRING_VIEW=nnssv_STRING_VIEW_NONSTD
+CPPFLAGS=-I../dlib -I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3 -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1 -Dnssv_CONFIG_SELECT_STRING_VIEW=nnssv_STRING_VIEW_NONSTD
 LDFLAGS=-L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 -lxxhash $(LALIBS)
 
 PROGRAMS=sketch_test read_test

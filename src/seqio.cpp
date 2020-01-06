@@ -118,8 +118,6 @@ void SeqBuf::reset()
     {
         current_base = 0;
         current_seq = 0;
-        seq_view = sequence[current_seq];
-        rcseq_view = rc_sequence[current_seq];
     }
     _end = false;
 }
@@ -141,11 +139,6 @@ void SeqBuf::move_next(const size_t kmer_len)
             if (current_seq == sequence.size())
             {
                 _end = true;
-            }
-            else
-            {
-                seq_view = sequence[current_seq];
-                rcseq_view = rc_sequence[current_seq];
             }
         }
     }
