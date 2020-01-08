@@ -22,14 +22,6 @@ char ascii_toupper_char(char c) {
     return ('a' <= c && c <= 'z') ? c^0x20 : c;    // ^ autovectorizes to PXOR: runs on more ports than paddb
 }
 
-size_t strtoupper_autovec(char *dst, const char *src) {
-    size_t len = strlen(src);
-    for (size_t i=0 ; i<len ; ++i) {
-        dst[i] = ascii_toupper_char(src[i]);  // gcc does the vector range check with psubusb / pcmpeqb instead of pcmpgtb
-    }
-    return len;
-}
-
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
 {
     /* 
@@ -48,11 +40,11 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         {
             if (strlen(seq->seq.s) >= kmer_len)
             {
-                // Need to allocate memory for long C string array
-                char * upper_seq = new char[strlen(seq->seq.s)]; 
-                strtoupper_autovec(upper_seq, seq->seq.s);
-                sequence.push_back(upper_seq);
-                delete[] upper_seq;
+                sequence.push_back(seq->seq.s);
+                for (char & c : sequence.back())
+                {
+                    c = ascii_toupper_char(c);
+                }
             }
             
             // Presence of any quality scores - assume reads as input
