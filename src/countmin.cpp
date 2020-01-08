@@ -68,16 +68,19 @@ bool KmerCounter::above_min(const uint64_t doublehash)
 
 uint8_t HashCounter::add_count(uint64_t doublehash)
 {
+    uint8_t count = 0;
     auto table_val = hash_table.find(doublehash);
     if (table_val == hash_table.end())
     {
         hash_table[doublehash] = 1;
+        count = 1;
     }
-    else if (hash_table[doublehash] < std::numeric_limits<uint8_t>::max())
+    else if (table_val->second < std::numeric_limits<uint8_t>::max())
     {
-        table_val->second++;
+        (table_val->second)++;
+        count = table_val->second; 
     }
-    return(table_val->second);
+    return(count);
 }
 
 uint8_t HashCounter::probe(uint64_t doublehash)

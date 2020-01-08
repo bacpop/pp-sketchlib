@@ -1,9 +1,9 @@
 
-CXXFLAGS=-Wall -Wextra -std=c++14
+CXXFLAGS=-Wall -Wextra -std=c++14 -march=native
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
-  CXXFLAGS+= -O2 -g -Wl,--compress-debug-sections=none
+  CXXFLAGS+= -O2 -g
 else
   CXXFLAGS+= -O2
 endif
@@ -11,6 +11,9 @@ endif
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -DMKL_ILP64 -m64
+	ifdef PROFILE
+		CXXFLAGS+= -Wl,--compress-debug-sections=none
+	endif
 	LIBLOC=/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36
 	LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
 endif

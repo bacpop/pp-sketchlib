@@ -9,8 +9,9 @@
 // C/C++/C++11/C++17 headers
 #include <stdint.h>
 #include <cstddef>
-#include <unordered_map>
 #include <array>
+
+#include "robin_hood.h"
 
 const long table_width = 2097152; // 2^21
 const int table_rows = 3;
@@ -50,5 +51,5 @@ class HashCounter : public KmerCounter
         uint8_t probe(uint64_t doublehash);
 
     private:
-        std::unordered_map<uint64_t, uint8_t> hash_table;
+        robin_hood::unordered_flat_map<uint64_t, uint8_t> hash_table;
 };
