@@ -28,6 +28,8 @@ include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
 include_directories(/Users/jlees/miniconda3/envs/pp_sketch/include) # local testing only
 link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib) # local testing only
 link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib/intel64) # local testing only
+//include_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/include) # local testing only
+//link_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/lib) # local testing only
 #find_package(HDF5 COMPONENTS C CXX HL NO_MODULE REQUIRED shared)
 #set(HighFive_DIR "${CMAKE_SOURCE_DIR}/HighFive/CMake")
 #find_package (HighFive REQUIRED)
@@ -47,3 +49,4 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
 #set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
 
 target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_sequential mkl_core iomp5 Threads::Threads m dl)
+//target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
