@@ -76,7 +76,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 {
                     c = RCMAP[(int)c];
                 }
-                std::reverse(rc_sequence.back().begin(), rc_sequence.back().end());             
+                std::reverse(rc_sequence.back().begin(), rc_sequence.back().end());   
             }
             
             // Presence of any quality scores - assume reads as input

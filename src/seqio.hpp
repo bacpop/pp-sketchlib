@@ -23,7 +23,7 @@ class SeqBuf
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
 
 	    char const * get_fwd() const { return sequence[current_seq].c_str() + current_base; }
-	    char const * get_rev(const size_t kmer_len) const { return rc_sequence[current_seq].c_str() - kmer_len - current_base + rc_sequence[current_seq].size() + 1; }
+	    char const * get_rev(const size_t kmer_len) const { return rc_sequence[current_seq].c_str() + rc_sequence[current_seq].size() - kmer_len - current_base; }
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return _end; }
         bool is_reads() const { return _reads; }
