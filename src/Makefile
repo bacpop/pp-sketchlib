@@ -3,7 +3,7 @@ CXXFLAGS=-Wall -Wextra -std=c++14
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
-  CXXFLAGS+= -Wall -Wextra -O2 -g -Wl,--compress-debug-sections=none
+  CXXFLAGS+= -O2 -g -Wl,--compress-debug-sections=none
 else
   CXXFLAGS+= -O2
 endif
