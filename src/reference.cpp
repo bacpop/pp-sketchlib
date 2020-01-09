@@ -14,9 +14,7 @@
 #include "dist.hpp"
 
 const size_t def_bbits = 14;
-const size_t def_sketchsize64 = 32;
-const bool def_isstrandpreserved = false;
-const int def_hashseed = 86;
+const size_t def_sketchsize64 = 156;
 
 #include "bitfuncs.hpp"
 
@@ -26,9 +24,7 @@ auto value_selector = [](auto pair){return pair.second;};
 // Initialisation
 Reference::Reference()
    :_bbits(def_bbits),  
-    _sketchsize64(def_sketchsize64),
-    _isstrandpreserved(def_isstrandpreserved), 
-    _seed(def_hashseed)
+    _sketchsize64(def_sketchsize64)
 {
 }
 
@@ -39,9 +35,7 @@ Reference::Reference(const std::string& name,
                      const uint8_t min_count)
    :_name(name), 
     _bbits(def_bbits),  
-    _sketchsize64(sketchsize64),
-    _isstrandpreserved(def_isstrandpreserved), 
-    _seed(def_hashseed)
+    _sketchsize64(sketchsize64)
 {
     // Read in sequence
     SeqBuf sequence(filenames, kmer_lengths.back());
@@ -52,7 +46,7 @@ Reference::Reference(const std::string& name,
 
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, _isstrandpreserved, _seed, min_count);
+        usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, min_count);
     }
     // SeqBuf containing sequences will get deleted here
     // usigs (the sketch) will be retained
@@ -60,10 +54,8 @@ Reference::Reference(const std::string& name,
 
 Reference::Reference(const std::string& name,
                      const size_t bbits,
-                     const size_t sketchsize64,
-                     const int seed)
-   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), 
-    _isstrandpreserved(def_isstrandpreserved), _seed(seed)
+                     const size_t sketchsize64)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64)
 {
 }
 

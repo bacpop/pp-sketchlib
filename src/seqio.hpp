@@ -24,11 +24,13 @@ class SeqBuf
 
 	    unsigned char getnext() const { return *next_base; }
 	    unsigned char getout() const { return *out_base; }
+        std::vector<std::string>::iterator getseq() const { return current_seq; }
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return end; }
         bool is_reads() const { return _reads; }
 
         bool move_next(size_t word_length);
+        void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };
         void reset();
      
 

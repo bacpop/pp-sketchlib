@@ -40,8 +40,6 @@ void Database::add_sketch(const Reference& ref)
     sketch_size_a.write(ref.sketchsize64());
     HighFive::Attribute bbits_a = sketch_group.createAttribute<size_t>("bbits", HighFive::DataSpace::From(ref.bbits()));
     bbits_a.write(ref.bbits());
-    HighFive::Attribute seed_a = sketch_group.createAttribute<int>("seed", HighFive::DataSpace::From(ref.seed()));
-    seed_a.write(ref.seed());
 
     // Write k-mer length vector as another group attribute
     const std::vector<size_t> kmer_lengths = ref.kmer_lengths();
@@ -82,10 +80,8 @@ Reference Database::load_sketch(const std::string& name)
     sketch_group.getAttribute("sketchsize64").read(sketchsize64);
     size_t bbits;
     sketch_group.getAttribute("bbits").read(bbits);
-    int seed;
-    sketch_group.getAttribute("seed").read(seed);
 
-    Reference new_ref(name, bbits, sketchsize64, seed);
+    Reference new_ref(name, bbits, sketchsize64);
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
         std::vector<uint64_t> usigs;
