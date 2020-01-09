@@ -29,6 +29,13 @@ Database::Database(HighFive::File& h5_file)
     _filename = _h5_file.getName();
 }
 
+/*
+*
+* NB: It is up to the user of this API to check that ref.name()
+* does not already exist in the DB! This is not checked, and will
+* be overwritten
+*
+*/
 void Database::add_sketch(const Reference& ref)
 {
     // Create group for sketches

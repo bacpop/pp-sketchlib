@@ -106,6 +106,11 @@ def main():
                 names.append(refFields[0])
                 sequences.append(list(refFields[1:]))
 
+
+        if len(set(names)) != len(names):
+            sys.stderr.write("Input contains duplicate names! All names must be unique")
+            sys.exit(1)
+
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, int(round(args.sketch_size/64)), args.min_count, args.cpus)
 
     elif args.query:
