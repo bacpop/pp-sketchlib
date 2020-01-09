@@ -108,7 +108,7 @@ def main():
 
 
         if len(set(names)) != len(names):
-            sys.stderr.write("Input contains duplicate names! All names must be unique")
+            sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, int(round(args.sketch_size/64)), args.min_count, args.cpus)
