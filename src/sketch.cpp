@@ -93,7 +93,7 @@ std::vector<uint64_t> sketch(const std::string & name,
     // This is needed as we don't get optional until C++17
     HashCounter * read_counter = nullptr;
 	unsigned h = 1;
-    if (seq.is_reads())
+    if (seq.is_reads() && min_count > 0)
     {
         read_counter = new HashCounter(min_count);
         //h = 6; // for countmin
