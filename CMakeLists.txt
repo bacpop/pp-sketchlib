@@ -12,7 +12,9 @@ IF(CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMKL_ILP64 -m64")
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMKL_ILP64 -m64")
+endif()
 
 # Add libraries
 find_package(pybind11 REQUIRED)
@@ -23,13 +25,16 @@ find_package(Threads REQUIRED)
 # Submodules
 include_directories(${PROJECT_SOURCE_DIR}/dlib)
 add_definitions(-D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1)
-include_directories(${PROJECT_SOURCE_DIR}/rollinghashcpp)
 include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
+
+# Set paths for non standard lib/ and include/ locations
 include_directories(/Users/jlees/miniconda3/envs/pp_sketch/include) # local testing only
 link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib) # local testing only
 link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib/intel64) # local testing only
-//include_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/include) # local testing only
-//link_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/lib) # local testing only
+# include_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/include) # local testing only
+# link_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/lib) # local testing only
+
+# HDF5/HighFive testing -- use conda installs in lib/ instead
 #find_package(HDF5 COMPONENTS C CXX HL NO_MODULE REQUIRED shared)
 #set(HighFive_DIR "${CMAKE_SOURCE_DIR}/HighFive/CMake")
 #find_package (HighFive REQUIRED)
@@ -45,8 +50,11 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
                                  src/linear_regression.cpp
                                  src/link_function.cpp)
 
-# possible fix to version/module/exception name clash
-#set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
+# Not needed - possible fix to version/module/exception name clash
+# set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
 
-target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_sequential mkl_core iomp5 Threads::Threads m dl)
-//target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
+if(UNIX AND NOT APPLE)
+    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_sequential mkl_core iomp5 Threads::Threads m dl)
+else()
+    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
+endif()

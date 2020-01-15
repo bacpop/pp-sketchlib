@@ -12,7 +12,7 @@ source:
 
 build:
   number: 0
-  skip: True  # [py27]
+  skip: True  # [py2k or win]
   script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed --no-cache-dir -vvv"
   entry_points:
     - poppunk_sketch = pp_sketch.__main__:main
@@ -30,8 +30,10 @@ requirements:
     - bzip2
     - eigen
     - hdf5
-    - lapack
-    - openblas
+    - intel-openmp  # [linux]
+    - mkl  # [linux]
+    - lapack  # [osx]
+    - openblas  # [osx]
   run:
     - python
     - numpy
@@ -39,8 +41,10 @@ requirements:
     - bzip2
     - hdf5
     - h5py
-    - lapack
-    - openblas
+    - intel-openmp  # [linux]
+    - mkl  #[linux]
+    - lapack  # [osx]
+    - openblas  # [osx]
 
 test:
   imports:
@@ -58,4 +62,4 @@ about:
 
 extra:
    skip-lints:
-     - uses_vcs_url
+     - uses_vcs_url # includes submodules

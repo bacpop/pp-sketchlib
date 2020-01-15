@@ -6,9 +6,9 @@ Installation
 ============
 Install using conda (recommended)::
 
-    conda install pp-sketchlib
+    conda -c bioconda install pp-sketchlib
 
-Install locally::
+Or install locally::
 
     python setup.py install
 
@@ -16,7 +16,7 @@ Usage
 =====
 Create a set of sketches and save these as a database::
 
-    pp_sketch --sketch --rfile rfiles.txt --ref-db listeria --sketch-size 156 --cpus 4 --min-k 15 --k-step 2
+    poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --sketch-size 156 --cpus 4 --min-k 15 --k-step 2
 
 The input file ``rfiles.txt`` has one sequence per line. The first column is the sample name, subsequent tab-separated
 columns are files containing associated sequences, which may be assemblies or reads, and may be gzipped. For example::
@@ -28,7 +28,7 @@ columns are files containing associated sequences, which may be assemblies or re
 Calculate core and accessory distances between databases with ``--query``. If all-vs-all, only the upper triangle is calculated,
 for example::
 
-    python pp_sketch-runner.py --query --ref_db listeria.h5 --query_db listeria.h5 --cpus 4 > distances.txt
+    poppunk_sketch --query --ref_db listeria.h5 --query_db listeria.h5 --cpus 4 > distances.txt
 
 API
 ===
@@ -36,7 +36,7 @@ API
 python
 ^^^^^^
 
-Import the package and call commands. See `pp_sketch/__main__.py`::
+Import the package and call commands. See ``pp_sketch/__main__.py``::
 
     import pp_sketchlib
 
@@ -109,7 +109,7 @@ See ``main.cpp`` for examples::
     {
         listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
     }
-    
+
 
 Citations
 =========
@@ -121,15 +121,15 @@ doi:`10.1101/gr.241455.118 <https://dx.doi.org/10.1101/gr.241455.118>`__
 
 This extension uses parts of the following methods, and in some cases their code:
 
-bindash (written by XiaoFei Zhao):
-Zhao, X. BinDash, software for fast genome distance estimation on a typical personal laptop. 
+| *bindash* (written by XiaoFei Zhao):
+| Zhao, X. BinDash, software for fast genome distance estimation on a typical personal laptop. 
 *Bioinformatics* **35**:671–673 (2019). `doi:10.1093/bioinformatics/bty651 <https://dx.doi.org/10.1093/bioinformatics/bty651>`__
 
-ntHash (written by Hamid Mohamadi):
-Mohamadi, H., Chu, J., Vandervalk, B. P. & Birol, I. ntHash: recursive nucleotide hashing. 
+| *ntHash* (written by Hamid Mohamadi):
+| Mohamadi, H., Chu, J., Vandervalk, B. P. & Birol, I. ntHash: recursive nucleotide hashing. 
 *Bioinformatics* **32**:3492–3494 (2016). `doi:10.1093/bioinformatics/btw397 <https://dx.doi.org/10.1093/bioinformatics/btw397>`__
 
-countmin (similar to that used in the khmer library, written by the Lab for Data Intensive Biology at UC Davis):
-Zhang, Q., Pell, J., Canino-Koning, R., Howe, A. C. & Brown, C. T. 
+| *countmin* (similar to that used in the khmer library, written by the Lab for Data Intensive Biology at UC Davis):
+| Zhang, Q., Pell, J., Canino-Koning, R., Howe, A. C. & Brown, C. T. 
 These are not the k-mers you are looking for: efficient online k-mer counting using a probabilistic data structure. 
 PLoS One 9, e101271 (2014). `doi:10.1371/journal.pone.0101271 <https://doi.org/10.1371/journal.pone.0101271>`__
