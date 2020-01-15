@@ -1,4 +1,4 @@
-{% set name = "pp_sketchlib" %}
+{% set name = "pp-sketchlib" %}
 {% set version = "1.0.0" %}
 
 package:
@@ -8,7 +8,7 @@ package:
 source:
   git_url: https://github.com/johnlees/{{ name|lower }}.git
   git_rev: v{{ version }}
-  sha256: b1d2cd8b579d3b56192e673d6f69bbec3e31e3ebe5744c04ae864aee99cab0b5
+  sha256: e0bd1c616df1c3578ee7957c0cfdf600428ab848
 
 build:
   number: 0
