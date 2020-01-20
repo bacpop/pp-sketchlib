@@ -68,8 +68,8 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<size_t> kmer_lengths,
                          size_t num_threads = 1)
 {
-    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths);
-    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths);
+    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
+    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
     return(query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
