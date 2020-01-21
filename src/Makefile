@@ -15,7 +15,8 @@ ifeq ($(UNAME_S),Linux)
 		CXXFLAGS+= -Wl,--compress-debug-sections=none
 	endif
 	LIBLOC=/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36
-	LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
+	LALIBS=-lmkl_rt -lpthread -lm -ldl
+	# LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
 endif
 ifeq ($(UNAME_S),Darwin)
 	LIBLOC=/Users/jlees/miniconda3/envs/pp_sketch
