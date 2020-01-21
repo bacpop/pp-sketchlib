@@ -10,13 +10,13 @@ Install using conda (recommended)::
 
 NB: If you are getting ``UnsatisfiableError`` or similar version conflicts try
 following the `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__.
-You may also have luck if you downgrade your version of conda (to 4.5).
+It may also help if you downgrade your version of conda (to 4.5).
 
 Or install locally::
 
     python setup.py install
 
-For this option you will need a C++14 compiler (``GCC >=7.3``, ``Clang``), 
+For this option you will need a C++14 compiler (``GCC >=7.2.0`` or ``Clang``), 
 ``pybind11``, ``hdf5`` and ``CMake (>=3.12)``.
 
 Usage
