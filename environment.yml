@@ -1,0 +1,20 @@
+name: pp_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - r
+dependencies:
+  - python
+  - pip
+  - numpy
+  - mkl
+  - cmake >= 3.12
+  - pybind11
+  - zlib
+  - bzip2
+  - eigen
+  - hdf5
+  - h5py
+  - intel-openmp
+  - mkl
