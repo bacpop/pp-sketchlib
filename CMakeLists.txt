@@ -28,11 +28,11 @@ add_definitions(-D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
 include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
 
 # Set paths for non standard lib/ and include/ locations
-include_directories(/Users/jlees/miniconda3/envs/pp_sketch/include) # local testing only
-link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib) # local testing only
-link_directories(/Users/jlees/miniconda3/envs/pp_sketch/lib/intel64) # local testing only
-# include_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/include) # local testing only
-# link_directories(/nfs/users/nfs_j/jl11/pathogen_nfs/large_installations/miniconda3/envs/conda_py36/lib) # local testing only
+if(DEFINED ENV{CONDA_PREFIX})
+    include_directories($ENV{CONDA_PREFIX}/include)
+    link_directories($ENV{CONDA_PREFIX}/lib)
+    link_directories($ENV{CONDA_PREFIX}/lib/intel64)
+endif()
 
 # HDF5/HighFive testing -- use conda installs in lib/ instead
 #find_package(HDF5 COMPONENTS C CXX HL NO_MODULE REQUIRED shared)

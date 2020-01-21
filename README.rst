@@ -1,9 +1,12 @@
 pp-sketchlib
 ------------
-|Build status|
+|Build status| |Anaconda package|
 
 .. |Build status| image:: https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master
    :target: https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master
+
+.. |Anaconda package| image:: https://anaconda.org/bioconda/pp-sketchlib/badges/version.svg
+   :target: https://anaconda.org/bioconda/pp-sketchlib
 
 Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
@@ -13,9 +16,7 @@ Install using conda (recommended)::
 
     conda -c bioconda install pp-sketchlib
 
-NB: If you are getting ``UnsatisfiableError`` or similar version conflicts try
-following the `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__.
-It may also help if you downgrade your version of conda (to 4.5).
+*NB: If you are getting ``UnsatisfiableError`` or similar version conflicts try following the `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__. It may also help if you downgrade your version of conda (to 4.5).*
 
 Or install locally::
 
