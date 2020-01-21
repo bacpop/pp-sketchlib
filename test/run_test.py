@@ -28,7 +28,7 @@ sys.stderr.write("Testing sketching via python\n")
 subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
 # calculate distances
 sys.stderr.write("Testing distances via python\n")
-subprocess.run("poppunk_sketch --query --ref_db test_db.h5 --query_db test_db.h5", shell=True, check=True)
+subprocess.run("poppunk_sketch --query --ref-db test_db.h5 --query-db test_db.h5", shell=True, check=True)
 
 # C++ test
 if not args.no_cpp:
