@@ -31,9 +31,10 @@ steps:
 - bash: conda env create --quiet --file environment.yml
   displayName: Create Anaconda environment and install dependencies
 
+# to add C++ tests add the following line, and remove --no-cpp
+# pushd src && make && make install && popd
 - script: |
     source activate pp_env
     python -m pip install --no-deps --ignore-installed .
-   # pushd src && make && make install && popd
     cd test && python run_test.py --no-cpp
   displayName: 'Install and run_test.py'
