@@ -61,6 +61,9 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    size_t min_count,
                    const size_t num_threads)
 {
+    // Threading is handled by code
+    putenv("MKL_THREADING_LAYER=SEQUENTIAL");
+    
     // Store sketches in vector
     std::vector<Reference> sketches;
 
@@ -144,6 +147,9 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads) 
 {
+    // Threading is handled by code
+    putenv("MKL_THREADING_LAYER=SEQUENTIAL");
+    
     if (ref_sketches.size() < 1 or query_sketches.size() < 1)
     {
         throw std::runtime_error("Query with empty ref or query list!");
