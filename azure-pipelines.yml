@@ -34,6 +34,7 @@ steps:
 - script: |
     source activate pp_env
     python -m pip install --no-deps --ignore-installed .
+    ls /usr/share/miniconda/envs/pp_env/lib
     pushd src && make && make install && popd
     cd test && python run_test.py
   displayName: 'Install and run_test.py'

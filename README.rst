@@ -16,7 +16,10 @@ Install using conda (recommended)::
 
     conda -c bioconda install pp-sketchlib
 
-*NB: If you are getting ``UnsatisfiableError`` or similar version conflicts try following the `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__. It may also help if you downgrade your version of conda (to 4.5).*
+.. note::
+    If you are getting ``UnsatisfiableError`` or similar version conflicts try following the 
+    `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__. 
+    It may also help if you downgrade your version of conda (to 4.5).
 
 Or install locally::
 
