@@ -21,6 +21,10 @@ steps:
     versionSpec: '$(python.version)'
   displayName: 'Use Python $(python.version)'
 
+- checkout: self
+  submodules: true
+  displayName: 'Checkout submodules'
+
 - bash: echo "##vso[task.prependpath]$CONDA/bin"
   displayName: Add conda to PATH
 

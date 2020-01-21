@@ -1,6 +1,9 @@
 pp-sketchlib
 ------------
-[![master build Status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master)
+|Build status|
+
+.. |Build status| image:: https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master
+   :target: https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master
 
 Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
