@@ -54,7 +54,7 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
 # set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_intel_ilp64 mkl_sequential mkl_core iomp5 Threads::Threads m dl)
+    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_rt Threads::Threads m dl)
 else()
     target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
 endif()
