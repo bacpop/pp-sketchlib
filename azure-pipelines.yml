@@ -34,6 +34,6 @@ steps:
 - script: |
     source activate pp_env
     python -m pip install --no-deps --ignore-installed .
-    pushd src && make && make install && popd
-    cd test && python run_test.py
+   # pushd src && make && make install && popd
+    cd test && python run_test.py --no-cpp
   displayName: 'Install and run_test.py'
