@@ -43,7 +43,7 @@ class CountMin : public KmerCounter
         uint8_t add_count(ntHashIterator& hash) override;
     
     private:
-        std::array<std::array<uint8_t, table_rows>, table_width> hash_table;
+        std::array<std::array<uint8_t, table_width>, table_rows> hash_table;
 };
 
 class HashCounter : public KmerCounter 
