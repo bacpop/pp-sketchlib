@@ -14,8 +14,8 @@
 
 #include "countmin.hpp"
 
-const int table_width_bits = 24;
-const int hash_per_hash = (int)floor(64/table_width_bits);
+const unsigned int table_width_bits = 24;
+const unsigned int hash_per_hash = (int)floor(64/table_width_bits);
 constexpr uint64_t mask{ 0x4FFFFF }; // 24 lowest bits ON
 
 // Constructors
@@ -62,7 +62,7 @@ uint8_t CountMin::add_count(ntHashIterator& hash)
                 min_count = std::numeric_limits<uint8_t>::max();
                 break;
             }
-            hash_val >> table_width_bits;
+            hash_val = hash_val >> table_width_bits;
         }
     }
     return(min_count);

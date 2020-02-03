@@ -62,7 +62,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const size_t num_threads)
 {
     // Threading is handled by code
-    putenv("MKL_THREADING_LAYER=SEQUENTIAL");
+    setenv("MKL_THREADING_LAYER", "SEQUENTIAL", 1);
     
     // Store sketches in vector
     std::vector<Reference> sketches;
@@ -148,7 +148,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const size_t num_threads) 
 {
     // Threading is handled by code
-    putenv("MKL_THREADING_LAYER=SEQUENTIAL");
+    setenv("MKL_THREADING_LAYER", "SEQUENTIAL", 1);
     
     if (ref_sketches.size() < 1 or query_sketches.size() < 1)
     {
