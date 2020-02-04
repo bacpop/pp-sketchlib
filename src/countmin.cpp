@@ -16,7 +16,7 @@
 
 const unsigned int table_width_bits = 24;
 const unsigned int hash_per_hash = (int)floor(64/table_width_bits);
-constexpr uint64_t mask{ 0x4FFFFF }; // 24 lowest bits ON
+constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON
 
 // Constructors
 

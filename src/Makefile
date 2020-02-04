@@ -17,9 +17,7 @@ ifeq ($(UNAME_S),Linux)
 	endif
 	LALIBS=-lmkl_rt -lpthread -lm -ldl
 	# LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
-	if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		LDFLAGS=-Wl,-as-needed
-	endif
+	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
 	LALIBS=-llapack -lopenblas -pthread

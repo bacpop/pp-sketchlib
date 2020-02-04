@@ -14,8 +14,11 @@
 #include "ntHashIterator.hpp"
 #include "robin_hood.h"
 
-const long table_width = 16777216; // 2^24
+const unsigned int table_width_bits = 24;
+constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON
+const long table_width = (long)mask; // 2^24 = 16777216
 const size_t table_rows = 6;
+const unsigned int hash_per_hash = (int)floor(64/table_width_bits);
 
 class KmerCounter 
 {
