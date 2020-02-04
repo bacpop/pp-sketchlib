@@ -107,6 +107,7 @@ std::vector<uint64_t> sketch(const std::string & name,
 
     // Rolling hash through string
     long long added = 0, correct = 0;
+    robin_hood::unordered_flat_map<uint64_t, bool> added_table;
     while (!seq.eof()) 
     {
         ntHashIterator hashIt(*(seq.getseq()), h, kmer_len);
@@ -115,10 +116,18 @@ std::vector<uint64_t> sketch(const std::string & name,
             auto hash = (*hashIt)[0] % SIGN_MOD;
             uint8_t rc = read_counter->add_count(hashIt);
             uint8_t tc = test_counter->add_count(hashIt);
-            if (test_counter == nullptr || tc == test_counter->min_count())
+            /* if (tc != rc)
             {
-                added++;
-                binsign(signs, hash, binsize);
+                std::cerr << hash << "\t" << (int)rc << "\t" << (int)tc << std::endl;
+            } */
+            if (test_counter == nullptr || tc >= test_counter->min_count())
+            {
+                if (added_table.find(hash) == added_table.end())
+                {
+                    added++;
+                    added_table[hash] = true;
+                    binsign(signs, hash, binsize);
+                }
             }
             if (read_counter == nullptr || rc == read_counter->min_count())
             {

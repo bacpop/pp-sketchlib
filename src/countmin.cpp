@@ -43,7 +43,7 @@ HashCounter::HashCounter(const uint8_t min_count)
 
 uint8_t CountMin::add_count(ntHashIterator& hash)
 {
-    uint8_t min_count = 0;
+    uint8_t min_count = std::numeric_limits<uint8_t>::max();
     for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr+=hash_per_hash)
     {
         uint64_t hash_val = (*hash)[hash_nr/hash_per_hash];
@@ -52,15 +52,10 @@ uint8_t CountMin::add_count(ntHashIterator& hash)
             uint32_t hash_val_masked = hash_val & mask;
             if (hash_table[hash_nr + i][hash_val_masked] < std::numeric_limits<uint8_t>::max())
             {
-                if (++hash_table[hash_nr + i][hash_val_masked] > min_count)
+                if (++hash_table[hash_nr + i][hash_val_masked] < min_count)
                 {
                     min_count = hash_table[hash_nr + i][hash_val_masked];
                 }
-            }
-            else
-            {
-                min_count = std::numeric_limits<uint8_t>::max();
-                break;
             }
             hash_val = hash_val >> table_width_bits;
         }
