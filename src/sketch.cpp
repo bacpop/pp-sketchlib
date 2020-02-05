@@ -120,7 +120,7 @@ std::vector<uint64_t> sketch(const std::string & name,
             {
                 std::cerr << hash << "\t" << (int)rc << "\t" << (int)tc << std::endl;
             } */
-            if (test_counter == nullptr || tc >= test_counter->min_count())
+            if (test_counter == nullptr || tc == test_counter->min_count())
             {
                 if (added_table.find(hash) == added_table.end())
                 {

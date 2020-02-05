@@ -8,15 +8,10 @@
 #include "countmin.hpp"
 
 // C/C++/C++11/C++17 headers
-#include <cmath>
 #include <iterator>
 #include <limits>
 
 #include "countmin.hpp"
-
-const unsigned int table_width_bits = 24;
-const unsigned int hash_per_hash = (int)floor(64/table_width_bits);
-constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON
 
 // Constructors
 

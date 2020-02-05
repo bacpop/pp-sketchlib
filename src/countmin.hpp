@@ -9,16 +9,18 @@
 // C/C++/C++11/C++17 headers
 #include <stdint.h>
 #include <cstddef>
+#include <cmath>
 #include <array>
 
 #include "ntHashIterator.hpp"
 #include "robin_hood.h"
 
+// Countmin parameters
 const unsigned int table_width_bits = 24;
 constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON
 const long table_width = (long)mask; // 2^24 = 16777216
-const size_t table_rows = 6;
-const unsigned int hash_per_hash = (int)floor(64/table_width_bits);
+const unsigned int hash_per_hash = (int)floor(64/table_width_bits); // This will be 2
+const size_t table_rows = 6; // Number of hashes, should be a multiple of hash_per_hash
 
 class KmerCounter 
 {
