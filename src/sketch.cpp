@@ -91,47 +91,24 @@ std::vector<uint64_t> sketch(const std::string & name,
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
 
     // This is needed as we don't get optional until C++17
-    HashCounter * read_counter = nullptr;
-    CountMin * test_counter = nullptr;
+    CountMin * read_counter = nullptr;
 	unsigned h = 1;
     if (seq.is_reads() && min_count > 0)
     {
-        read_counter = new HashCounter(min_count);
-        test_counter = new CountMin(min_count);
-        if (read_counter->num_hashes() > 0)
-        {
-            h = read_counter->num_hashes(); 
-        }
-        h = test_counter->num_hashes();
+        read_counter = new CountMin(min_count);
+        h = read_counter->num_hashes(); 
     }
 
     // Rolling hash through string
-    long long added = 0, correct = 0;
-    robin_hood::unordered_flat_map<uint64_t, bool> added_table;
     while (!seq.eof()) 
     {
         ntHashIterator hashIt(*(seq.getseq()), h, kmer_len);
         while (hashIt != hashIt.end())
         {
             auto hash = (*hashIt)[0] % SIGN_MOD;
-            uint8_t rc = read_counter->add_count(hashIt);
-            uint8_t tc = test_counter->add_count(hashIt);
-            /* if (tc != rc)
+            if (read_counter == nullptr || read_counter->add_count(hashIt) >= read_counter->min_count())
             {
-                std::cerr << hash << "\t" << (int)rc << "\t" << (int)tc << std::endl;
-            } */
-            if (test_counter == nullptr || tc == test_counter->min_count())
-            {
-                if (added_table.find(hash) == added_table.end())
-                {
-                    added++;
-                    added_table[hash] = true;
-                    binsign(signs, hash, binsize);
-                }
-            }
-            if (read_counter == nullptr || rc == read_counter->min_count())
-            {
-                correct++;
+                binsign(signs, hash, binsize);
             }
             ++hashIt;
         }
@@ -140,8 +117,6 @@ std::vector<uint64_t> sketch(const std::string & name,
 
     // Free memory from read_counter
     delete read_counter;
-    delete test_counter;
-    std::cerr << correct << "\t" << added << std::endl;
 
     // Apply densifying function
     int res = densifybin(signs);
