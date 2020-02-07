@@ -17,10 +17,10 @@
 
 // Countmin parameters
 const unsigned int table_width_bits = 24;
-constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON (to set 25 0x1FFFFFF; 26 0x3FFFFFF)
+constexpr uint64_t mask{ 0xFFFFFF }; // 24 lowest bits ON (to set 25 0x1FFFFFF; 26 0x3FFFFFF; 27 0x7FFFFFF)
 const long table_width = (long)mask; // 2^24 + 1 = 16777216
 const unsigned int hash_per_hash = (int)floor(64/table_width_bits); // This should be 2, or the table is likely too narrow
-const size_t table_rows = 6; // Number of hashes, should be a multiple of hash_per_hash
+const size_t table_rows = 4; // Number of hashes, should be a multiple of hash_per_hash
 
 class KmerCounter 
 {
