@@ -25,7 +25,7 @@ inline bool file_exists (const std::string& name) {
 
 // Internal function definitions
 void self_dist_block(DistMatrix& distMat,
-                     const dlib::matrix<double,0,2>& kmer_lengths,
+                     const std::vector<size_t>& kmer_lengths,
                      const std::vector<Reference>& sketches,
                      const size_t start_pos,
                      const size_t calcs);
@@ -33,7 +33,7 @@ void self_dist_block(DistMatrix& distMat,
 void query_dist_row(DistMatrix& distMat,
                     const Reference * ref_sketch_ptr,
                     const std::vector<Reference>& query_sketches,
-                    const dlib::matrix<double,0,2>& kmer_lengths,
+                    const std::vector<size_t>& kmer_lengths,
                     const size_t row_start);
 
 void sketch_block(std::vector<Reference>& sketches,
@@ -157,7 +157,6 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     DistMatrix distMat;
-    dlib::matrix<double,0,2> kmer_mat = add_intercept(vec_to_dlib(kmer_lengths));
     
     // Check if ref = query, then run as self mode
     // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere 
@@ -192,7 +191,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
-                                            std::cref(kmer_mat),
+                                            std::cref(kmer_lengths),
                                             std::cref(ref_sketches),
                                             start,
                                             thread_jobs));
@@ -233,7 +232,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                               std::ref(distMat),
                               &(*ref_it),
                               std::cref(query_sketches),
-                              std::cref(kmer_mat),
+                              std::cref(kmer_lengths),
                               row_start));
             row_start += query_sketches.size();
         }
@@ -360,7 +359,7 @@ void sketch_block(std::vector<Reference>& sketches,
 // Calculates dists self v self
 // (run this function in a thread)
 void self_dist_block(DistMatrix& distMat,
-                     const dlib::matrix<double,0,2>& kmer_lengths,
+                     const std::vector<size_t>& kmer_lengths,
                      const std::vector<Reference>& sketches,
                      const size_t start_pos,
                      const size_t calcs)
@@ -395,7 +394,7 @@ void self_dist_block(DistMatrix& distMat,
 void query_dist_row(DistMatrix& distMat,
                     const Reference * ref_sketch_ptr,
                     const std::vector<Reference>& query_sketches,
-                    const dlib::matrix<double,0,2>& kmer_lengths,
+                    const std::vector<size_t>& kmer_lengths,
                     const size_t row_start)
 {
     size_t current_row = row_start;

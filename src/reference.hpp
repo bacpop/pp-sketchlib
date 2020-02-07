@@ -34,7 +34,7 @@ class Reference
         void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
-        std::tuple<float, float> core_acc_dist(const Reference &query, const dlib::matrix<double,0,2> &kmers) const;
+        std::tuple<float, float> core_acc_dist(const Reference &query, const std::vector<size_t> &kmers) const;
         std::vector<size_t> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -60,7 +60,7 @@ class Reference
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(const Reference * r1, 
                                        const Reference * r2, 
-                                       const dlib::matrix<double,0,2>& kmers);
+                                       const std::vector<size_t>& kmers);
 
 // Need T -> double to be possible
 template <class T>

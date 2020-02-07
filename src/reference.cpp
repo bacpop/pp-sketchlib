@@ -80,13 +80,13 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      add_intercept(vec_to_dlib(kmers))); 
+                                                      kmers); 
     return(core_acc);
 }
 
 // Without k-mer sizes check
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
-                                                  const dlib::matrix<double,0,2> &kmers) const
+                                                  const std::vector<size_t> &kmers) const
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
