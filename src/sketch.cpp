@@ -91,12 +91,12 @@ std::vector<uint64_t> sketch(const std::string & name,
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
 
     // This is needed as we don't get optional until C++17
-    HashCounter * read_counter = nullptr;
+    CountMin * read_counter = nullptr;
 	unsigned h = 1;
     if (seq.is_reads() && min_count > 0)
     {
-        read_counter = new HashCounter(min_count);
-        //h = 6; // for countmin
+        read_counter = new CountMin(min_count);
+        h = read_counter->num_hashes(); 
     }
 
     // Rolling hash through string
@@ -106,7 +106,7 @@ std::vector<uint64_t> sketch(const std::string & name,
         while (hashIt != hashIt.end())
         {
             auto hash = (*hashIt)[0] % SIGN_MOD;
-            if (read_counter == nullptr || read_counter->add_count(hash) == read_counter->min_count())
+            if (read_counter == nullptr || read_counter->add_count(hashIt) >= read_counter->min_count())
             {
                 binsign(signs, hash, binsize);
             }

@@ -17,13 +17,14 @@ ifeq ($(UNAME_S),Linux)
 	endif
 	LALIBS=-lmkl_rt -lpthread -lm -ldl
 	# LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
+	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
-	LALIBS=-llapack -lblas -pthread
+	LALIBS=-llapack -lopenblas -pthread
 endif
 
 CPPFLAGS=-I../dlib -I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3 -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
-LDFLAGS=-Wl,-as-needed -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
+LDFLAGS+= -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
 
 PROGRAMS=sketch_test read_test
 

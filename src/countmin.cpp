@@ -13,19 +13,17 @@
 
 #include "countmin.hpp"
 
-constexpr uint64_t mask{ 0x1FFFFF }; // 21 lowest bits ON
-
 // Constructors
 
-KmerCounter::KmerCounter(const uint8_t min_count)
-:_min_count(min_count)
+KmerCounter::KmerCounter(const uint8_t min_count, const size_t num_hashes)
+:_min_count(min_count), _num_hashes_needed(num_hashes)
 {
 }
 
 KmerCounter::~KmerCounter() {};
 
 CountMin::CountMin(const uint8_t min_count)
-:KmerCounter(min_count)
+:KmerCounter(min_count, table_rows/hash_per_hash)
 {
     for (auto row_it = hash_table.begin(); row_it != hash_table.end(); row_it++)
     {
@@ -34,45 +32,44 @@ CountMin::CountMin(const uint8_t min_count)
 }
 
 HashCounter::HashCounter(const uint8_t min_count)
-:KmerCounter(min_count)
+:KmerCounter(min_count, 0)
 {
 }
 
-uint8_t CountMin::add_count(uint64_t doublehash)
+uint8_t CountMin::add_count(ntHashIterator& hash)
 {
-    uint8_t min_count = 0;
-    for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr++)
+    uint8_t min_count = std::numeric_limits<uint8_t>::max();
+    for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr+=hash_per_hash)
     {
-        long hash = doublehash & mask;
-        doublehash = doublehash >> 21;
-        if (hash_table[hash_nr][hash] < std::numeric_limits<uint8_t>::max())
+        uint64_t hash_val = (*hash)[hash_nr/hash_per_hash];
+        for (unsigned int i = 0; i < hash_per_hash; i++)
         {
-            if (++hash_table[hash_nr][hash] > min_count)
+            uint32_t hash_val_masked = hash_val & mask;
+            if (hash_table[hash_nr + i][hash_val_masked] < std::numeric_limits<uint8_t>::max())
             {
-                min_count = hash_table[hash_nr][hash];
+                if (++hash_table[hash_nr + i][hash_val_masked] < min_count)
+                {
+                    min_count = hash_table[hash_nr + i][hash_val_masked];
+                }
             }
+            hash_val = hash_val >> table_width_bits;
         }
-        else
-        {
-            min_count = std::numeric_limits<uint8_t>::max();
-        }
-        
     }
     return(min_count);
 }
 
-bool KmerCounter::above_min(const uint64_t doublehash)
+bool KmerCounter::above_min(ntHashIterator& hash)
 {
-    return (add_count(doublehash) > _min_count);
+    return (add_count(hash) > _min_count);
 }
 
-uint8_t HashCounter::add_count(uint64_t doublehash)
+uint8_t HashCounter::add_count(ntHashIterator& hash)
 {
     uint8_t count = 0;
-    auto table_val = hash_table.find(doublehash);
+    auto table_val = hash_table.find((*hash)[0]);
     if (table_val == hash_table.end())
     {
-        hash_table[doublehash] = 1;
+        hash_table[(*hash)[0]] = 1;
         count = 1;
     }
     else if (table_val->second < std::numeric_limits<uint8_t>::max())
@@ -83,7 +80,7 @@ uint8_t HashCounter::add_count(uint64_t doublehash)
     return(count);
 }
 
-uint8_t HashCounter::probe(uint64_t doublehash)
+uint8_t HashCounter::probe(ntHashIterator& hash)
 {
-    return(hash_table[doublehash]);
+    return(hash_table[(*hash)[0]]);
 }

@@ -14,6 +14,7 @@ int main (int argc, char* argv[])
     
     std::vector<size_t> kmer_lengths {15, 29};
     Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, 20);
+    return 0;
     Reference query(argv[3], {argv[4], argv[5]}, kmer_lengths, 156, 20);
 
     std::cout << ref.jaccard_dist(query, 15) << std::endl;
@@ -21,8 +22,6 @@ int main (int argc, char* argv[])
 
     auto core_acc = ref.core_acc_dist(query); 
     std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
-
-    // Need to test count-min elsewhere
 
     return 0;
 }
