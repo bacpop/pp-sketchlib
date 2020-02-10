@@ -28,7 +28,7 @@ LDFLAGS+= -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
 
 PROGRAMS=sketch_test read_test
 
-SKETCH_OBJS=dist.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o link_function.o
+SKETCH_OBJS=dist.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
 
 all: $(PROGRAMS)
 

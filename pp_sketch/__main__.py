@@ -7,6 +7,8 @@ import os, sys
 import numpy as np
 import h5py
 
+import sys
+sys.path.insert(0, "build/lib.macosx-10.9-x86_64-3.7")
 import pp_sketchlib
 
 from .__init__ import __version__

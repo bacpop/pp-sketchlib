@@ -19,7 +19,7 @@ const size_t def_sketchsize64 = 156;
 #include "bitfuncs.hpp"
 
 auto key_selector = [](auto pair){return pair.first;};
-auto value_selector = [](auto pair){return pair.second;};
+// auto value_selector = [](auto pair){return pair.second;};
 
 // Initialisation
 Reference::Reference()

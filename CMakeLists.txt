@@ -47,8 +47,7 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
                                  src/sketch.cpp
                                  src/database.cpp
                                  src/api.cpp
-                                 src/linear_regression.cpp
-                                 src/link_function.cpp)
+                                 src/linear_regression.cpp)
 
 # Not needed - possible fix to version/module/exception name clash
 # set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")

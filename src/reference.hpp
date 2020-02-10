@@ -13,8 +13,6 @@
 #include <string>
 #include <tuple>
 
-#include "link_function.hpp" // Include dlib and column_vector
-
 class Reference
 {
     public:
@@ -61,19 +59,3 @@ class Reference
 std::tuple<float, float> regress_kmers(const Reference * r1, 
                                        const Reference * r2, 
                                        const std::vector<size_t>& kmers);
-
-// Need T -> double to be possible
-template <class T>
-column_vector vec_to_dlib(const std::vector<T>& invec)
-{
-    column_vector dlib_vec;
-    dlib_vec.set_size(invec.size());
-    for (unsigned int i = 0; i < invec.size(); i++)
-    {
-        dlib_vec(i) = invec.at(i);
-    }
-    return(dlib_vec);
-}
-
-// Defined in linear_regression.cpp
-dlib::matrix<double,0,2> add_intercept(const column_vector& kmer_vec);
