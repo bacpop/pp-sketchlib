@@ -37,14 +37,35 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
 {
     // Vector of points 
     // Each point is an input/output tuple (k-mer length)/(jaccard dist)
-    std::vector<std::pair<two_vec, double> > data_samples;    
+    dlib::matrix<double,0,1> kmer_vec;
+    dlib::matrix<double,0,1> jaccard;
+    kmer_vec.set_size(kmers.size()); jaccard.set_size(kmers.size());
     for (unsigned int i = 0; i < kmers.size(); ++i)
     {
-        data_samples.push_back(std::make_pair(two_vec{1, (double)kmers[i]},
-                                              log(r1->jaccard_dist(*r2, kmers[i])))); 
+        kmer_vec(i) = (double)kmers[i];
+        jaccard(i) = log(r1->jaccard_dist(*r2, kmers[i])); 
     }
 
-    two_vec starting_point = {0, 0};
+    double xbar = dlib::mean(kmer_vec);
+    double ybar = dlib::mean(jaccard);
+    double xy = dlib::sum(dlib::pointwise_multiply(kmer_vec, jaccard)) - xbar*ybar;
+    double x_diff = dlib::mean(dlib::squared(kmer_vec))-pow(xbar, 2);
+    double y_diff = dlib::mean(dlib::squared(jaccard))-pow(ybar, 2);
+    double beta = xy * (1/pow(x_diff*y_diff, 0.5)) * (dlib::stddev(jaccard) / dlib::stddev(kmer_vec));
+    double alpha = dlib::mean(jaccard) - beta * dlib::mean(kmer_vec);
+
+    float core_dist = 0, accessory_dist = 0;
+    if (beta < x_upper(1))
+    {
+        core_dist = 1 - exp(beta);
+    }
+    if (alpha < x_upper(0))
+    {
+        accessory_dist = 1 - exp(alpha);
+    }
+    return(std::make_tuple(core_dist, accessory_dist));
+
+    /* two_vec starting_point = {0, 0};
     try
     {
         dlib::solve_least_squares_lm(
@@ -77,4 +98,5 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
         std::cerr << std::endl << "Check for low quality genomes" << std::endl;
         exit(1);
     }
+    */
 }
