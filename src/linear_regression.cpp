@@ -69,7 +69,7 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
     catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
-        std::cerr << "Fitting k-mer gradient failed, matches:" << std::endl;
+        std::cerr << "Fitting k-mer gradient failed, for:" << r1->name() << "vs." << r2->name() << std::endl;
         for (unsigned int i = 0; i < data_samples.size(); ++i)
         {
             std::cerr << data_samples[i].first(1) << "\t" << data_samples[i].second << std::endl;
