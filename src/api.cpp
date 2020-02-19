@@ -364,6 +364,7 @@ void self_dist_block(DistMatrix& distMat,
                      const size_t start_pos,
                      const size_t calcs)
 {
+    arma::mat kmer_mat = kmer2mat(kmer_lengths);
     // Iterate upper triangle
     size_t done_calcs = 0;
     size_t pos = 0;
@@ -373,7 +374,7 @@ void self_dist_block(DistMatrix& distMat,
         {
             if (pos >= start_pos)
             {
-                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_lengths);
+                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat);
                 done_calcs++;
                 if (done_calcs >= calcs)
                 {
@@ -397,11 +398,12 @@ void query_dist_row(DistMatrix& distMat,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t row_start)
 {
+    arma::mat kmer_mat = kmer2mat(kmer_lengths);
     size_t current_row = row_start;
     for (auto query_it = query_sketches.cbegin(); query_it != query_sketches.cend(); query_it++)
     {
         std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                ref_sketch_ptr->core_acc_dist(*query_it, kmer_lengths);
+                ref_sketch_ptr->core_acc_dist(*query_it, kmer_mat);
         current_row++;
     }
 }

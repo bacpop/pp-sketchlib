@@ -80,13 +80,13 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      kmers); 
+                                                      kmer2mat(kmers)); 
     return(core_acc);
 }
 
 // Without k-mer sizes check
 std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
-                                                  const std::vector<size_t> &kmers) const
+                                                  const arma::mat &kmers) const
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
@@ -122,4 +122,15 @@ std::vector<size_t> Reference::kmer_lengths() const
     std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);
     std::sort(keys.begin(), keys.end());
     return keys;
+}
+
+template <class T>
+arma::mat kmer2mat(const T& kmers)
+{
+    arma::mat X(kmers.size(), 2, arma::fill::ones);
+    for (size_t i = 0; i < kmers.size(); i++)
+    {
+        X[i, 1] = kmers[i];
+    }
+    return X;
 }

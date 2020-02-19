@@ -13,18 +13,19 @@ IF(CMAKE_COMPILER_IS_GNUCC)
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 if(UNIX AND NOT APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMKL_ILP64 -m64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
+    #set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
 endif()
 
 # Add libraries
 find_package(pybind11 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Armadillo REQUIRED)
+include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # Submodules
-include_directories(${PROJECT_SOURCE_DIR}/dlib)
-add_definitions(-D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1)
 include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
 
 # Set paths for non standard lib/ and include/ locations
@@ -53,7 +54,7 @@ pybind11_add_module("${TARGET_NAME}" src/sketchlib_bindings.cpp
 # set_target_properties("${TARGET_NAME}" PROPERTIES CXX_VISIBILITY_PRESET "default")
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 mkl_rt Threads::Threads m dl)
+    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen ${ARMADILLO_LIBRARIES} z bz2 hdf5_cpp hdf5 mkl_rt Threads::Threads m dl)
 else()
-    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
+    target_link_libraries("${TARGET_NAME}" PRIVATE Eigen3::Eigen ${ARMADILLO_LIBRARIES} z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
 endif()

@@ -13,6 +13,9 @@
 #include <string>
 #include <tuple>
 
+#define ARMA_DONT_USE_WRAPPER
+#include <armadillo>
+
 class Reference
 {
     public:
@@ -32,7 +35,7 @@ class Reference
         void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
-        std::tuple<float, float> core_acc_dist(const Reference &query, const std::vector<size_t> &kmers) const;
+        std::tuple<float, float> core_acc_dist(const Reference &query, const arma::mat& kmers) const;
         std::vector<size_t> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -55,7 +58,10 @@ class Reference
         std::unordered_map<int, std::vector<uint64_t>> usigs;
 };
 
+template <class T>
+arma::mat kmer2mat(const T& kmers);
+
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(const Reference * r1, 
                                        const Reference * r2, 
-                                       const std::vector<size_t>& kmers);
+                                       const arma::mat& kmers);
