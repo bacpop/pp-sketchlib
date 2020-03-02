@@ -46,7 +46,6 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<size_t> kmer_lengths,
                          size_t num_threads = 1,
                          bool use_gpu = False,
-                         size_t blockCount = 128,
                          size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
@@ -59,7 +58,6 @@ DistMatrix queryDatabase(std::string ref_db_name,
         dists = query_db_gpu(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
-                            blockCount,
                             blockSize,
                             0);
     }
@@ -87,7 +85,6 @@ DistMatrix constructAndQuery(std::string db_name,
                              size_t min_count = 0,
                              size_t num_threads = 1,
                              bool use_gpu = False,
-                             size_t blockCount = 128,
                              size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
@@ -104,7 +101,6 @@ DistMatrix dists;
         dists = query_db_gpu(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
-                             blockCount,
                              blockSize,
                              0);
     }
@@ -155,7 +151,6 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = False,
-        py::arg("blockCount") = 128,
         py::arg("blockSize") = 128);
 
   m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
@@ -167,7 +162,6 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("min_count") = 0,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = False,
-        py::arg("blockCount") = 128,
         py::arg("blockSize") = 128);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",

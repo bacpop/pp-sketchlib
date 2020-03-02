@@ -171,6 +171,7 @@ void calculate_dists(const uint64_t * ref,
 					 const uint64_t * query,
 					 const long query_n,
 					 const int * kmers,
+					 const int kmer_n,
 					 float *&dists,
 					 const long long dist_n,
 					 const size_t sketchsize64, 
@@ -199,7 +200,7 @@ void calculate_dists(const uint64_t * ref,
 		regress_kmers(dists, dist_idx, 
 			ref, i, 
 			query, j,
-			kmers,
+			kmers, kmer_n,
 			sketchsize64, bbits,
 			kmer_stride, sample_stride);
 	}
@@ -258,7 +259,6 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
 	const std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-	const int blockCount,
 	const int blockSize,
     const size_t max_device_mem)
 {
@@ -320,12 +320,14 @@ DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
 	// Run dists on device
+	int blockCount = (dist_rows + blockSize - 1) / dist_rows;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
 		ref_sketches.size(),
 		d_query_array,
 		query_sketches.size(),
 		d_kmers_array,
+		kmers.size(),
 		dist_mat,
 		dist_rows,
 		kmer_stride,
