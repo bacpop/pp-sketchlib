@@ -29,6 +29,7 @@ LDFLAGS+= -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
 PROGRAMS=sketch_test read_test
 
 SKETCH_OBJS=dist.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
+CUDA_OBJS=dist.cu
 
 all: $(PROGRAMS)
 
@@ -41,7 +42,7 @@ install: all
 	install -d $(BINDIR)
 	install $(PROGRAMS) $(BINDIR)
 
-sketch_test: $(SKETCH_OBJS) main.o
+sketch_test: $(SKETCH_OBJS) $(CUDA_OBJS) main.o
 	$(LINK.cpp) $^ -o $@
 
 read_test: $(SKETCH_OBJS) read_test.o

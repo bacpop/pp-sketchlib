@@ -18,7 +18,7 @@ using Eigen::MatrixXf;
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, 2> DistMatrix;
 
-// These are the three functions called by python bindings
+// These are the four functions called by python bindings
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::vector<std::string>>& files, 
@@ -31,6 +31,16 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads);
+
+// defined in dist.cu
+#ifdef GPU_AVAILABLE
+DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
+	const std::vector<Reference>& query_sketches,
+	const std::vector<size_t>& kmer_lengths,
+	const int blockCount,
+	const int blockSize,
+    const size_t max_device_mem = 0)
+#endif
 
 std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,

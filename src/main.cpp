@@ -45,7 +45,18 @@ int main (int argc, char* argv[])
                               2);
 
     std::cout << dists << std::endl;
-    
+
+#ifdef GPU_AVAILABLE
+    MatrixXf gpu_dists = query_db_gpu(ref_sketches,
+                              ref_sketches,
+                              kmer_lengths,
+                              128,
+                              128,
+                              0);
+
+    std::cout << gpu_dists << std::endl;
+#endif
+
     std::ifstream rfile(argv[5]);
     std::string name, file;
     std::vector<std::string> names;

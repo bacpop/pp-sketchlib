@@ -21,28 +21,6 @@ namespace py = pybind11;
  * Query db - creates query sketches, loads ref sketches, runs query_db
  */
 
-/*
-* 
-* Here are the functions exported from api.hpp
-*
-* std::vector<Reference> create_sketches(const std::string& db_name,
-*                   const std::vector<std::string>& names, 
-*                    const std::vector<std::vector<std::string>>& files, 
-*                    const std::vector<size_t>& kmer_lengths,
-*                    const size_t sketchsize64,
-*                    const size_t num_threads);
-* 
-* DistMatrix query_db(std::vector<Reference>& ref_sketches,
-*                     std::vector<Reference>& query_sketches,
-*                     const std::vector<size_t>& kmer_lengths,
-*                     const size_t num_threads);
-* std::vector<Reference> load_sketches(const std::string& db_name,
-*                                     const std::vector<std::string>& names,
-*                                     const std::vector<size_t>& kmer_lengths);
-*
-*
-*/
-
 // Calls function, but returns void
 void constructDatabase(std::string db_name,
                        std::vector<std::string> sample_names,
@@ -66,14 +44,39 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<std::string> ref_names,
                          std::vector<std::string> query_names,
                          std::vector<size_t> kmer_lengths,
-                         size_t num_threads = 1)
+                         size_t num_threads = 1,
+                         bool use_gpu = False,
+                         size_t blockCount = 128,
+                         size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
-    return(query_db(ref_sketches,
+
+    DistMatrix dists; 
+#ifdef GPU_AVAILABLE
+    if (use_gpu)
+    {
+        dists = query_db_gpu(ref_sketches,
+	                        query_sketches,
+                            kmer_lengths,
+                            blockCount,
+                            blockSize,
+                            0);
+    }
+    else
+    {
+        dists = query_db(ref_sketches,
+                query_sketches,
+                kmer_lengths,
+                num_threads);
+    }
+#else
+    dists = query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
                     num_threads));
+#endif
+    return(dists);
 }
 
 DistMatrix constructAndQuery(std::string db_name,
@@ -82,7 +85,10 @@ DistMatrix constructAndQuery(std::string db_name,
                              std::vector<size_t> kmer_lengths,
                              size_t sketch_size,
                              size_t min_count = 0,
-                             size_t num_threads = 1)
+                             size_t num_threads = 1,
+                             bool use_gpu = False,
+                             size_t blockCount = 128,
+                             size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
                                                             sample_names, 
@@ -91,10 +97,31 @@ DistMatrix constructAndQuery(std::string db_name,
                                                             sketch_size,
                                                             min_count,
                                                             num_threads);
-    return(query_db(ref_sketches,
-                    ref_sketches,
-                    kmer_lengths,
-                    num_threads));  
+DistMatrix dists; 
+#ifdef GPU_AVAILABLE
+    if (use_gpu)
+    {
+        dists = query_db_gpu(ref_sketches,
+                             ref_sketches,
+                             kmer_lengths,
+                             blockCount,
+                             blockSize,
+                             0);
+    }
+    else
+    {
+        dists = query_db(ref_sketches,
+                ref_sketches,
+                kmer_lengths,
+                num_threads);
+    }
+#else
+    dists = query_db(ref_sketches,
+                     ref_sketches,
+                     kmer_lengths,
+                     num_threads));
+#endif
+    return(dists);
 }
 
 double jaccardDist(std::string db_name,
@@ -126,7 +153,10 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("rList"),
         py::arg("qList"),
         py::arg("klist"),
-        py::arg("num_threads") = 1);
+        py::arg("num_threads") = 1,
+        py::arg("use_gpu") = False,
+        py::arg("blockCount") = 128,
+        py::arg("blockSize") = 128);
 
   m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
         py::arg("db_name"),
@@ -135,7 +165,10 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("sketch_size"),
         py::arg("min_count") = 0,
-        py::arg("num_threads") = 1);
+        py::arg("num_threads") = 1,
+        py::arg("use_gpu") = False,
+        py::arg("blockCount") = 128,
+        py::arg("blockSize") = 128);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",
         py::arg("db_name"),
