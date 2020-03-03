@@ -161,7 +161,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("sketch_size"),
         py::arg("min_count") = 0,
         py::arg("num_threads") = 1,
-        py::arg("use_gpu") = False,
+        py::arg("use_gpu") = false,
         py::arg("blockSize") = 128);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",

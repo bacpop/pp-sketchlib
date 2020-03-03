@@ -254,9 +254,9 @@ DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	const int blockSize,
     const size_t max_device_mem)
 {
-    dist_vec = query_db_cuda(ref_sketches, query_sketches, kmer_lengths, blockSize, max_device_mem);
+    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, kmer_lengths, blockSize, max_device_mem);
     DistMatrix dists_ret = \
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_results.data(),dist_rows,2);
+		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size() >> 1,2);
 
     return dists_ret;
 }

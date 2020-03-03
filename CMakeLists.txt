@@ -84,4 +84,4 @@ if(CMAKE_CUDA_COMPILER)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen 
                                                ${ARMADILLO_LIBRARIES} 
-                                               z bz2 hdf5_cpp hdf5 openblas Threads::Threads m dl)
+                                               z bz2 hdf5_cpp hdf5 openblas m dl)
