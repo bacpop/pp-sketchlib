@@ -13,6 +13,7 @@
 #include <H5Cpp.h>
 
 #include "api.hpp"
+#include "gpu.hpp"
 #include "reference.hpp"
 #include "database.hpp"
 

@@ -45,7 +45,7 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<std::string> query_names,
                          std::vector<size_t> kmer_lengths,
                          size_t num_threads = 1,
-                         bool use_gpu = False,
+                         bool use_gpu = false,
                          size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
@@ -84,7 +84,7 @@ DistMatrix constructAndQuery(std::string db_name,
                              size_t sketch_size,
                              size_t min_count = 0,
                              size_t num_threads = 1,
-                             bool use_gpu = False,
+                             bool use_gpu = false,
                              size_t blockSize = 128)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
@@ -150,7 +150,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("qList"),
         py::arg("klist"),
         py::arg("num_threads") = 1,
-        py::arg("use_gpu") = False,
+        py::arg("use_gpu") = false,
         py::arg("blockSize") = 128);
 
   m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
