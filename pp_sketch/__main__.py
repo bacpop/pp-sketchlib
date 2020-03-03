@@ -75,12 +75,20 @@ def get_options():
     kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
     kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
 
+    optimisation = parser.add_argument('Optimisation options')
+    optimisation.add_argument('--cpus',
+                              type=int,
+                              default=1,
+                              help='Number of CPUs to use '
+                                   '[default = 1]')
+    optimisation.add_argument('--use-gpu', default=False, action='store_true',
+                              help='Use GPU code to calculate distances, '
+                                   'if available [default = False]')
+    optimisation.add_argument('--block-size', type=int, default=128,
+                              help='Number of threads per GPU block'
+                                   ' [default = 128]')
+
     other = parser.add_argument_group('Other')
-    other.add_argument('--cpus',
-                        type=int,
-                        default=1,
-                        help='Number of CPUs to use '
-                             '[default = 1]')
     other.add_argument('--version', action='version',
                        version='%(prog)s '+__version__)
 
@@ -125,7 +133,8 @@ def main():
         for sample_name in list(query['sketches'].keys()):
             qList.append(sample_name)
 
-        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, args.cpus)
+        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
+                                             args.cpus, args.use_gpu, args.block_size)
         
         # get names order
         names = iterDistRows(rList, qList, rList == qList)
