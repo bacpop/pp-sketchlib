@@ -43,12 +43,16 @@ include(CheckLanguage)
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, compiling both GPU and CPU code")
-    
     enable_language(CUDA)
-    set(CMAKE_CUDA_FLAGS "-Xcompiler -fPIC --cudart static --relocatable-device-code=false -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35 -gencode arch=compute_50,code=sm_50")
+    
+    set(CUDA_OPTS "-Xcompiler -fPIC --cudart static --relocatable-device-code=false")
+    string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35")
+    string(APPEND CUDA_OPTS " -gencode arch=compute_50,code=sm_50")
+    set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
     
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" STATIC src/dist.cu)
+    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON

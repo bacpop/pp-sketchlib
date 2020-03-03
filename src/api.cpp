@@ -247,6 +247,20 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     return(distMat);
 }
 
+DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
+	const std::vector<Reference>& query_sketches,
+	const std::vector<size_t>& kmer_lengths,
+	const int blockSize,
+    const size_t max_device_mem)
+{
+    dist_vec = query_db_cuda(ref_sketches, query_sketches, kmer_lengths, blockSize, max_device_mem);
+    DistMatrix dists_ret = \
+		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_results.data(),dist_rows,2);
+
+    return dists_ret;
+}
+
+
 // Load sketches from a HDF5 file
 // Returns empty vector on failure
 std::vector<Reference> load_sketches(const std::string& db_name,

@@ -12,6 +12,8 @@
 #include <cmath>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
+#include <iomanip>
 
 // cuda
 #include <thrust/device_vector.h>
@@ -19,6 +21,7 @@
 
 // internal headers
 #include "bitfuncs.hpp"
+#include "gpu.hpp"
 
 static void
 CheckCudaErrorAux(const char *, unsigned, const char *, cudaError_t);
@@ -38,8 +41,8 @@ static void CheckCudaErrorAux(const char *file, unsigned line,
 	exit(1);
 }
 
-__device__
 template <class T>
+__device__
 T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
 }
@@ -69,18 +72,18 @@ size_t jaccard_dist(const uint64_t * sketch1,
 	if (!expected_samebits) 
 	{
 		size_t ret = non_neg_minus(samebits, expected_samebits);
-		size_t intersize = ret * maxnbits / (maxnbits - expected_samebits);
+		intersize = ret * maxnbits / (maxnbits - expected_samebits);
 	}
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
     double jaccard = intersize/(double)unionsize;
-    return(jaccard)
+    return(jaccard);
 }
 
 // Gets Jaccard distance across k-mer lengths and runs a regression
 // to get core and accessory
 __device__
 void regress_kmers(float *& dists,
-				   const long long dist_idx
+				   const long long dist_idx,
 				   const uint64_t * ref,
 				   const long i, 
 				   const uint64_t * query,
@@ -89,15 +92,15 @@ void regress_kmers(float *& dists,
 				   const int kmer_n,
 				   const size_t sketchsize64, 
 				   const size_t bbits,
-				   const long kmer_stride, 
-				   const long sample_stride)						  
+				   const size_t kmer_stride, 
+				   const size_t sample_stride)						  
 {
     // Vector for Jaccard dists 
 	float * y;
 	CUDA_CHECK_RETURN(cudaMalloc((void ** )&y, sizeof(float) * kmer_n));
 	
 	long long ref_offset = i * sample_stride;
-	long long query_offset = j * sample_stride
+	long long query_offset = j * sample_stride;
 	for (unsigned int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
     {
 		y[i] = log(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits));
@@ -120,7 +123,7 @@ void regress_kmers(float *& dists,
 	CUDA_CHECK_RETURN(cudaFree(y));
 
 	float xbar = xsum / N;
-	float ybar = xyum / N;
+	float ybar = ysum / N;
     float xy = xysum - xbar*ybar;
     float x_diff = (xsquaresum / N) - pow(xbar, 2);
     float y_diff = (ysquaresum / N) - pow(ybar, 2);
@@ -133,12 +136,14 @@ void regress_kmers(float *& dists,
 	float core_dist = 0, accessory_dist = 0;
 	if (beta < 0)
 	{
-		dists[dist_idx*2] = 1 - exp(beta);
+		core_dist = 1 - exp(beta);
 	}
 	if (alpha < 0)
 	{
-		dists[dist_idx*2 + 1] = 1 - exp(alpha);
+		accessory_dist = 1 - exp(alpha);
 	}
+	dists[dist_idx*2] = core_dist;
+	dists[dist_idx*2 + 1] = accessory_dist;
 }
 
 // Functions to convert index position to/from squareform to condensed form
@@ -176,17 +181,17 @@ void calculate_dists(const uint64_t * ref,
 					 const long long dist_n,
 					 const size_t sketchsize64, 
 					 const size_t bbits,
-					 const long kmer_stride,
-					 const long sample_stride)
+					 const size_t kmer_stride,
+					 const size_t sample_stride)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
-	for (long long dist_idx = index; dist_idx < dist_n; i += stride)
+	for (long long dist_idx = index; dist_idx < dist_n; dist_idx += stride)
 	{
 		if (query == nullptr)
 		{
-			long i = calc_row_idx(dist_idx, dist_n)
-			long j = calc_col_idx(dist_idx, i, dist_n)
+			long i = calc_row_idx(dist_idx, dist_n);
+			long j = calc_col_idx(dist_idx, i, dist_n);
 			if (j <= i)
 			{
 				continue;
@@ -210,7 +215,8 @@ void calculate_dists(const uint64_t * ref,
 // uint64 with strides bins * kmers * samples
 thrust::host_vector<uint64_t> flatten_sketches(
 	const std::vector<Reference>& sketches,
-	const std::vector<size_t>& kmer_lengths)
+	const std::vector<size_t>& kmer_lengths,
+	const size_t sample_stride)
 {
 	thrust::host_vector<uint64_t> flat_ref(sample_stride * ref_sketches.size());
 	auto flat_ref_it = flat_ref.begin();
@@ -256,7 +262,7 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 // Copies data to device
 // Runs kernel function across distance elements
 // Copies and returns results
-DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
+std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
 	const std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
@@ -267,15 +273,18 @@ DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
     // Check if ref = query, then run as self mode
 	// TODO implement max device mem
 	// TODO will involve taking square blocks of distmat
-	bool self = False;
+	bool self = false;
 	std::sort(ref_sketches.begin(), ref_sketches.end());
-	std::sort(query_sketches.begin(), query_sketches.end())
+	std::sort(query_sketches.begin(), query_sketches.end());
 	
+	// long bin_stride = 1; // unused - pass this iff strides of flattened array change
+	size_t kmer_stride = sketchsize64 * bbits;
+	size_t sample_stride = kmer_stride * kmer_lengths.size();	
 	long long dist_rows;
 	if (ref_sketches == query_sketches)
     {
 		dist_rows = static_cast<long long>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
-		self = True;
+		self = true;
 	}
 	else
 	{
@@ -298,9 +307,6 @@ DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
 	cudaDeviceReset();
 
 	// flatten the input sketches and copy ref sketches to device
-	// long bin_stride = 1; // unused - pass this iff strides of flattened array change
-	long kmer_stride = sketchsize64 * bbits;
-	long sample_stride = kmer_stride * kmer_lengths.size();
 	thrust::device_vector<int> d_kmers = kmer_lengths;
 	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
 	thrust::host_vector<uint64_t> flat_ref = flatten_sketches(ref_sketches, kmer_lengths);
@@ -327,16 +333,13 @@ DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
 		d_query_array,
 		query_sketches.size(),
 		d_kmers_array,
-		kmers.size(),
+		kmer_lengths.size(),
 		dist_mat,
 		dist_rows,
 		kmer_stride,
 		sample_stride)
 				
 	// copy results from device, and convert to return type
-	std::vector<float> dist_results = dist_mat; 
-	DistMatrix dists_ret = 
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_results.data(),dist_rows,2);
-
-    return dists_ret;
+	std::vector<float> dist_results = dist_mat;
+	return dist_results;
 }
