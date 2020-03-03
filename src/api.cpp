@@ -247,8 +247,8 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     return(distMat);
 }
 
-DistMatrix query_db_gpu(const std::vector<Reference>& ref_sketches,
-	const std::vector<Reference>& query_sketches,
+DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
+	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
     const size_t max_device_mem)

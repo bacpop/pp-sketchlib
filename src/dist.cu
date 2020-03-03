@@ -8,6 +8,7 @@
 // std
 #include <cstdint>
 #include <stdlib.h>
+#include <assert.h>
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
@@ -23,22 +24,16 @@
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 
-static void
-CheckCudaErrorAux(const char *, unsigned, const char *, cudaError_t);
-#define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
-
-/**
- * Check the return value of the CUDA runtime API call and exit
- * the application if the call has failed.
- */
-static void CheckCudaErrorAux(const char *file, unsigned line,
-	const char *statement, cudaError_t err) 
+// Error checking of dynamic memory allocation on device
+// https://stackoverflow.com/a/14038590
+#define cdpErrchk(ans) { cdpAssert((ans), __FILE__, __LINE__); }
+__device__ void cdpAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
-	if (err == cudaSuccess)
-		return;
-	std::cerr << statement << " returned " << cudaGetErrorString(err) << "("
-			<< err << ") at " << file << ":" << line << std::endl;
-	exit(1);
+   if (code != cudaSuccess)
+   {
+      printf("GPU kernel assert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) assert(0);
+   }
 }
 
 template <class T>
@@ -97,13 +92,13 @@ void regress_kmers(float *& dists,
 {
     // Vector for Jaccard dists 
 	float * y;
-	CUDA_CHECK_RETURN(cudaMalloc((void ** )&y, sizeof(float) * kmer_n));
+	cdpErrchk(cudaMalloc((void ** )&y, sizeof(float) * kmer_n));
 	
 	long long ref_offset = i * sample_stride;
 	long long query_offset = j * sample_stride;
 	for (unsigned int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
     {
-		y[i] = log(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits));
+		y[i] = logf(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits));
 		ref_offset += kmer_stride;
 		query_offset += kmer_stride;
     }
@@ -112,7 +107,7 @@ void regress_kmers(float *& dists,
 	// Maybe BLAS routines would be more efficient
 	float xsum = 0; float ysum = 0; float xysum = 0;
 	float xsquaresum = 0; float ysquaresum = 0;
-	for (unsigned int i = 0; i < N; ++i)
+	for (unsigned int i = 0; i < kmer_n; ++i)
 	{
 		xsum += kmers[i]; 
 		ysum += y[i]; 
@@ -120,13 +115,13 @@ void regress_kmers(float *& dists,
 		xsquaresum = kmers[i] * kmers[i];
 		ysquaresum = y[i] * y[i];
 	}
-	CUDA_CHECK_RETURN(cudaFree(y));
+	cdpErrchk(cudaFree(y));
 
-	float xbar = xsum / N;
-	float ybar = ysum / N;
+	float xbar = xsum / kmer_n;
+	float ybar = ysum / kmer_n;
     float xy = xysum - xbar*ybar;
-    float x_diff = (xsquaresum / N) - pow(xbar, 2);
-    float y_diff = (ysquaresum / N) - pow(ybar, 2);
+    float x_diff = (xsquaresum / kmer_n) - pow(xbar, 2);
+    float y_diff = (ysquaresum / kmer_n) - pow(ybar, 2);
 	float xstddev = sqrt(x_diff);
 	float ystddev = sqrt(y_diff);
 	double beta = xy * (1/sqrt(x_diff*y_diff)) * (ystddev / xstddev);
@@ -188,22 +183,23 @@ void calculate_dists(const uint64_t * ref,
 	int stride = blockDim.x * gridDim.x;
 	for (long long dist_idx = index; dist_idx < dist_n; dist_idx += stride)
 	{
+		long i, j;
 		if (query == nullptr)
 		{
-			long i = calc_row_idx(dist_idx, dist_n);
-			long j = calc_col_idx(dist_idx, i, dist_n);
+			i = calc_row_idx(dist_idx, dist_n);
+			j = calc_col_idx(dist_idx, i, dist_n);
 			if (j <= i)
 			{
 				continue;
 			}
 		}
-		else (query != nullptr)
+		else if (query != nullptr)
 		{
-			long i = dist_idx % ref_n;
-			long j = floor(dist_idx / query_n);
+			i = dist_idx % ref_n;
+			j = (long)(__fdividef(dist_idx, query_n) + 0.001f);
 		}
-		regress_kmers(dists, dist_idx, 
-			ref, i, 
+		regress_kmers(dists, dist_idx,
+			ref, i,
 			query, j,
 			kmers, kmer_n,
 			sketchsize64, bbits,
@@ -218,7 +214,7 @@ thrust::host_vector<uint64_t> flatten_sketches(
 	const std::vector<size_t>& kmer_lengths,
 	const size_t sample_stride)
 {
-	thrust::host_vector<uint64_t> flat_ref(sample_stride * ref_sketches.size());
+	thrust::host_vector<uint64_t> flat_ref(sample_stride * sketches.size());
 	auto flat_ref_it = flat_ref.begin();
 	for (auto sample_it = sketches.cbegin(); sample_it != sketches.cend(); sample_it++)
 	{
@@ -226,7 +222,7 @@ thrust::host_vector<uint64_t> flatten_sketches(
 		{
 			thrust::copy(sample_it->get_sketch(*kmer_it).cbegin(),
 						 sample_it->get_sketch(*kmer_it).cend(),
-						 flat_ref_it)
+						 flat_ref_it);
             flat_ref_it += sample_it->get_sketch(*kmer_it).size();
 		}
 	}
@@ -262,8 +258,8 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 // Copies data to device
 // Runs kernel function across distance elements
 // Copies and returns results
-std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
-	const std::vector<Reference>& query_sketches,
+std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
+	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
     const size_t max_device_mem)
@@ -274,25 +270,8 @@ std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
 	// TODO implement max device mem
 	// TODO will involve taking square blocks of distmat
 	bool self = false;
-	std::sort(ref_sketches.begin(), ref_sketches.end());
-	std::sort(query_sketches.begin(), query_sketches.end());
-	
-	// long bin_stride = 1; // unused - pass this iff strides of flattened array change
-	size_t kmer_stride = sketchsize64 * bbits;
-	size_t sample_stride = kmer_stride * kmer_lengths.size();	
-	long long dist_rows;
-	if (ref_sketches == query_sketches)
-    {
-		dist_rows = static_cast<long long>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
-		self = true;
-	}
-	else
-	{
-		dist_rows = ref_sketches.size() * query_sketches.size();
-	}
-	double est_size  = (sample_stride * n_samples * sizeof(uint64_t) + dist_rows * sizeof(float))/(1048576);
-	std::cerr << "Estimated device memory: " << std::setprecision(1) << est_size << "Mb" << std::endl;
-	
+
+
 	// Check sketches are compatible
 	size_t bbits = ref_sketches[0].bbits();
 	size_t sketchsize64 = ref_sketches[0].sketchsize64();
@@ -301,6 +280,24 @@ std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
 	{
 		checkSketchParamsMatch(query_sketches, kmer_lengths, bbits, sketchsize64);
 	}
+	
+	// long bin_stride = 1; // unused - pass this iff strides of flattened array change
+	size_t kmer_stride = sketchsize64 * bbits;
+	size_t sample_stride = kmer_stride * kmer_lengths.size();	
+	long long dist_rows; long n_samples = 0;
+	if (ref_sketches == query_sketches)
+    {
+		dist_rows = static_cast<long long>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
+		n_samples = ref_sketches.size(); 
+		self = true;
+	}
+	else
+	{
+		dist_rows = ref_sketches.size() * query_sketches.size();
+		n_samples = ref_sketches.size() + query_sketches.size(); 
+	}
+	double est_size  = (sample_stride * n_samples * sizeof(uint64_t) + dist_rows * sizeof(float))/(1048576);
+	std::cerr << "Estimated device memory: " << std::setprecision(1) << est_size << "Mb" << std::endl;
 
 	// Initialise device
 	cudaSetDevice(0);
@@ -309,17 +306,16 @@ std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
 	// flatten the input sketches and copy ref sketches to device
 	thrust::device_vector<int> d_kmers = kmer_lengths;
 	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
-	thrust::host_vector<uint64_t> flat_ref = flatten_sketches(ref_sketches, kmer_lengths);
+	thrust::host_vector<uint64_t> flat_ref = flatten_sketches(ref_sketches, kmer_lengths, sample_stride);
 	thrust::device_vector<uint64_t> d_ref_sketches = flat_ref;
 
 	// Set up query and distance arrays and copy to device
 	uint64_t* d_ref_array = thrust::raw_pointer_cast( &d_ref_sketches[0] );
 	uint64_t* d_query_array = nullptr;
-	size_t dist_rows;
 	if (!self)
     {
 		dist_rows = ref_sketches.size() * query_sketches.size();
-		thrust::host_vector<uint64_t> flat_query = flatten_sketches(query_sketches, kmer_lengths);
+		thrust::host_vector<uint64_t> flat_query = flatten_sketches(query_sketches, kmer_lengths, sample_stride);
 		d_query_array = thrust::raw_pointer_cast( &flat_query[0] ); 
 	}
 	thrust::device_vector<float> dist_mat(dist_rows*2, 0);
@@ -334,12 +330,15 @@ std::vector<float> query_db_gpu(const std::vector<Reference>& ref_sketches,
 		query_sketches.size(),
 		d_kmers_array,
 		kmer_lengths.size(),
-		dist_mat,
+		d_dist_array,
 		dist_rows,
+		sketchsize64,
+		bbits,
 		kmer_stride,
-		sample_stride)
+		sample_stride);
 				
-	// copy results from device, and convert to return type
-	std::vector<float> dist_results = dist_mat;
+	// copy results from device to return
+	std::vector<float> dist_results;
+	thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
 	return dist_results;
 }
