@@ -44,7 +44,7 @@ T non_neg_minus(T a, T b) {
 
 // CUDA version of bindash dist function
 __device__
-size_t jaccard_dist(const uint64_t * sketch1, 
+float jaccard_dist(const uint64_t * sketch1, 
                     const uint64_t * sketch2, 
 					const size_t sketchsize64,
                     const size_t bbits) 
@@ -70,7 +70,7 @@ size_t jaccard_dist(const uint64_t * sketch1,
 		intersize = ret * maxnbits / (maxnbits - expected_samebits);
 	}
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
-    double jaccard = intersize/(double)unionsize;
+    float jaccard = intersize/(float)unionsize;
     return(jaccard);
 }
 
@@ -117,8 +117,8 @@ void regress_kmers(float *& dists,
     float y_diff = (ysquaresum / kmer_n) - powf(ybar, 2);
 	float xstddev = sqrtf(x_diff);
 	float ystddev = sqrtf(y_diff);
-	double beta = xy * (1/sqrtf(x_diff*y_diff)) * (ystddev / xstddev);
-    double alpha = ybar - beta * xbar;
+	float beta = xy * (1/sqrtf(x_diff*y_diff)) * (ystddev / xstddev);
+    float alpha = ybar - beta * xbar;
 
 	// Store core/accessory in dists, truncating at zero
 	float core_dist = 0, accessory_dist = 0;
@@ -136,8 +136,8 @@ void regress_kmers(float *& dists,
 
 // Functions to convert index position to/from squareform to condensed form
 __device__
-long long calc_row_idx(const long long k, const long long n) {
-	return static_cast<long long>(ceil((0.5) * (- sqrt(-8*k + 4 *pow(n,2) -4*n - 7) + 2*n -1) - 1));
+long calc_row_idx(const long long k, const long long n) {
+	return static_cast<long>(ceil((0.5) * (- sqrt(-8*k + 4 *pow(n,2) -4*n - 7) + 2*n -1) - 1));
 }
 
 __device__
@@ -179,6 +179,7 @@ void calculate_dists(const uint64_t * ref,
 		long i, j;
 		if (query == nullptr)
 		{
+			query = ref;
 			i = calc_row_idx(dist_idx, dist_n);
 			j = calc_col_idx(dist_idx, i, dist_n);
 			if (j <= i)
@@ -336,7 +337,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		bbits,
 		kmer_stride,
 		sample_stride);
-	cudaDeviceSynchronize(); // This isn't needed, but can be useful for debugging
 				
 	// copy results from device to return
 	std::cerr << "Copying results from device" << std::endl;
