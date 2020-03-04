@@ -120,11 +120,11 @@ void regress_kmers(float *& dists,
 	float xbar = xsum / kmer_n;
 	float ybar = ysum / kmer_n;
     float xy = xysum - xbar*ybar;
-    float x_diff = (xsquaresum / kmer_n) - pow(xbar, 2);
-    float y_diff = (ysquaresum / kmer_n) - pow(ybar, 2);
-	float xstddev = sqrt(x_diff);
-	float ystddev = sqrt(y_diff);
-	double beta = xy * (1/sqrt(x_diff*y_diff)) * (ystddev / xstddev);
+    float x_diff = (xsquaresum / kmer_n) - powf(xbar, 2);
+    float y_diff = (ysquaresum / kmer_n) - powf(ybar, 2);
+	float xstddev = sqrtf(x_diff);
+	float ystddev = sqrtf(y_diff);
+	double beta = xy * (1/sqrtf(x_diff*y_diff)) * (ystddev / xstddev);
     double alpha = ybar - beta * xbar;
 
 	// Store core/accessory in dists, truncating at zero
@@ -262,15 +262,15 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
-    const size_t max_device_mem)
+	const size_t max_device_mem,
+    const int device_id)
 {
-	std::cerr << "Calculating distances on GPU device 0" << std::endl;
+	std::cerr << "Calculating distances on GPU device " << device_id << std::endl;
     
     // Check if ref = query, then run as self mode
 	// TODO implement max device mem
 	// TODO will involve taking square blocks of distmat
 	bool self = false;
-
 
 	// Check sketches are compatible
 	size_t bbits = ref_sketches[0].bbits();
@@ -297,13 +297,19 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
 	double est_size  = (sample_stride * n_samples * sizeof(uint64_t) + dist_rows * sizeof(float))/(1048576);
-	std::cerr << "Estimated device memory: " << std::setprecision(1) << est_size << "Mb" << std::endl;
+	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(1) << est_size << "Mb" << std::endl;
+
+	size_t *mem_free, *mem_total;
+	cudaMemGetInfo(mem_free, mem_total);
+	std::cerr << "Total memory: " << std::fixed << std::setprecision(1) << *mem_total/(1048576) << "Mb" << std::endl;
+	std::cerr << "Free memory: " << std::fixed << std::setprecision(1) << *mem_free/(1048576) << "Mb" << std::endl;
 
 	// Initialise device
-	cudaSetDevice(0);
+	cudaSetDevice(device_id);
 	cudaDeviceReset();
 
 	// flatten the input sketches and copy ref sketches to device
+	std::cerr << "Copying data to device" << std::endl;
 	thrust::device_vector<int> d_kmers = kmer_lengths;
 	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
 	thrust::host_vector<uint64_t> flat_ref = flatten_sketches(ref_sketches, kmer_lengths, sample_stride);
@@ -322,6 +328,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
 	// Run dists on device
+	std::cerr << "Calculating distances" << std::endl;
 	int blockCount = (dist_rows + blockSize - 1) / dist_rows;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
@@ -338,6 +345,8 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		sample_stride);
 				
 	// copy results from device to return
+	cudaDeviceSynchronize();
+	std::cerr << "Copying results from device" << std::endl;
 	std::vector<float> dist_results;
 	thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
 	return dist_results;

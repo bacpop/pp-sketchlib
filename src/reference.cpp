@@ -130,7 +130,7 @@ arma::mat kmer2mat(const T& kmers)
     arma::mat X(kmers.size(), 2, arma::fill::ones);
     for (size_t i = 0; i < kmers.size(); i++)
     {
-        X[i, 1] = kmers[i];
+        X(i, 1) = kmers[i];
     }
     return X;
 }

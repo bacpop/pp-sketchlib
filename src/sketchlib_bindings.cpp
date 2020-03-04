@@ -46,7 +46,8 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<size_t> kmer_lengths,
                          size_t num_threads = 1,
                          bool use_gpu = false,
-                         size_t blockSize = 128)
+                         size_t blockSize = 128,
+                         int device_id = 0)
 {
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
@@ -59,7 +60,8 @@ DistMatrix queryDatabase(std::string ref_db_name,
 	                        query_sketches,
                             kmer_lengths,
                             blockSize,
-                            0);
+                            0,
+                            device_id);
     }
     else
     {
@@ -85,7 +87,8 @@ DistMatrix constructAndQuery(std::string db_name,
                              size_t min_count = 0,
                              size_t num_threads = 1,
                              bool use_gpu = false,
-                             size_t blockSize = 128)
+                             size_t blockSize = 128,
+                             int device_id = 0)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
                                                             sample_names, 
@@ -102,7 +105,8 @@ DistMatrix dists;
                              ref_sketches,
                              kmer_lengths,
                              blockSize,
-                             0);
+                             0,
+                             device_id);
     }
     else
     {
@@ -151,7 +155,8 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
-        py::arg("blockSize") = 128);
+        py::arg("blockSize") = 128
+        py::arg("device_id") = 0);
 
   m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
         py::arg("db_name"),
@@ -162,7 +167,8 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("min_count") = 0,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
-        py::arg("blockSize") = 128);
+        py::arg("blockSize") = 128,
+        py::arg("device_id") = 0);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",
         py::arg("db_name"),

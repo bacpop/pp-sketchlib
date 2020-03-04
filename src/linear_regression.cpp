@@ -20,7 +20,7 @@ std::tuple<float, float> regress_kmers(const Reference * r1,
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i)
     {
-        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers[i]));
+        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers.at(i, 1)));
     }
 
     try
