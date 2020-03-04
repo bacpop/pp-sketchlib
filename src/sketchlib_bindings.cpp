@@ -155,7 +155,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
-        py::arg("blockSize") = 128
+        py::arg("blockSize") = 128,
         py::arg("device_id") = 0);
 
   m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 

@@ -32,13 +32,13 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads);
 
-// defined in dist.cu
 #ifdef GPU_AVAILABLE
 DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
-    const size_t max_device_mem = 0);
+    const size_t max_device_mem = 0,
+    const int device_id = 0);
 #endif
 
 std::vector<Reference> load_sketches(const std::string& db_name,

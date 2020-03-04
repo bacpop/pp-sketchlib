@@ -90,33 +90,26 @@ void regress_kmers(float *& dists,
 				   const size_t kmer_stride, 
 				   const size_t sample_stride)						  
 {
-    // Vector for Jaccard dists 
-	float * y;
-	cdpErrchk(cudaMalloc((void ** )&y, sizeof(float) * kmer_n));
-	
 	long long ref_offset = i * sample_stride;
 	long long query_offset = j * sample_stride;
+	float xsum = 0; float ysum = 0; float xysum = 0;
+	float xsquaresum = 0; float ysquaresum = 0;
 	for (unsigned int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
     {
-		y[i] = logf(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits));
+		// Get Jaccard distance and move pointers
+		float y = logf(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits)); 
 		ref_offset += kmer_stride;
 		query_offset += kmer_stride;
+		
+		// Running totals
+		xsum += kmers[kmer_it]; 
+		ysum += y; 
+		xysum += kmers[kmer_it] * y;
+		xsquaresum = kmers[kmer_it] * kmers[kmer_it];
+		ysquaresum = y * y;
     }
 
 	// Simple linear regression
-	// Maybe BLAS routines would be more efficient
-	float xsum = 0; float ysum = 0; float xysum = 0;
-	float xsquaresum = 0; float ysquaresum = 0;
-	for (unsigned int i = 0; i < kmer_n; ++i)
-	{
-		xsum += kmers[i]; 
-		ysum += y[i]; 
-		xysum += kmers[i] * y[i];
-		xsquaresum = kmers[i] * kmers[i];
-		ysquaresum = y[i] * y[i];
-	}
-	cdpErrchk(cudaFree(y));
-
 	float xbar = xsum / kmer_n;
 	float ybar = ysum / kmer_n;
     float xy = xysum - xbar*ybar;
@@ -131,11 +124,11 @@ void regress_kmers(float *& dists,
 	float core_dist = 0, accessory_dist = 0;
 	if (beta < 0)
 	{
-		core_dist = 1 - exp(beta);
+		core_dist = -expm1f(beta); // 1-exp(beta)
 	}
 	if (alpha < 0)
 	{
-		accessory_dist = 1 - exp(alpha);
+		accessory_dist = -expm1f(alpha); // 1-exp(alpha)
 	}
 	dists[dist_idx*2] = core_dist;
 	dists[dist_idx*2 + 1] = accessory_dist;
@@ -297,12 +290,12 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
 	double est_size  = (sample_stride * n_samples * sizeof(uint64_t) + dist_rows * sizeof(float))/(1048576);
-	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(1) << est_size << "Mb" << std::endl;
+	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size << "Mb" << std::endl;
 
-	size_t *mem_free, *mem_total;
-	cudaMemGetInfo(mem_free, mem_total);
-	std::cerr << "Total memory: " << std::fixed << std::setprecision(1) << *mem_total/(1048576) << "Mb" << std::endl;
-	std::cerr << "Free memory: " << std::fixed << std::setprecision(1) << *mem_free/(1048576) << "Mb" << std::endl;
+	size_t mem_free = 0; size_t mem_total = 0;
+	cudaMemGetInfo(&mem_free, &mem_total);
+	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
+	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
 
 	// Initialise device
 	cudaSetDevice(device_id);
@@ -343,11 +336,21 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		bbits,
 		kmer_stride,
 		sample_stride);
+	cudaDeviceSynchronize(); // This isn't needed, but can be useful for debugging
 				
 	// copy results from device to return
-	cudaDeviceSynchronize();
 	std::cerr << "Copying results from device" << std::endl;
-	std::vector<float> dist_results;
-	thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
+	std::vector<float> dist_results(dist_mat.size());
+	try
+	{
+		thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
+	}
+	catch(thrust::system_error &e)
+	{
+		// output an error message and exit
+		std::cerr << "Error getting result: " << std::endl;
+		std::cerr << e.what() << std::endl;
+		exit(1);
+	}
 	return dist_results;
 }
