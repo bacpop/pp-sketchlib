@@ -105,19 +105,19 @@ void regress_kmers(float *& dists,
 		xsum += kmers[kmer_it]; 
 		ysum += y; 
 		xysum += kmers[kmer_it] * y;
-		xsquaresum = kmers[kmer_it] * kmers[kmer_it];
-		ysquaresum = y * y;
+		xsquaresum += kmers[kmer_it] * kmers[kmer_it];
+		ysquaresum += y * y;
     }
 
 	// Simple linear regression
 	float xbar = xsum / kmer_n;
 	float ybar = ysum / kmer_n;
-    float xy = xysum - xbar*ybar;
-    float x_diff = (xsquaresum / kmer_n) - powf(xbar, 2);
-    float y_diff = (ysquaresum / kmer_n) - powf(ybar, 2);
-	float xstddev = sqrtf(x_diff);
-	float ystddev = sqrtf(y_diff);
-	float beta = xy * (1/sqrtf(x_diff*y_diff)) * (ystddev / xstddev);
+    float x_diff = xsquaresum - powf(xsum, 2)/kmer_n;
+    float y_diff = ysquaresum - powf(ysum, 2)/kmer_n;
+	float xstddev = sqrtf((xsquaresum - powf(xsum, 2)/kmer_n)/kmer_n);
+	float ystddev = sqrtf((ysquaresum - powf(ysum, 2)/kmer_n)/kmer_n);
+	float r = (xysum - (xsum*ysum)/kmer_n) / sqrtf(x_diff*y_diff);
+	float beta = r * (ystddev / xstddev);
     float alpha = ybar - beta * xbar;
 
 	// Store core/accessory in dists, truncating at zero
@@ -165,7 +165,7 @@ void calculate_dists(const uint64_t * ref,
 					 const long query_n,
 					 const int * kmers,
 					 const int kmer_n,
-					 float *&dists,
+					 float * dists,
 					 const long long dist_n,
 					 const size_t sketchsize64, 
 					 const size_t bbits,
@@ -316,14 +316,15 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
     {
 		dist_rows = ref_sketches.size() * query_sketches.size();
 		thrust::host_vector<uint64_t> flat_query = flatten_sketches(query_sketches, kmer_lengths, sample_stride);
-		d_query_array = thrust::raw_pointer_cast( &flat_query[0] ); 
+		thrust::device_vector<uint64_t> d_query_sketches = flat_query;
+		d_query_array = thrust::raw_pointer_cast( &d_query_sketches[0] ); 
 	}
 	thrust::device_vector<float> dist_mat(dist_rows*2, 0);
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
 	// Run dists on device
 	std::cerr << "Calculating distances" << std::endl;
-	int blockCount = (dist_rows + blockSize - 1) / dist_rows;
+	int blockCount = (dist_rows + blockSize - 1) / blockSize;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
 		ref_sketches.size(),
