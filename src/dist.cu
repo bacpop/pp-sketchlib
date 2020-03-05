@@ -137,17 +137,12 @@ void regress_kmers(float *& dists,
 // Functions to convert index position to/from squareform to condensed form
 __device__
 long calc_row_idx(const long long k, const long long n) {
-	return static_cast<long>(ceil((0.5) * (- sqrt(-8*k + 4 *pow(n,2) -4*n - 7) + 2*n -1) - 1));
-}
-
-__device__
-long elem_in_i_rows(const long i, const long long n) {
-	return (i * (n - 1 - i) + ((i*(i + 1)) >> 1));
+	return n - 2 - floor(sqrt(static_cast<double>(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
 __device__
 long calc_col_idx(const long long k, const long i, const long long n) {
-	return (n - elem_in_i_rows(i + 1, n) + k);
+	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
 }
 
 __device__
@@ -180,8 +175,8 @@ void calculate_dists(const uint64_t * ref,
 		if (query == nullptr)
 		{
 			query = ref;
-			i = calc_row_idx(dist_idx, dist_n);
-			j = calc_col_idx(dist_idx, i, dist_n);
+			i = calc_row_idx(dist_idx, ref_n);
+			j = calc_col_idx(dist_idx, i, ref_n);
 			if (j <= i)
 			{
 				continue;
@@ -303,7 +298,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	cudaDeviceReset();
 
 	// flatten the input sketches and copy ref sketches to device
-	std::cerr << "Copying data to device" << std::endl;
 	thrust::device_vector<int> d_kmers = kmer_lengths;
 	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
 	thrust::host_vector<uint64_t> flat_ref = flatten_sketches(ref_sketches, kmer_lengths, sample_stride);
@@ -323,7 +317,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
 	// Run dists on device
-	std::cerr << "Calculating distances" << std::endl;
 	int blockCount = (dist_rows + blockSize - 1) / blockSize;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
@@ -340,7 +333,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		sample_stride);
 				
 	// copy results from device to return
-	std::cerr << "Copying results from device" << std::endl;
 	std::vector<float> dist_results(dist_mat.size());
 	try
 	{
