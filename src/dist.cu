@@ -136,8 +136,8 @@ void regress_kmers(float *& dists,
 
 // Functions to convert index position to/from squareform to condensed form
 __device__
-long calc_row_idx(const long long k, const long long n) {
-	return n - 2 - floor(sqrt(static_cast<double>(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+long calc_row_idx(const long long k, const long n) {
+	return n - 2 - floorf(sqrtf(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
 __device__
@@ -146,7 +146,7 @@ long calc_col_idx(const long long k, const long i, const long long n) {
 }
 
 __device__
-long long square_to_condensed(long long i, long long j, long long n) {
+long long square_to_condensed(long i, long j, long n) {
     assert(i > j);
 	return (n*j - ((j*(j+1)) >> 1) + i - 1 - j);
 }

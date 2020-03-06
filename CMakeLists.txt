@@ -45,7 +45,7 @@ if(CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, compiling both GPU and CPU code")
     enable_language(CUDA)
     
-    set(CUDA_OPTS "-Xcompiler -fPIC --cudart static --relocatable-device-code=true")
+    set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true")
     string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35")
     string(APPEND CUDA_OPTS " -gencode arch=compute_50,code=sm_50")
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
