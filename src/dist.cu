@@ -97,7 +97,7 @@ void regress_kmers(float *& dists,
 	for (unsigned int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
     {
 		// Get Jaccard distance and move pointers
-		float y = logf(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits)); 
+		float y = __logf(jaccard_dist(ref + ref_offset, query + query_offset, sketchsize64, bbits)); 
 		ref_offset += kmer_stride;
 		query_offset += kmer_stride;
 		
@@ -112,11 +112,11 @@ void regress_kmers(float *& dists,
 	// Simple linear regression
 	float xbar = xsum / kmer_n;
 	float ybar = ysum / kmer_n;
-    float x_diff = xsquaresum - powf(xsum, 2)/kmer_n;
-    float y_diff = ysquaresum - powf(ysum, 2)/kmer_n;
-	float xstddev = sqrtf((xsquaresum - powf(xsum, 2)/kmer_n)/kmer_n);
-	float ystddev = sqrtf((ysquaresum - powf(ysum, 2)/kmer_n)/kmer_n);
-	float r = (xysum - (xsum*ysum)/kmer_n) / sqrtf(x_diff*y_diff);
+    float x_diff = xsquaresum - __powf(xsum, 2)/kmer_n;
+    float y_diff = ysquaresum - __powf(ysum, 2)/kmer_n;
+	float xstddev = __sqrtf((xsquaresum - __powf(xsum, 2)/kmer_n)/kmer_n);
+	float ystddev = __sqrtf((ysquaresum - __powf(ysum, 2)/kmer_n)/kmer_n);
+	float r = (xysum - (xsum*ysum)/kmer_n) / __sqrtf(x_diff*y_diff);
 	float beta = r * (ystddev / xstddev);
     float alpha = ybar - beta * xbar;
 
@@ -124,11 +124,11 @@ void regress_kmers(float *& dists,
 	float core_dist = 0, accessory_dist = 0;
 	if (beta < 0)
 	{
-		core_dist = -expm1f(beta); // 1-exp(beta)
+		core_dist = 1 - __expf(beta);
 	}
 	if (alpha < 0)
 	{
-		accessory_dist = -expm1f(alpha); // 1-exp(alpha)
+		accessory_dist = 1 - __expf(alpha);
 	}
 	dists[dist_idx*2] = core_dist;
 	dists[dist_idx*2 + 1] = accessory_dist;
@@ -137,7 +137,7 @@ void regress_kmers(float *& dists,
 // Functions to convert index position to/from squareform to condensed form
 __device__
 long calc_row_idx(const long long k, const long n) {
-	return n - 2 - floorf(sqrtf(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+	return n - 2 - floorf(__sqrtf(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
 __device__
