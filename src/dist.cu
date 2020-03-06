@@ -110,15 +110,18 @@ void regress_kmers(float *& dists,
     }
 
 	// Simple linear regression
+	// Here I use CUDA fast-math intrinsics on floats, which gave comparable accuracy
+	// __fmul_ru(x, y) = x * y and rounds up. __fpow(x, a) = x^a give 0 for x<0, so not using here
+	// could also replace add / subtract, but becomes even less readable
 	float xbar = xsum / kmer_n;
 	float ybar = ysum / kmer_n;
-    float x_diff = xsquaresum - __powf(xsum, 2)/kmer_n;
-    float y_diff = ysquaresum - __powf(ysum, 2)/kmer_n;
-	float xstddev = __sqrtf((xsquaresum - __powf(xsum, 2)/kmer_n)/kmer_n);
-	float ystddev = __sqrtf((ysquaresum - __powf(ysum, 2)/kmer_n)/kmer_n);
-	float r = (xysum - (xsum*ysum)/kmer_n) / __sqrtf(x_diff*y_diff);
-	float beta = r * (ystddev / xstddev);
-    float alpha = ybar - beta * xbar;
+    float x_diff = xsquaresum - __fmul_ru(xsum, xsum)/kmer_n;
+    float y_diff = ysquaresum - __fmul_ru(ysum, ysum)/kmer_n;
+	float xstddev = __fsqrt_ru((xsquaresum - __fmul_ru(xsum, xsum)/kmer_n)/kmer_n);
+	float ystddev = __fsqrt_ru((ysquaresum - __fmul_ru(ysum, ysum)/kmer_n)/kmer_n);
+	float r = __fdiv_ru(xysum - __fmul_ru(xsum, ysum)/kmer_n,  __fsqrt_ru(x_diff*y_diff));
+	float beta = __fmul_ru(r, __fdiv_ru(ystddev, xstddev));
+    float alpha = ybar - __fmul_ru(beta, xbar);
 
 	// Store core/accessory in dists, truncating at zero
 	float core_dist = 0, accessory_dist = 0;
@@ -137,7 +140,8 @@ void regress_kmers(float *& dists,
 // Functions to convert index position to/from squareform to condensed form
 __device__
 long calc_row_idx(const long long k, const long n) {
-	return n - 2 - floorf(__sqrtf(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+	// __ll2float_rn() casts long long to float, rounding to nearest
+	return n - 2 - floorf(__fsqrt_ru(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
 __device__
