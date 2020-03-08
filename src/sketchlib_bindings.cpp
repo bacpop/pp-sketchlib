@@ -76,7 +76,7 @@ DistMatrix queryDatabase(std::string ref_db_name,
     dists = query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
-                    num_threads));
+                    num_threads);
 #endif
     return(dists);
 }
@@ -123,7 +123,7 @@ DistMatrix dists;
     dists = query_db(ref_sketches,
                      ref_sketches,
                      kmer_lengths,
-                     num_threads));
+                     num_threads);
 #endif
     return(dists);
 }

@@ -43,6 +43,7 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const std::vector<size_t>& kmer_lengths,
                                     const size_t sketchsize64,
                                     const uint8_t min_count,
+                                    const bool exact,
                                     const size_t start,
                                     const size_t end);
 
@@ -112,7 +113,6 @@ std::vector<Reference> create_sketches(const std::string& db_name,
             {
                 thread_jobs++;
             }
-            
             sketch_threads.push_back(std::thread(&sketch_block,
                                             std::ref(sketches),
                                             std::cref(names),
@@ -250,6 +250,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     return(distMat);
 }
 
+#ifdef GPU_AVAILABLE
 DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
@@ -268,7 +269,7 @@ DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 
     return dists_ret;
 }
-
+#endif
 
 // Load sketches from a HDF5 file
 // Returns empty vector on failure

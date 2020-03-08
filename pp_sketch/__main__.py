@@ -101,6 +101,10 @@ def get_options():
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
     kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
     kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
+    kmerGroup.add_argument('--exact-counter', default=False, action='store_true', 
+                            help='Use an exact rather than approximate k-mer counter '
+                                  'when using reads as input (increases memory use) '
+                                  '[default = False]')
 
     optimisation = parser.add_argument_group('Optimisation options')
     optimisation.add_argument('--cpus',
@@ -151,7 +155,9 @@ def main():
             sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, int(round(args.sketch_size/64)), args.min_count, args.cpus)
+        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, 
+                                       int(round(args.sketch_size/64)), 
+                                       args.min_count, args.exact_counter, args.cpus)
 
     elif args.query:
         # TODO: add option to get names from HDF5 files
