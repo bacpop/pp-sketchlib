@@ -24,7 +24,8 @@ class Reference
                   const std::vector<std::string>& filenames, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64, 
-                  const uint8_t min_count); // read and run sketch
+                  const uint8_t min_count,
+                  const bool exact); // read and run sketch
 
         Reference(const std::string& name,
                   const size_t bbits,

@@ -17,4 +17,5 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
-                             const uint8_t min_count = 0);
+                             const uint8_t min_count = 0,
+                             const bool exact = false);

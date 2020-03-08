@@ -60,6 +60,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    size_t min_count,
+                   const bool exact,
                    const size_t num_threads)
 {
     // Threading is handled by code
@@ -119,6 +120,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                                             std::cref(kmer_lengths),
                                             sketchsize64,
                                             min_count,
+                                            exact,
                                             start,
                                             start + thread_jobs));
             start += thread_jobs;
@@ -368,12 +370,13 @@ void sketch_block(std::vector<Reference>& sketches,
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
                   const uint8_t min_count,
+                  const bool exact,
                   const size_t start,
                   const size_t end)
 {
     for (unsigned int i = start; i < end; i++)
     {
-        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, min_count);
+        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, min_count, exact);
     }
 }
 

@@ -83,20 +83,28 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
-                             const uint8_t min_count)
+                             const uint8_t min_count,
+                             const bool exact)
 {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
     std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX); // carry over
 
-    // This is needed as we don't get optional until C++17
-    CountMin * read_counter = nullptr;
-	unsigned h = 1;
+    // nullptr is used as we don't get optional until C++17
+    KmerCounter * read_counter = nullptr;
+    unsigned h = 1;
     if (seq.is_reads() && min_count > 0)
     {
-        read_counter = new CountMin(min_count);
-        h = read_counter->num_hashes(); 
+        if (exact)
+        {
+            read_counter = new HashCounter(min_count);
+        }
+        else
+        {
+            read_counter = new CountMin(min_count);
+            h = read_counter->num_hashes();
+        }
     }
 
     // Rolling hash through string

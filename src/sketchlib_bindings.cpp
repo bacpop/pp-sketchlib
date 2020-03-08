@@ -28,6 +28,7 @@ void constructDatabase(std::string db_name,
                        std::vector<size_t> kmer_lengths,
                        size_t sketch_size,
                        size_t min_count = 0,
+                       bool exact = false,
                        size_t num_threads = 1)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
@@ -36,6 +37,7 @@ void constructDatabase(std::string db_name,
                                                             kmer_lengths,
                                                             sketch_size,
                                                             min_count,
+                                                            exact,
                                                             num_threads);
 }
 
@@ -85,6 +87,7 @@ DistMatrix constructAndQuery(std::string db_name,
                              std::vector<size_t> kmer_lengths,
                              size_t sketch_size,
                              size_t min_count = 0,
+                             bool exact = false,
                              size_t num_threads = 1,
                              bool use_gpu = false,
                              size_t blockSize = 128,
@@ -96,6 +99,7 @@ DistMatrix constructAndQuery(std::string db_name,
                                                             kmer_lengths,
                                                             sketch_size,
                                                             min_count,
+                                                            exact,
                                                             num_threads);
 DistMatrix dists; 
 #ifdef GPU_AVAILABLE
@@ -145,6 +149,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("sketch_size"),
         py::arg("min_count") = 0,
+        py::arg("exact") = false,
         py::arg("num_threads") = 1);
   
   m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches", 
@@ -165,6 +170,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("klist"),
         py::arg("sketch_size"),
         py::arg("min_count") = 0,
+        py::arg("exact") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
         py::arg("blockSize") = 128,

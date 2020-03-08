@@ -25,6 +25,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    size_t min_count,
+                   const bool exact,
                    const size_t num_threads);
 
 DistMatrix query_db(std::vector<Reference>& ref_sketches,
