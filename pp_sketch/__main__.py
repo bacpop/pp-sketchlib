@@ -5,6 +5,7 @@
 import os, sys
 
 import numpy as np
+import pickle
 import h5py
 
 import pp_sketchlib
@@ -42,6 +43,25 @@ def iterDistRows(refSeqs, querySeqs, self=True):
             for ref in refSeqs:
                 yield(ref, query)
 
+def storePickle(rlist, qlist, self, X, pklName):
+    """Saves core and accessory distances in a .npy file, names in a .pkl
+
+    Args:
+        rlist (list)
+            List of reference sequence names
+        qlist (list)
+            List of query sequence names
+        self (bool)
+            Whether an all-vs-all self DB
+        X (numpy.array)
+            n x 2 array of core and accessory distances
+        pklName (str)
+            Prefix for output files
+    """
+    with open(pklName + ".pkl", 'wb') as pickle_file:
+        pickle.dump([rlist, qlist, self], pickle_file)
+    np.save(pklName + ".npy", X)
+
 def get_options():
     import argparse
 
@@ -67,6 +87,13 @@ def get_options():
                     help='Prefix of reference database file')
     io.add_argument('--query-db',
                     help='Prefix of query database file')
+    io.add_argument('--output',
+                    default='ppsketch',
+                    help="Output prefix [default = 'ppsketch']")
+    io.add_argument('--print',
+                    default=False,
+                    action='store_true',
+                    help='Print results to stdout instead of file')
 
     kmerGroup = parser.add_argument_group('Kmer comparison options')
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
@@ -142,10 +169,13 @@ def main():
                                              args.cpus, args.use_gpu, args.block_size, args.gpu_id)
         
         # get names order
-        names = iterDistRows(rList, qList, rList == qList)
-        sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
-        for i, (ref, query) in enumerate(names):
-            sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+        if args.print:
+            names = iterDistRows(rList, qList, rList == qList)
+            sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
+            for i, (ref, query) in enumerate(names):
+                sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+        else:
+            storePickle(rList, qList, rList == qList, distMat, args.output)
 
     sys.exit(0)
 

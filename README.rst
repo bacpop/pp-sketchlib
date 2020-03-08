@@ -19,14 +19,16 @@ Install using conda (recommended)::
 .. note::
     If you are getting ``UnsatisfiableError`` or similar version conflicts try following the 
     `tips on conda-forge <https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>`__. 
-    It may also help if you downgrade your version of conda (to 4.5).
+    It may also help if you downgrade your version of conda (to 4.5). Installing into 
+    a new environment is recommended.
 
 Or install locally::
 
     python setup.py install
 
 For this option you will need a C++14 compiler (``GCC >=7.2.0`` or ``Clang``), 
-``pybind11``, ``hdf5`` and ``CMake (>=3.12)``.
+``pybind11``, ``hdf5`` and ``CMake (>=3.12)``. If you wish to compile the GPU code
+you will also need the CUDA toolkit installed (tested on 10.2).
 
 Usage
 =====
@@ -44,7 +46,25 @@ columns are files containing associated sequences, which may be assemblies or re
 Calculate core and accessory distances between databases with ``--query``. If all-vs-all, only the upper triangle is calculated,
 for example::
 
-    poppunk_sketch --query --ref_db listeria.h5 --query_db listeria.h5 --cpus 4 > distances.txt
+    poppunk_sketch --query --ref_db listeria --query_db listeria --cpus 4
+
+This will save output files as a database for use with PopPUNK. If you wish to output the 
+distances add the ``--print`` option::
+
+    poppunk_sketch --query --ref_db listeria --query_db listeria --cpus 4 --print > distances.txt
+
+Large datasets
+^^^^^^^^^^^^^^
+
+When working with large datasets, you can increase the ``--cpus`` to high numbers and get
+a roughly proportional performance increase. This works best for creating sketches.
+
+For calculating large numbers of distances, if you have a CUDA compatible GPU with sufficient memory, 
+you can calculate distances on your graphics device even more quickly. Add the ``--use-gpu`` option::
+
+   python pp_sketch-runner.py --query --ref-db listeria --query-db listeria --use-gpu --block-size 128
+
+A block size of 128 seems to work well.
 
 API
 ===

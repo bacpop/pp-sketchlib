@@ -141,11 +141,11 @@ void regress_kmers(float *& dists,
 __device__
 long calc_row_idx(const long long k, const long n) {
 	// __ll2float_rn() casts long long to float, rounding to nearest
-	return n - 2 - floorf(__fsqrt_ru(__ll2float_rn(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+	return n - 2 - floor(__dsqrt_rn(__ll2double_rz(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
 __device__
-long calc_col_idx(const long long k, const long i, const long long n) {
+long calc_col_idx(const long long k, const long i, const long n) {
 	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
 }
 
@@ -197,6 +197,13 @@ void calculate_dists(const uint64_t * ref,
 			kmers, kmer_n,
 			sketchsize64, bbits,
 			kmer_stride, sample_stride);
+
+		// Progress
+		if (dist_idx % (dist_n/1000)) == 0)
+		{
+			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
+		}
+
 	}
 }
 
@@ -349,5 +356,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		std::cerr << e.what() << std::endl;
 		exit(1);
 	}
+	printf("%cProgress (GPU): %.1lf%%", 13, 100);
+	std::cout << std::endl << "" << std::endl;
 	return dist_results;
 }
