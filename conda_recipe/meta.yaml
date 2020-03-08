@@ -1,5 +1,5 @@
 {% set name = "pp-sketchlib" %}
-{% set version = "1.0.0" %}
+{% set version = "1.2.0" %}
 
 package:
   name: {{ name|lower }}
@@ -30,10 +30,11 @@ requirements:
     - bzip2
     - eigen
     - hdf5
-    - intel-openmp  # [linux]
-    - mkl  # [linux]
-    - lapack  # [osx]
-    - openblas  # [osx]
+    - lapack
+    - openblas
+    - armadillo
+    - cudatoolkit  # [linux]
+    - nvcc_linux-64  # [linux]
   run:
     - python
     - numpy
@@ -41,11 +42,9 @@ requirements:
     - bzip2
     - hdf5
     - h5py
-    - intel-openmp  # [linux]
-    - mkl  #[linux]
-    - lapack  # [osx]
-    - openblas  # [osx]
-
+    - lapack
+    - openblas
+    - armadillo
 test:
   imports:
     - pp_sketch
