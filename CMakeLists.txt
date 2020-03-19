@@ -46,8 +46,8 @@ if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true")
-    string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_35,code=sm_35")
-    string(APPEND CUDA_OPTS " -gencode arch=compute_50,code=sm_50")
+    string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50")
+    string(APPEND CUDA_OPTS " -gencode arch=compute_75,code=sm_75")
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
     
     add_compile_definitions(GPU_AVAILABLE)
