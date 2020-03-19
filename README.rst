@@ -10,6 +10,8 @@ pp-sketchlib
 
 Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
+.. |Logo| image:: sketchlib_logo.png
+
 Installation
 ============
 Install using conda (recommended)::
