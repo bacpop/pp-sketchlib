@@ -62,30 +62,31 @@ T non_neg_minus(T a, T b) {
 // CUDA version of bindash dist function
 __device__
 float jaccard_dist(const uint64_t * sketch1, 
-                    const uint64_t * sketch2, 
-					const SketchStrides strides) 
+                   const uint64_t * sketch2, 
+				   const SketchStrides& s1_strides, 
+				   const SketchStrides& s2_strides) 
 {
 	size_t samebits = 0;
-    for (size_t i = 0; i < strides.sketchsize64; i++) 
+    for (size_t i = 0; i < s1_strides.sketchsize64; i++) 
     {
 		uint64_t bits = ~((uint64_t)0ULL);
-		for (size_t j = 0; j < strides.bbits; j++) 
+		for (size_t j = 0; j < s1_strides.bbits; j++) 
         {
-			long long index = (i * strides.bbits + j) * strides.bin_stride;
-			bits &= ~(sketch1[index] ^ sketch2[index]);
+			long long bin_index = i * s1_strides.bbits + j;
+			bits &= ~(sketch1[bin_index * s1_strides.bin_stride] ^ sketch2[bin_index * s2_strides.bin_stride]);
 		}
 
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
 	}
-	const size_t maxnbits = strides.sketchsize64 * NBITS(uint64_t); 
-	const size_t expected_samebits = (maxnbits >> strides.bbits);
+	const size_t maxnbits = s1_strides.sketchsize64 * NBITS(uint64_t); 
+	const size_t expected_samebits = (maxnbits >> s1_strides.bbits);
 	size_t intersize = samebits;
 	if (!expected_samebits) 
 	{
 		size_t ret = non_neg_minus(samebits, expected_samebits);
 		intersize = ret * maxnbits / (maxnbits - expected_samebits);
 	}
-	size_t unionsize = NBITS(uint64_t) * strides.sketchsize64;
+	size_t unionsize = NBITS(uint64_t) * s1_strides.sketchsize64;
     float jaccard = intersize/(float)unionsize;
     return(jaccard);
 }
@@ -95,11 +96,13 @@ float jaccard_dist(const uint64_t * sketch1,
 __device__
 void regress_kmers(float *& dists,
 				   const long long dist_idx,
+				   const long long dist_n,
 				   const uint64_t * ref,
 				   const uint64_t * query,
 				   const int * kmers,
 				   const int kmer_n,
-				   const SketchStrides strides)						  
+				   const SketchStrides& ref_strides,						  
+				   const SketchStrides& query_strides)						  
 {
 
 	float xsum = 0; float ysum = 0; float xysum = 0;
@@ -107,9 +110,9 @@ void regress_kmers(float *& dists,
 	for (unsigned int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
     {
 		// Get Jaccard distance and move pointers
-		float y = __logf(jaccard_dist(ref, query, strides)); 
-		ref += strides.kmer_stride;
-		query += strides.kmer_stride;
+		float y = __logf(jaccard_dist(ref, query, ref_strides, query_strides)); 
+		ref += ref_strides.kmer_stride;
+		query += query_strides.kmer_stride;
 		
 		// Running totals
 		xsum += kmers[kmer_it]; 
@@ -145,8 +148,8 @@ void regress_kmers(float *& dists,
 	{
 		accessory_dist = 1 - __expf(alpha);
 	}
-	dists[dist_idx*2] = core_dist;
-	dists[dist_idx*2 + 1] = accessory_dist;
+	dists[dist_idx] = core_dist;
+	dists[dist_n + dist_idx] = accessory_dist;
 }
 
 // Functions to convert index position to/from squareform to condensed form
@@ -178,7 +181,8 @@ void calculate_dists(const uint64_t * ref,
 					 const int kmer_n,
 					 float * dists,
 					 const long long dist_n,
-					 SketchStrides strides)
+					 const SketchStrides ref_strides,
+					 const SketchStrides query_strides)
 {
 	// TODO implement different iteration for query vs ref
 	// TODO allocate __shared here for ref, constant for a block of threads
@@ -202,11 +206,11 @@ void calculate_dists(const uint64_t * ref,
 			i = dist_idx % ref_n;
 			j = __float2ll_rz(__fdividef(dist_idx, ref_n) + 0.001f);
 		}
-		regress_kmers(dists, dist_idx,
-			ref + i * strides.sample_stride,
-			query + j * strides.sample_stride,
+		regress_kmers(dists, dist_idx, dist_n,
+			ref + i * ref_strides.sample_stride,
+			query + j * query_strides.sample_stride,
 			kmers, kmer_n,
-			strides);
+			ref_strides, query_strides);
 
 		// Progress
 		if (dist_idx % (dist_n/1000) == 0)
@@ -259,7 +263,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 
 	// Stride by bins then restride by samples
 	// This is 4x faster than striding by samples in the first place, presumably
-	// because ~4x fewer dereferences are being used
+	// because many fewer dereferences are being used
 	SketchStrides old_strides = strides;
 	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches, kmer_lengths, old_strides);
 	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
@@ -328,9 +332,9 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	checkSketchParamsMatch(ref_sketches, kmer_lengths, bbits, sketchsize64);
 	
 	// Set up memory on device
-	SketchStrides strides;
-	strides.bbits = bbits;
-	strides.sketchsize64 = sketchsize64;
+	SketchStrides ref_strides;
+	ref_strides.bbits = bbits;
+	ref_strides.sketchsize64 = sketchsize64;
 	long long dist_rows; long n_samples = 0;
 	if (ref_sketches == query_sketches)
     {
@@ -353,45 +357,45 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
 	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
 
-	// flatten the input sketches and copy ref sketches to device
-	// Set up query array and copy to device
-	// std::chrono::steady_clock::time_point a = std::chrono::steady_clock::now();
-	SketchStrides query_strides = strides;
+	// Data structures for host and device
+	std::chrono::steady_clock::time_point a = std::chrono::steady_clock::now();
+	SketchStrides query_strides = ref_strides;
 	uint64_t *d_ref_array = nullptr, *d_query_array = nullptr;
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, strides);
 	managed_device_vector<uint64_t> d_managed_ref_sketches;
 	thrust::device_vector<uint64_t> d_ref_sketches, d_query_sketches;
 
-	if (self)
+	// Set up reference sketches, flatten and copy to device
+	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
+	if (est_size > mem_free * 0.9)
 	{
-		// Upper dist memory access is hard to predict, so try and cache as much
-		// as possible
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-		if (est_size > mem_free * 0.9)
+		// Try managedMalloc is device memory likely to be exceeded
+		if (self)
 		{
 			d_managed_ref_sketches = flat_ref;	
 			d_ref_array = thrust::raw_pointer_cast( &d_managed_ref_sketches[0] );
 		}
 		else
 		{
-			d_ref_sketches = flat_ref;
-			d_ref_array = thrust::raw_pointer_cast( &d_ref_sketches[0] );
+			throw std::runtime_error("Using greater than device memory is unsupport for query mode. "
+				 					 "Split your input into smaller chunks");	
 		}
 	}
 	else
 	{
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
-		if (est_size > mem_free * 0.9)
-		{
-			throw std::runtime_error("Using greater than device memory is unsupport for query mode. "
-									 "Split your input into smaller chunks");
-		}
-		else
-		{
-			thrust::host_vector<uint64_t> flat_query = flatten_by_samples(query_sketches, kmer_lengths, query_strides);
-			d_query_sketches = flat_query;
-			d_query_array = thrust::raw_pointer_cast( &d_query_sketches[0] ); 
-		}
+		d_ref_sketches = flat_ref;
+		d_ref_array = thrust::raw_pointer_cast( &d_ref_sketches[0] );	
+	}
+
+	// If needed, flatten query vector and copy to device
+	if (!self)
+	{
+		thrust::host_vector<uint64_t> flat_query = flatten_by_samples(query_sketches, kmer_lengths, query_strides);
+		d_query_sketches = flat_query;
+		d_query_array = thrust::raw_pointer_cast( &d_query_sketches[0] ); 
+	}
+	else
+	{
+		query_strides = ref_strides;
 	}
 
 	// Copy other arrays needed on device (kmers and distance output)
@@ -400,9 +404,22 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	thrust::device_vector<float> dist_mat(dist_rows*2, 0);
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
+	// Cache preferences:
+	// Upper dist memory access is hard to predict, so try and cache as much
+	// as possible
+	// Query uses cache to store sketch
+	if (self)
+	{
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+	}
+	else
+	{
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
+	}
+
 	// Run dists on device
-	// cudaDeviceSynchronize();
-	// std::chrono::steady_clock::time_point b = std::chrono::steady_clock::now();
+	cudaDeviceSynchronize();
+	std::chrono::steady_clock::time_point b = std::chrono::steady_clock::now();
 	int blockCount = (dist_rows + blockSize - 1) / blockSize;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
@@ -413,11 +430,12 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		kmer_lengths.size(),
 		d_dist_array,
 		dist_rows,
-		strides);
+		ref_strides,
+	    query_strides);
 				
 	// copy results from device to return
-	// cudaDeviceSynchronize();
-	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
+	cudaDeviceSynchronize();
+	std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
 	std::vector<float> dist_results(dist_mat.size());
 	try
 	{
@@ -430,11 +448,11 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		std::cerr << e.what() << std::endl;
 		exit(1);
 	}
-	//std::chrono::steady_clock::time_point d = std::chrono::steady_clock::now();
+	std::chrono::steady_clock::time_point d = std::chrono::steady_clock::now();
 	printf("%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
 
-	/*
+	// Report timings of each step
 	std::chrono::duration<double> load_time = std::chrono::duration_cast<std::chrono::duration<double> >(b-a);
 	std::chrono::duration<double> calc_time = std::chrono::duration_cast<std::chrono::duration<double> >(c-b);
 	std::chrono::duration<double> save_time = std::chrono::duration_cast<std::chrono::duration<double> >(d-c);
@@ -442,7 +460,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::cout << "Loading: " << load_time.count()<< "s" << std::endl;
 	std::cout << "Distances: " << calc_time.count()<< "s" << std::endl;
 	std::cout << "Saving: " << save_time.count()<< "s" << std::endl;
-	*/
 
 	return dist_results;
 }

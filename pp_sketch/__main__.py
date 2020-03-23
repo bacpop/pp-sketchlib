@@ -120,9 +120,9 @@ def get_options():
                               default=0,
                               help='ID of GPU to use '
                                    '[default = 0]')
-    optimisation.add_argument('--block-size', type=int, default=128,
+    optimisation.add_argument('--block-size', type=int, default=32,
                               help='Number of threads per GPU block'
-                                   ' [default = 128]')
+                                   ' [default = 32]')
 
     other = parser.add_argument_group('Other')
     other.add_argument('--version', action='version',

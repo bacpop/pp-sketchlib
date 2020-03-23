@@ -264,7 +264,7 @@ DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
     // Map this memory into an eigen matrix
     // Note the bitshift divides by two. Might be better to return or recalculate number of rows
     DistMatrix dists_ret = \
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
+		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> >(dist_vec.data(),dist_vec.size()/2,2);
 
     return dists_ret;
 }
