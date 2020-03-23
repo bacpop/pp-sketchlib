@@ -15,6 +15,9 @@
 #include <vector>
 #include <algorithm>
 #include <iomanip>
+#include <chrono>
+#include <ctime>
+#include <ratio>
 
 // cuda
 #include <thrust/device_vector.h>
@@ -253,25 +256,14 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	strides.sample_stride = 1;
 	strides.bin_stride = sketches.size();
 	strides.kmer_stride = strides.bin_stride * num_bins;
-	
-	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
-	auto flat_ref_it = flat_ref.begin();
-	for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
-	{
-		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++)
-		{
-			for (auto sample_it = sketches.cbegin(); sample_it != sketches.cend(); sample_it++)
-			{
-				*flat_ref_it = sample_it->get_sketch(*kmer_it)[bin_idx];
-				flat_ref_it++; 
-			}
-		}
-	}
 
-	// TODO - test if this alternative is faster
-	/*
+	// Stride by bins then restride by samples
+	// This is 4x faster than striding by samples in the first place, presumably
+	// because ~4x fewer dereferences are being used
 	SketchStrides old_strides = strides;
 	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches, kmer_lengths, old_strides);
+	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
+	auto flat_ref_it = flat_ref.begin();
 	for (size_t kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++)
 	{
 		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++)
@@ -285,7 +277,6 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 			}
 		}
 	}
-	*/
 
 	return flat_ref;
 }
@@ -364,6 +355,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 
 	// flatten the input sketches and copy ref sketches to device
 	// Set up query array and copy to device
+	// std::chrono::steady_clock::time_point a = std::chrono::steady_clock::now();
 	SketchStrides query_strides = strides;
 	uint64_t *d_ref_array = nullptr, *d_query_array = nullptr;
 	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, strides);
@@ -409,6 +401,8 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
 
 	// Run dists on device
+	// cudaDeviceSynchronize();
+	// std::chrono::steady_clock::time_point b = std::chrono::steady_clock::now();
 	int blockCount = (dist_rows + blockSize - 1) / blockSize;
 	calculate_dists<<<blockCount, blockSize>>>(
 		d_ref_array,
@@ -422,6 +416,8 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		strides);
 				
 	// copy results from device to return
+	// cudaDeviceSynchronize();
+	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
 	std::vector<float> dist_results(dist_mat.size());
 	try
 	{
@@ -434,7 +430,19 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		std::cerr << e.what() << std::endl;
 		exit(1);
 	}
-	printf("%cProgress (GPU): 100.0%", 13);
+	//std::chrono::steady_clock::time_point d = std::chrono::steady_clock::now();
+	printf("%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
+
+	/*
+	std::chrono::duration<double> load_time = std::chrono::duration_cast<std::chrono::duration<double> >(b-a);
+	std::chrono::duration<double> calc_time = std::chrono::duration_cast<std::chrono::duration<double> >(c-b);
+	std::chrono::duration<double> save_time = std::chrono::duration_cast<std::chrono::duration<double> >(d-c);
+
+	std::cout << "Loading: " << load_time.count()<< "s" << std::endl;
+	std::cout << "Distances: " << calc_time.count()<< "s" << std::endl;
+	std::cout << "Saving: " << save_time.count()<< "s" << std::endl;
+	*/
+
 	return dist_results;
 }
