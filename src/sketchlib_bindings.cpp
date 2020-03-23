@@ -62,7 +62,6 @@ DistMatrix queryDatabase(std::string ref_db_name,
 	                        query_sketches,
                             kmer_lengths,
                             blockSize,
-                            0,
                             device_id);
     }
     else
@@ -109,7 +108,6 @@ DistMatrix dists;
                              ref_sketches,
                              kmer_lengths,
                              blockSize,
-                             0,
                              device_id);
     }
     else

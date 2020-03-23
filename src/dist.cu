@@ -24,6 +24,11 @@
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 
+// mallocManaged for limited device memory
+template<class T>
+using managed_device_vector = thrust::device_vector<T, managed_allocator<T>>;
+
+// Structure of flattened vectors
 struct SketchStrides
 {
 	size_t bin_stride;
@@ -32,10 +37,6 @@ struct SketchStrides
 	size_t sketchsize64; 
 	size_t bbits;
 };
-
-// mallocManaged for limited device memory
-template<class T>
-using managed_device_vector = thrust::device_vector<T, managed_allocator<T>>;
 
 // Error checking of dynamic memory allocation on device
 // https://stackoverflow.com/a/14038590
@@ -59,7 +60,7 @@ T non_neg_minus(T a, T b) {
 __device__
 float jaccard_dist(const uint64_t * sketch1, 
                     const uint64_t * sketch2, 
-					const SampleStrides strides) 
+					const SketchStrides strides) 
 {
 	size_t samebits = 0;
     for (size_t i = 0; i < strides.sketchsize64; i++) 
@@ -207,7 +208,7 @@ void calculate_dists(const uint64_t * ref,
 		// Progress
 		if (dist_idx % (dist_n/1000) == 0)
 		{
-			printf("%cProgress (GPU): %.1ld%%", 13, (float)dist_idx/dist_n * 100);
+			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
 		}
 	}
 }
@@ -364,9 +365,9 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	// flatten the input sketches and copy ref sketches to device
 	// Set up query array and copy to device
 	SketchStrides query_strides = strides;
-	uint64_t* d_ref_array = nullptr, d_query_array = nullptr;
+	uint64_t *d_ref_array = nullptr, *d_query_array = nullptr;
 	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, strides);
-	managed_device_vector d_managed_ref_sketches;
+	managed_device_vector<uint64_t> d_managed_ref_sketches;
 	thrust::device_vector<uint64_t> d_ref_sketches, d_query_sketches;
 
 	if (self)
@@ -433,7 +434,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		std::cerr << e.what() << std::endl;
 		exit(1);
 	}
-	printf("%cProgress (GPU): %.1lf%%", 13, 100);
+	printf("%cProgress (GPU): 100.0%", 13);
 	std::cout << std::endl << "" << std::endl;
 	return dist_results;
 }

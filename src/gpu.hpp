@@ -10,7 +10,8 @@
 #include <cstdint>
 #include <cstddef>
 
-#ifdef GPU_AVAILABLE
+#ifdef __CUDACC__
+#include <thrust/device_malloc_allocator.h>
 #include <thrust/system_error.h>
 #include <thrust/system/cuda/error.h>
 #endif
@@ -24,7 +25,9 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const int blockSize,
 	const int device_id = 0);
+#endif
 
+#ifdef __CUDACC__
 // thrust vector using mallocManaged (supports device page faults)
 // from https://tinyurl.com/whykq6o
 template<class T>
@@ -58,6 +61,5 @@ class managed_allocator : public thrust::device_malloc_allocator<T>
       }
     }
 };
-
 #endif
 
