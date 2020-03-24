@@ -254,15 +254,16 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-	const int blockSize,
     const int device_id)
 {
     // Calculate dists on GPU, which is returned as a flattened array
-    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, kmer_lengths, 
-                                                blockSize, device_id);
+    // CUDA code now returns column major data (i.e. all core dists, then all accessory dists)
+    // to try and coalesce writes.
+    // NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
+    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, 
+                                                kmer_lengths, device_id);
     
     // Map this memory into an eigen matrix
-    // Note the bitshift divides by two. Might be better to return or recalculate number of rows
     DistMatrix dists_ret = \
 		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> >(dist_vec.data(),dist_vec.size()/2,2);
 
