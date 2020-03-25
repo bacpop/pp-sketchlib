@@ -62,14 +62,35 @@ Large datasets
 ^^^^^^^^^^^^^^
 
 When working with large datasets, you can increase the ``--cpus`` to high numbers and get
-a roughly proportional performance increase. This works best for creating sketches.
+a roughly proportional performance increase. 
 
-For calculating large numbers of distances, if you have a CUDA compatible GPU with sufficient memory, 
+For calculating large numbers of distances, if you have a CUDA compatible GPU, 
 you can calculate distances on your graphics device even more quickly. Add the ``--use-gpu`` option::
 
-   python pp_sketch-runner.py --query --ref-db listeria --query-db listeria --use-gpu --block-size 128
+   python pp_sketch-runner.py --query --ref-db listeria --query-db listeria --use-gpu
 
-A block size of 128 seems to work well.
+Benchmarks
+^^^^^^^^^^
+Sketching 31610 ~3Mb *L. monocytogenes* genomes takes around 20 minutes.
+Calculating all core/accessory distances (500M pairs) takes a further 14 minutes
+on a CPU, or 2 minutes on a GPU. Assigning new queries is twice as fast.
+
++--------------+-----------------+--------------------------------+
+| Mode         | Parallelisation | Speed                          |
++==============+=================+================================+
+| Sketching    | CPU             |  26 genomes per second         |
++--------------+-----------------+--------------------------------+
+| Self query   | CPU             |  0.6M distances per second     |
+|              +-----------------+--------------------------------+
+|              | GPU             |  4.3M distances per second     |
++--------------+-----------------+--------------------------------+
+| Assign query | CPU             | 0.6M distances per second      |
+|              +-----------------+--------------------------------+
+|              | GPU             | 7.2M distances per second      |
++--------------+-----------------+--------------------------------+
+
+CPU tested using 16 cores on a Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz.
+GPU tested uisng an NVIDIA RTX 2080 Ti GPU (4352 CUDA cores @ 1.35GHz). 
 
 API
 ===

@@ -37,8 +37,6 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-	const int blockSize,
-    const size_t max_device_mem = 0,
     const int device_id = 0);
 #endif
 

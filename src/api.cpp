@@ -219,10 +219,10 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
             num_dist_threads = dist_rows; 
         }
         
-        // Loop over threads, one per ref, with FIFO queue
+        // Loop over threads, one per query, with FIFO queue
         std::queue<std::thread> dist_threads;
         size_t row_start = 0;
-        for (auto ref_it = ref_sketches.cbegin(); ref_it < ref_sketches.cend(); ref_it++)
+        for (auto query_it = query_sketches.cbegin(); query_it < query_sketches.cend(); query_it++)
         {
             // If all threads being used, wait for one to finish
             if (dist_threads.size() == num_dist_threads)
@@ -233,11 +233,11 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 
             dist_threads.push(std::thread(&query_dist_row,
                               std::ref(distMat),
-                              &(*ref_it),
-                              std::cref(query_sketches),
+                              &(*query_it),
+                              std::cref(ref_sketches),
                               std::cref(kmer_lengths),
                               row_start));
-            row_start += query_sketches.size();
+            row_start += ref_sketches.size();
         }
         // Wait for threads to complete
         while(!dist_threads.empty())
@@ -254,18 +254,18 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-	const int blockSize,
-    const size_t max_device_mem,
     const int device_id)
 {
     // Calculate dists on GPU, which is returned as a flattened array
-    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, kmer_lengths, 
-                                                blockSize, max_device_mem, device_id);
+    // CUDA code now returns column major data (i.e. all core dists, then all accessory dists)
+    // to try and coalesce writes.
+    // NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
+    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, 
+                                                kmer_lengths, device_id);
     
     // Map this memory into an eigen matrix
-    // Note the bitshift divides by two. Might be better to return or recalculate number of rows
     DistMatrix dists_ret = \
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
+		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> >(dist_vec.data(),dist_vec.size()/2,2);
 
     return dists_ret;
 }
@@ -418,17 +418,17 @@ void self_dist_block(DistMatrix& distMat,
 // Calculates dists ref v query
 // (run this function in a thread) 
 void query_dist_row(DistMatrix& distMat,
-                    const Reference * ref_sketch_ptr,
-                    const std::vector<Reference>& query_sketches,
+                    const Reference * query_sketch_ptr,
+                    const std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t row_start)
 {
     arma::mat kmer_mat = kmer2mat(kmer_lengths);
     size_t current_row = row_start;
-    for (auto query_it = query_sketches.cbegin(); query_it != query_sketches.cend(); query_it++)
+    for (auto ref_it = ref_sketches.cbegin(); ref_it != ref_sketches.cend(); ref_it++)
     {
         std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                ref_sketch_ptr->core_acc_dist(*query_it, kmer_mat);
+                query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);
         current_row++;
     }
 }

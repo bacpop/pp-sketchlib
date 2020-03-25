@@ -120,9 +120,6 @@ def get_options():
                               default=0,
                               help='ID of GPU to use '
                                    '[default = 0]')
-    optimisation.add_argument('--block-size', type=int, default=128,
-                              help='Number of threads per GPU block'
-                                   ' [default = 128]')
 
     other = parser.add_argument_group('Other')
     other.add_argument('--version', action='version',
@@ -172,7 +169,7 @@ def main():
             qList.append(sample_name)
 
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
-                                             args.cpus, args.use_gpu, args.block_size, args.gpu_id)
+                                             args.cpus, args.use_gpu, args.gpu_id)
         
         # get names order
         if args.print:
