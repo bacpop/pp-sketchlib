@@ -247,7 +247,8 @@ void calculate_query_dists(const uint64_t * ref,
 								 ysquaresum,
 								 kmer_n);
 
-		// Progress
+		// Progress indicator
+		// The >> 10 is a divide by 1024 - update roughly every 0.1
 		if (dist_idx % (dist_n >> 10) == 0) 
 		{
 			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
@@ -552,12 +553,12 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		// to some wasted computation in threads)
 		// We take the next multiple of 32 that is larger than the number of
 		// reference sketches, up to a maximum of 512
-		int blockSize = std::min(512, (int)((ref_sketches.size() + 32 - 1) / 32));
+		int blockSize = std::min(512, (int)(32 * (ref_sketches.size() + 32 - 1) / 32));
 		int blocksPerQuery = (ref_sketches.size() + blockSize - 1) / blockSize;
 		int blockCount = blocksPerQuery * query_sketches.size();
 		
 		// Third argument is the size of __shared__ memory needed by a thread block
-		// This is equal to the query skecth size in bytes
+		// This is equal to the query sketch size in bytes
 		calculate_query_dists<<<blockCount, blockSize, 
 								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
