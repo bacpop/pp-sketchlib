@@ -23,7 +23,7 @@ ifeq ($(UNAME_S),Darwin)
 	LALIBS=-llapack -lopenblas -pthread
 endif
 
-CPPFLAGS=-I../dlib -I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3 -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
+CPPFLAGS=-I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
 LDFLAGS+= -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
 
 PROGRAMS=sketch_test read_test
@@ -31,9 +31,15 @@ PROGRAMS=sketch_test read_test
 SKETCH_OBJS=dist.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
 CUDA_OBJS=dist.cu
 
+# web specific options
+web: CXX = emcc
+web: CXXFLAGS += -s USE_ZLIB=1
+web: LDFLAGS = -s USE_ZLIB=1 --preload-file 12673_8_24.fa
+
 all: $(PROGRAMS)
 
-static: $(STATIC_PROGRAMS)
+web: web_sketch.o seqio.o sketch.o countmin.o
+	$(LINK.cpp) $^ -o pp-sketch.html
 
 clean:
 	$(RM) *.o ~* $(PROGRAMS)
