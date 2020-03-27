@@ -16,6 +16,7 @@ if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")  
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
 endif()
@@ -56,6 +57,7 @@ if(CMAKE_CUDA_COMPILER)
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
+                 CUDA_RESOLVE_DEVICE_SYMBOLS ON   # device link with nvcc (ar alone insufficient)
                  CUDA_VISIBILITY_PRESET "hidden")
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
@@ -84,4 +86,4 @@ if(CMAKE_CUDA_COMPILER)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen 
                                                ${ARMADILLO_LIBRARIES} 
-                                               z bz2 hdf5_cpp hdf5 openblas m dl)
+                                               z bz2 hdf5_cpp hdf5 openblas gfortran m dl)
