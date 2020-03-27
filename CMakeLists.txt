@@ -29,9 +29,6 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-# Submodules
-include_directories(${PROJECT_SOURCE_DIR}/HighFive/include)
-
 # Set paths for non standard lib/ and include/ locations
 if(DEFINED ENV{CONDA_PREFIX})
     include_directories($ENV{CONDA_PREFIX}/include)
@@ -85,5 +82,4 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries("${TARGET_NAME}" PRIVATE "${TARGET_NAME}_CUDA")
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen 
-                                               ${ARMADILLO_LIBRARIES} 
-                                               z bz2 hdf5_cpp hdf5 openblas gfortran m dl)
+                                               z hdf5_cpp hdf5 openblas lapack gfortran m dl)

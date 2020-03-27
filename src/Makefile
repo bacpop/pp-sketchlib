@@ -1,51 +1,62 @@
 
-CXXFLAGS=-Wall -Wextra -std=c++14 -march=native
+CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
   CXXFLAGS+= -O2 -g
 else
-  CXXFLAGS+= -O2
+  CXXFLAGS+= -O3
 endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
 ifeq ($(UNAME_S),Linux)
-	CXXFLAGS+= -DMKL_ILP64 -m64
+	CXXFLAGS+= -m64
 	ifdef PROFILE
 		CXXFLAGS+= -Wl,--compress-debug-sections=none
 	endif
-	LALIBS=-lmkl_rt -lpthread -lm -ldl
-	# LALIBS=-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -liomp5 -lpthread -lm -ldl
+	LALIBS=-lpthread -lgfortran -lm -ldl
 	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
-	LALIBS=-llapack -lopenblas -pthread
+	LALIBS=-pthread
 endif
 
-CPPFLAGS=-I../dlib -I../HighFive/include -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3 -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1
-LDFLAGS+= -L$(LIBLOC)/lib -lz -lbz2 -lhdf5_cpp -lhdf5 $(LALIBS)
+CPPFLAGS+=-I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
+LDFLAGS+= -L$(LIBLOC)/lib
+LDLIBS+=-lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lcudadevrt -lcudart_static $(LALIBS)
+
+CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
+CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75 -O3
+
+# python specific options
+python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.2.0\" $(shell python3 -m pybind11 --includes)
 
 PROGRAMS=sketch_test read_test
 
 SKETCH_OBJS=dist.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
-CUDA_OBJS=dist.cu
+CUDA_OBJS=dist.cu.o
 
 all: $(PROGRAMS)
 
-static: $(STATIC_PROGRAMS)
-
 clean:
-	$(RM) *.o ~* $(PROGRAMS)
+	$(RM) *.o *.so ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
 	install $(PROGRAMS) $(BINDIR)
 
-sketch_test: $(SKETCH_OBJS) $(CUDA_OBJS) main.o
+sketch_test: $(SKETCH_OBJS) main.o
 	$(LINK.cpp) $^ -o $@
 
 read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@
 
-.PHONY: all clean install
+python: $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
+	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o pp_sketchlib$(shell python3-config --extension-suffix) $(LDLIBS)
+
+dist.cu.o:
+	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c dist.cu -o $@
+
+.PHONY: all clean install python

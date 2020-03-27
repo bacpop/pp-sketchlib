@@ -12,6 +12,7 @@ dependencies:
   - pybind11
   - zlib
   - eigen
+  - highfive
   - hdf5
   - h5py
   - openblas
