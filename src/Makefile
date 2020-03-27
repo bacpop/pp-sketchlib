@@ -1,5 +1,5 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
+CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
