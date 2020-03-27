@@ -52,12 +52,12 @@ if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
     
     add_compile_definitions(GPU_AVAILABLE)
-    add_library("${TARGET_NAME}_CUDA" STATIC src/dist.cu)
+    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
     # target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
-                 CUDA_RESOLVE_DEVICE_SYMBOLS ON   # device link with nvcc (ar alone insufficient)
+                 CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden")
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
