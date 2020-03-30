@@ -54,7 +54,9 @@ sketch_test: $(SKETCH_OBJS) main.o
 read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@
 
-python: $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
+python: $(PYTHON_LIB)
+
+$(PYTHON_LIB): $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
 	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(LDLIBS)
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(LDLIBS)
 
@@ -65,4 +67,4 @@ install_python: python
 dist.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c dist.cu -o $@
 
-.PHONY: all clean install python
+.PHONY: all clean install python install_python

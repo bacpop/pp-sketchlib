@@ -24,6 +24,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::vector<std::string>>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   const bool use_rc,
                    size_t min_count,
                    const bool exact,
                    const size_t num_threads);

@@ -24,6 +24,7 @@ class Reference
                   const std::vector<std::string>& filenames, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64, 
+                  const bool use_rc,
                   const uint8_t min_count,
                   const bool exact); // read and run sketch
 
@@ -54,6 +55,7 @@ class Reference
         std::string _name;
         size_t _bbits;
         size_t _sketchsize64;
+        bool _use_rc;
 
         // sketch - map keys are k-mer length
         std::unordered_map<int, std::vector<uint64_t>> usigs;

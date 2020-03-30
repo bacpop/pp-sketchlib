@@ -491,6 +491,30 @@ inline bool NTMC64(const char *kmerSeq, const unsigned k, const unsigned m, uint
     return true;
 }
 
+// strand-preserving multihash ntHash
+inline bool NTM64(const char *kmerSeq, const unsigned k, const unsigned m, uint64_t& fhVal, unsigned& locN, uint64_t* hVal) {
+    fhVal=0;
+    uint64_t bVal=0, tVal=0;
+    locN=0;
+    for(int i=k-1; i>=0; i--) {
+        if(seedTab[(unsigned char)kmerSeq[i]]==seedN) {
+            locN=i;
+            return false;
+        }
+        fhVal = rol1(fhVal);
+        fhVal = swapbits033(fhVal);
+        fhVal ^= seedTab[(unsigned char)kmerSeq[k-1-i]];
+    }
+    bVal = fhVal;
+    hVal[0] = bVal;
+    for(unsigned i=1; i<m; i++) {
+        tVal = bVal * (i ^ k * multiSeed);
+        tVal ^= tVal >> multiShift;
+        hVal[i] =  tVal;
+    }
+    return true;
+}
+
 // strand-aware canonical multihash ntHash
 inline bool NTMC64(const char *kmerSeq, const unsigned k, const unsigned m, uint64_t& fhVal, uint64_t& rhVal, unsigned& locN, uint64_t* hVal, bool& hStn) {
     fhVal=rhVal=0;

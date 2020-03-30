@@ -34,9 +34,10 @@ public:
      * @param seq address of DNA sequence to be hashed
      * @param k k-mer size
      * @param h number of hashes
+     * @param rc use canonical k-mers (allow reverse complement)
     */
-    ntHashIterator(const std::string& seq, unsigned h, unsigned k):
-        m_seq(seq), m_h(h), m_k(k), m_hVec(new uint64_t[h]), m_pos(0)
+    ntHashIterator(const std::string& seq, unsigned h, unsigned k, bool rc):
+        m_seq(seq), m_h(h), m_k(k), m_rc(rc), m_hVec(new uint64_t[h]), m_pos(0)
     {
         init();
     }
@@ -47,6 +48,7 @@ public:
         m_seq = nth.m_seq;
         m_h = nth.m_h;
         m_k = nth.m_k;
+        m_rc = nth.m_rc;
         m_hVec = new uint64_t[m_h];
         for (unsigned i=0; i<m_h; i++) m_hVec[i] = nth.m_hVec[i];
         m_pos = nth.m_pos;
@@ -63,7 +65,9 @@ public:
             return;
         }
         unsigned locN=0;
-        while (m_pos<m_seq.length()-m_k+1 && !NTMC64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, m_rhVal, locN, m_hVec))
+        while (m_pos<m_seq.length()-m_k+1
+               && (m_rc ? !NTMC64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, m_rhVal, locN, m_hVec)
+               : !NTM64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, locN, m_hVec)))
             m_pos+=locN+1;
         if (m_pos >= m_seq.length()-m_k+1)
             m_pos = std::numeric_limits<std::size_t>::max();
@@ -82,7 +86,17 @@ public:
             init();
         }
         else
-            NTMC64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_fhVal, m_rhVal, m_hVec);
+        {
+            if (m_rc)
+            {
+                NTMC64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_fhVal, m_rhVal, m_hVec);
+            }
+            else
+            {
+                NTM64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_hVec);
+            }
+            
+        }
     }
     
     size_t pos() const{
@@ -136,6 +150,9 @@ private:
 
     /** k-mer size */
     unsigned m_k;
+
+    /** canonical k-mers */
+    bool m_rc;
 
     /** hash values */
     uint64_t *m_hVec;

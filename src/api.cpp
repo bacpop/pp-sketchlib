@@ -60,13 +60,11 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::vector<std::string>>& files, 
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   const bool use_rc,
                    size_t min_count,
                    const bool exact,
                    const size_t num_threads)
 {
-    // Threading is handled by code
-    setenv("MKL_THREADING_LAYER", "SEQUENTIAL", 1);
-    
     // Store sketches in vector
     std::vector<Reference> sketches;
 
@@ -119,6 +117,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                                             std::cref(files),
                                             std::cref(kmer_lengths),
                                             sketchsize64,
+                                            use_rc,
                                             min_count,
                                             exact,
                                             start,
@@ -150,9 +149,6 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t num_threads) 
 {
-    // Threading is handled by code
-    setenv("MKL_THREADING_LAYER", "SEQUENTIAL", 1);
-    
     if (ref_sketches.size() < 1 or query_sketches.size() < 1)
     {
         throw std::runtime_error("Query with empty ref or query list!");
@@ -370,6 +366,7 @@ void sketch_block(std::vector<Reference>& sketches,
                   const std::vector<std::vector<std::string>>& files, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
+                  const bool use_rc,
                   const uint8_t min_count,
                   const bool exact,
                   const size_t start,
@@ -377,7 +374,7 @@ void sketch_block(std::vector<Reference>& sketches,
 {
     for (unsigned int i = start; i < end; i++)
     {
-        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, min_count, exact);
+        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, use_rc, min_count, exact);
     }
 }
 

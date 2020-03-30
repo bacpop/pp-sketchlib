@@ -100,6 +100,8 @@ def get_options():
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
     kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
+    kmerGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
+                                                                                'e.g. for RNA viruses with preserved strand')
     kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
     kmerGroup.add_argument('--exact-counter', default=False, action='store_true', 
                             help='Use an exact rather than approximate k-mer counter '
@@ -153,7 +155,7 @@ def main():
             sys.exit(1)
 
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, 
-                                       int(round(args.sketch_size/64)), 
+                                       int(round(args.sketch_size/64)), args.strand, 
                                        args.min_count, args.exact_counter, args.cpus)
 
     elif args.query:

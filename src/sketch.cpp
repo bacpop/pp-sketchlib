@@ -83,6 +83,7 @@ std::vector<uint64_t> sketch(const std::string & name,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
+                             const bool use_canonical,
                              const uint8_t min_count,
                              const bool exact)
 {
@@ -110,7 +111,7 @@ std::vector<uint64_t> sketch(const std::string & name,
     // Rolling hash through string
     while (!seq.eof()) 
     {
-        ntHashIterator hashIt(*(seq.getseq()), h, kmer_len);
+        ntHashIterator hashIt(*(seq.getseq()), h, kmer_len, use_canonical);
         while (hashIt != hashIt.end())
         {
             auto hash = (*hashIt)[0] % SIGN_MOD;

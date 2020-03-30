@@ -90,7 +90,7 @@ on a CPU, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 +--------------+-----------------+--------------------------------+
 
 CPU tested using 16 cores on a Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz.
-GPU tested uisng an NVIDIA RTX 2080 Ti GPU (4352 CUDA cores @ 1.35GHz). 
+GPU tested using an NVIDIA RTX 2080 Ti GPU (4352 CUDA cores @ 1.35GHz). 
 
 API
 ===
