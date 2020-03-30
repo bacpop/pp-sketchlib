@@ -17,4 +17,4 @@ dependencies:
   - h5py
   - openblas
   - armadillo
-  - libgfortan-ng
+  - libgfortran-ng
