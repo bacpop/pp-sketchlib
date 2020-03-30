@@ -14,6 +14,7 @@
 
 std::vector<uint64_t> sketch(const std::string & name,
                              SeqBuf &seq,
+                             size_t &seq_size,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,

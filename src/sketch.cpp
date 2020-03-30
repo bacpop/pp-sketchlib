@@ -40,6 +40,12 @@ void binsign(std::vector<uint64_t> &signs,
 	signs[binidx] = MIN(signs[binidx], sign);
 }
 
+size_t estimatesize(std::vector<uint64_t> &signs)
+{
+    uint64_t minhash = signs[0];
+    return(static_cast<size_t>(UINT64_MAX / (double)minhash));
+}
+
 void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits) 
 {
 	for (size_t signidx = 0; signidx < signs.size(); signidx++) 
@@ -80,6 +86,7 @@ int densifybin(std::vector<uint64_t> &signs)
 
 std::vector<uint64_t> sketch(const std::string & name,
                              SeqBuf &seq,
+                             size_t &seq_size,
                              const uint64_t sketchsize, 
                              const size_t kmer_len, 
                              const size_t bbits,
@@ -128,6 +135,7 @@ std::vector<uint64_t> sketch(const std::string & name,
     delete read_counter;
 
     // Apply densifying function
+    sequence_size = estimatesize(signs);
     int res = densifybin(signs);
     if (res != 0) 
     {

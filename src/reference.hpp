@@ -30,7 +30,8 @@ class Reference
 
         Reference(const std::string& name,
                   const size_t bbits,
-                  const size_t sketchsize64); // For loading from DB
+                  const size_t sketchsize64,
+                  const size_t seq_size); // For loading from DB
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
@@ -43,6 +44,7 @@ class Reference
         std::string name() const { return _name; }
         size_t bbits() const { return _bbits; }
         size_t sketchsize64() const { return _sketchsize64; }
+        size_t seq_length() const { return _seq_size; }
 
         // For sorting, order by name
         friend bool operator < (Reference const & a, Reference const & b)
@@ -56,6 +58,7 @@ class Reference
         size_t _bbits;
         size_t _sketchsize64;
         bool _use_rc;
+        size_t _seq_size;
 
         // sketch - map keys are k-mer length
         std::unordered_map<int, std::vector<uint64_t>> usigs;

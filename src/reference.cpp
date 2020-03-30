@@ -25,7 +25,8 @@ auto key_selector = [](auto pair){return pair.first;};
 Reference::Reference()
    :_bbits(def_bbits),  
     _sketchsize64(def_sketchsize64),
-    _use_rc(true)
+    _use_rc(true),
+    _seq_size(0)
 {
 }
 
@@ -39,7 +40,8 @@ Reference::Reference(const std::string& name,
    :_name(name), 
     _bbits(def_bbits),  
     _sketchsize64(sketchsize64),
-    _use_rc(use_rc)
+    _use_rc(use_rc),
+    _seq_size(0)
 {
     // Read in sequence
     SeqBuf sequence(filenames, kmer_lengths.back());
@@ -48,18 +50,24 @@ Reference::Reference(const std::string& name,
         throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
 
+    size_t size_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        usigs[*kmer_it] = sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+        size_t estimated_size = 0;
+        usigs[*kmer_it] = sketch(_name, sequence, estimated_size, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+        size_sum += estimated_size;
     }
+    _seq_size = static_cast<size_t>(size_sum / (double)kmer_lengths.size());
+
     // SeqBuf containing sequences will get deleted here
     // usigs (the sketch) will be retained
 }
 
 Reference::Reference(const std::string& name,
                      const size_t bbits,
-                     const size_t sketchsize64)
-   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true)
+                     const size_t sketchsize64,
+                     const size_t seq_size)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), _seq_size(seq_size)
 {
 }
 
