@@ -29,6 +29,8 @@ LDLIBS+=-lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lcudadevrt -lcudart_static $(
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
 CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
 
+PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
+
 # python specific options
 python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.2.0\" $(shell python3 -m pybind11 --includes)
 
@@ -53,8 +55,12 @@ read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@
 
 python: $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
-	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -O2 -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(LDLIBS)
-	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o pp_sketchlib$(shell python3-config --extension-suffix) $(LDLIBS)
+	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(LDLIBS)
+
+install_python: python
+	install -d $(PYTHON_LIB_PATH)
+	install $(PYTHON_LIB) $(PYTHON_LIB_PATH) 
 
 dist.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c dist.cu -o $@

@@ -13,7 +13,7 @@
 #include "sketch.hpp"
 #include "dist.hpp"
 
-const size_t def_bbits = 14;
+const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
 
 #include "bitfuncs.hpp"
