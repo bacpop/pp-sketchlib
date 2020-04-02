@@ -69,10 +69,15 @@ Reference::Reference(const std::string& name,
 Reference::Reference(const std::string& name,
                      const size_t bbits,
                      const size_t sketchsize64,
-                     const size_t seq_size)
+                     const size_t seq_size,
+                     const std::vector<double> bases)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
    _seq_size(seq_size), _match_probs(0)
 {
+    _bases.a = bases[0];
+    _bases.c = bases[0];
+    _bases.g = bases[0];
+    _bases.t = bases[0];
 }
 
 double Reference::random_match(const int kmer_len)

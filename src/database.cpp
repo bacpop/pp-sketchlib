@@ -50,7 +50,10 @@ void Database::add_sketch(const Reference& ref)
     HighFive::Attribute length_a = sketch_group.createAttribute<size_t>("length", HighFive::DataSpace::From(ref.seq_length()));
     length_a.write(ref.seq_length())
 
-    // Write k-mer length vector as another group attribute
+    // Write base composition and k-mer length vectors as further group attributes
+    const std::vector<double> bases = ref.base_composition();
+    HighFive::Attribute bases_a = sketch_group.createAttribute<int>("base_freq", HighFive::DataSpace::From(bases));
+    bases_a.write(bases); 
     const std::vector<size_t> kmer_lengths = ref.kmer_lengths();
     HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
     kmers_a.write(kmer_lengths); 
@@ -85,6 +88,8 @@ Reference Database::load_sketch(const std::string& name)
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches/" + name);
     std::vector<int> kmer_lengths;
     sketch_group.getAttribute("kmers").read(kmer_lengths);
+    std::vector<double> bases;
+    sketch_group.getAttribute("base_freq").read(bases);
     size_t sketchsize64;
     sketch_group.getAttribute("sketchsize64").read(sketchsize64);
     size_t bbits;
@@ -92,7 +97,7 @@ Reference Database::load_sketch(const std::string& name)
     size_t seq_size;
     sketch_group.getAttribute("length").read(seq_size)
 
-    Reference new_ref(name, bbits, sketchsize64, seq_size);
+    Reference new_ref(name, bbits, sketchsize64, seq_size, bases);
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
         std::vector<uint64_t> usigs;
