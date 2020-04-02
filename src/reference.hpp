@@ -16,6 +16,7 @@
 #define ARMA_DONT_USE_WRAPPER
 #include <armadillo>
 
+#include "seqio.hpp"
 class Reference
 {
     public:
@@ -37,9 +38,11 @@ class Reference
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(const Reference &query, const int kmer_len) const;
+        double random_match(const int kmer_len) const;
         std::tuple<float, float> core_acc_dist(const Reference &query) const;
         std::tuple<float, float> core_acc_dist(const Reference &query, const arma::mat& kmers) const;
         std::vector<size_t> kmer_lengths() const;
+
 
         std::string name() const { return _name; }
         size_t bbits() const { return _bbits; }
@@ -58,7 +61,12 @@ class Reference
         size_t _bbits;
         size_t _sketchsize64;
         bool _use_rc;
+        
+        // Sequence statistics
         size_t _seq_size;
+        // Proportion of each base, and sum of squares
+        BaseComp _bases;
+        double _match_probs
 
         // sketch - map keys are k-mer length
         std::unordered_map<int, std::vector<uint64_t>> usigs;

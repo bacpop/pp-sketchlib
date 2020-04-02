@@ -26,7 +26,8 @@ Reference::Reference()
    :_bbits(def_bbits),  
     _sketchsize64(def_sketchsize64),
     _use_rc(true),
-    _seq_size(0)
+    _seq_size(0),
+    _match_probs(0)
 {
 }
 
@@ -41,7 +42,8 @@ Reference::Reference(const std::string& name,
     _bbits(def_bbits),  
     _sketchsize64(sketchsize64),
     _use_rc(use_rc),
-    _seq_size(0)
+    _seq_size(0),
+    _match_probs(0)
 {
     // Read in sequence
     SeqBuf sequence(filenames, kmer_lengths.back());
@@ -49,6 +51,7 @@ Reference::Reference(const std::string& name,
     {
         throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
+    _bases = sequence._bases
 
     size_t size_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
@@ -67,8 +70,22 @@ Reference::Reference(const std::string& name,
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size)
-   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), _seq_size(seq_size)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
+   _seq_size(seq_size), _match_probs(0)
 {
+}
+
+double Reference::random_match(const int kmer_len)
+{
+    if (_match_probs == 0)
+    {
+        double _match_probs = std::pow(_bases.a, 2) +
+                              std::pow(_bases.c, 2) + 
+                              std::pow(_bases.g, 2) + 
+                              std::pow(_bases.t, 2); 
+    }
+    double r1 = _seq_size / (_seq_size + std::pow(_match_probs, kmer_len));
+    return r1;
 }
 
 double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
@@ -78,7 +95,13 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
                                       _sketchsize64, 
                                       _bbits);
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
-    double jaccard = intersize/(double)unionsize;
+    double jaccard_obs = intersize/(double)unionsize;
+    
+    double r1 = this->random_match();
+    double r2 = query.random_match();
+    double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+    
+    double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
     return(jaccard);
 }
 

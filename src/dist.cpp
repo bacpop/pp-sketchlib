@@ -45,46 +45,33 @@ static inline uint64_t popcount64(uint64_t x)
 
 	return (x * h01) >> 56;
 }
-
 // End of macros and method copied from https://github.com/kimwalisch/libpopcnt
-
-template <class T>
-T non_neg_minus(T a, T b) {
-	return a > b ? (a - b) : 0;
-}
 
 size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
                       const std::vector<uint64_t> * sketch2, 
                       const size_t sketchsize64, 
                       const size_t bbits) 
 {
-	// assert (sketch1.size() == sketch2.size());	
-	// assert (sketch1.size() == sketchsize64 * bbits);
 	size_t samebits = 0;
-
     for (size_t i = 0; i < sketchsize64; i++) 
     {
 		uint64_t bits = ~((uint64_t)0ULL);
-		// std::cout << "bits = " << std::hex << bits << std::endl;
 		for (size_t j = 0; j < bbits; j++) 
         {
-			// assert(sketch.size() > i * bbits + j || !fprintf(stderr, "i=%lu j=%lu bbits=%lu vsize=%lu\n", i, j, bbits, sketch1.size()));
 			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
-			// std::cout << " bits = " << std::hex << bits << std::endl;
 		}
 
 #if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll) 
 		samebits += __builtin_popcountll(bits);
 #else
-		samebits += popcount64(bits)
+		samebits += popcount64(bits);
 #endif
 	}
-	// std::cout << " samebits = " << std::hex << samebits << std::endl;
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t); 
 	const size_t expected_samebits = (maxnbits >> bbits);
 	if (expected_samebits) {
 		return samebits;
 	}
-	size_t ret = non_neg_minus(samebits, expected_samebits);
-	return ret * maxnbits / (maxnbits - expected_samebits);
+	size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
+	return ret;
 }

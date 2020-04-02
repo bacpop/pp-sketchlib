@@ -17,18 +17,40 @@ KSEQ_INIT(gzFile, gzread)
 #include <iterator>
 #include <utility>
 
+// Stop counting after 1M bases. Useful for reads
+const size_t max_composition_sample = 1000000;
+
 // code from https://stackoverflow.com/questions/735204/convert-a-string-in-c-to-upper-case
 char ascii_toupper_char(char c) {
     return ('a' <= c && c <= 'z') ? c^0x20 : c;    // ^ autovectorizes to PXOR: runs on more ports than paddb
+}
+
+void track_composition(const char c,
+                       BaseComp<size_t>& bases) {
+    switch(c) {
+        case 'A':
+            bases.a++;
+            break;
+        case 'C':
+            bases.c++;
+            break;
+        case 'G':
+            bases.g++;
+            break;
+        case 'T':
+            bases.t++;
+            break;
+    }
 }
 
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
 {
     /* 
     *   Reads entire sequence to memory
-    *   May be faster as hashing at multiple k-mers?
-    *   May be better to treat a C strings
     */
+    size_t total = 0;
+    BaseComp<size_t> base_counts;
+
     _reads = false;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
@@ -44,6 +66,10 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 for (char & c : sequence.back())
                 {
                     c = ascii_toupper_char(c);
+                    total++;
+                    if (total < max_composition_sample) {
+                        track_composition(c, base_counts); 
+                    }
                 }
             }
             
@@ -58,6 +84,11 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         kseq_destroy(seq);
         gzclose(fp);
     }
+    _bases.a = base_counts.a / (double)total;
+    _bases.c = base_counts.c / (double)total;
+    _bases.g = base_counts.g / (double)total;
+    _bases.t = base_counts.t / (double)total;
+
     this->reset();
 }
 

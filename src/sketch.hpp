@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <cstddef>
 
-
 #include "seqio.hpp"
 
 std::vector<uint64_t> sketch(const std::string & name,

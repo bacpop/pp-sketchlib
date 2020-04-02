@@ -61,11 +61,19 @@ __device__ void cdpAssert(cudaError_t code, const char *file, int line, bool abo
    }
 }
 
-// Ternary used in jaccard_dist
+// Ternary used in observed_excess
 template <class T>
 __device__
 T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
+}
+
+// Calculates excess observations above a random value
+template <class T>
+__device__
+T observed_excess(T obs, T exp, T max) {
+	T diff = non_neg_minus(obs, exp);
+	return(diff * max / (max - exp));
 }
 
 // CUDA version of bindash dist function (see dist.cpp)
@@ -92,8 +100,7 @@ float jaccard_dist(const uint64_t * sketch1,
 	size_t intersize = samebits;
 	if (!expected_samebits) 
 	{
-		size_t ret = non_neg_minus(samebits, expected_samebits);
-		intersize = ret * maxnbits / (maxnbits - expected_samebits);
+		size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
 	}
 	size_t unionsize = NBITS(uint64_t) * s1_strides.sketchsize64;
     float jaccard = __fdiv_ru(intersize, unionsize);
@@ -129,21 +136,15 @@ void simple_linear_regression(float * const &core_dist,
     float alpha = __fmaf_ru(-beta, xbar, ybar); // maf: x * y + z
 
 	// Store core/accessory in dists, truncating at zero
-	if (beta < 0)
-	{
+	if (beta < 0) {
 		*core_dist = 1 - __expf(beta);
-	}
-	else
-	{
+	} else {
 		*core_dist = 0;
 	}
 
-	if (alpha < 0)
-	{
+	if (alpha < 0) {
 		*accessory_dist = 1 - __expf(alpha);
-	}
-	else
-	{
+	} else {
 		*accessory_dist = 0;
 	}
 }
