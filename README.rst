@@ -19,7 +19,7 @@ Installation
 ============
 Install using conda (recommended)::
 
-    conda -c bioconda install pp-sketchlib
+    conda install -c bioconda pp-sketchlib
 
 .. note::
     If you are getting ``UnsatisfiableError`` or similar version conflicts try following the 
