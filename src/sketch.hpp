@@ -12,8 +12,7 @@
 
 #include "seqio.hpp"
 
-std::tuple<std::vector<uint64_t>, size_t, bool> sketch(const std::string & name,
-                                                        SeqBuf &seq,
+std::tuple<std::vector<uint64_t>, size_t, bool> sketch(SeqBuf &seq,
                                                         const uint64_t sketchsize, 
                                                         const size_t kmer_len, 
                                                         const size_t bbits,

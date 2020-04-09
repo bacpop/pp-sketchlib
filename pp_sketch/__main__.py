@@ -133,9 +133,9 @@ def get_options():
 def main():
     args = get_options()
 
-    if args.min_k >= args.max_k or args.min_k < 9 or args.max_k > 31 or args.k_step < 2:
+    if args.min_k >= args.max_k or args.min_k < 3 or args.max_k > 101 or args.k_step < 2:
         sys.stderr.write("Minimum kmer size " + str(args.min_k) + " must be smaller than maximum kmer size " +
-                         str(args.max_k) + "; range must be between 9 and 31, step must be at least one\n")
+                         str(args.max_k) + "; range must be between 3 and 101, step must be at least one\n")
         sys.exit(1)
     kmers = np.arange(args.min_k, args.max_k + 1, args.k_step)
 

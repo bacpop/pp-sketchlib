@@ -27,8 +27,8 @@ Reference::Reference()
     _sketchsize64(def_sketchsize64),
     _use_rc(true),
     _seq_size(0),
-    _match_probs(0),
-    _densified(false)
+    _densified(false),
+    _match_probs(0)
 {
 }
 
@@ -44,8 +44,8 @@ Reference::Reference(const std::string& name,
     _sketchsize64(sketchsize64),
     _use_rc(use_rc),
     _seq_size(0),
-    _match_probs(0),
-    _densified(false)
+    _densified(false),
+    _match_probs(0)
 {
     // Read in sequence
     SeqBuf sequence(filenames, kmer_lengths.back());
@@ -60,7 +60,7 @@ Reference::Reference(const std::string& name,
     {
         size_t estimated_size = 0; bool densified;
         std::tie(usigs[*kmer_it], estimated_size, densified) = 
-            sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+            sketch(sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
         
         size_sum += estimated_size;
         _densified |= densified; // Densified at any k-mer length
@@ -77,7 +77,7 @@ Reference::Reference(const std::string& name,
                      const size_t seq_size,
                      const std::vector<double> bases)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
-   _seq_size(seq_size), _match_probs(0), _densified(false)
+   _seq_size(seq_size), _densified(false), _match_probs(0)
 {
     _bases.a = bases[0];
     _bases.c = bases[0];
@@ -85,20 +85,20 @@ Reference::Reference(const std::string& name,
     _bases.t = bases[0];
 }
 
-double Reference::random_match(const int kmer_len) const
+double Reference::random_match(const int kmer_len)
 {
     if (_match_probs == 0)
     {
-        double _match_probs = std::pow(_bases.a, 2) +
-                              std::pow(_bases.c, 2) + 
-                              std::pow(_bases.g, 2) + 
-                              std::pow(_bases.t, 2); 
+        _match_probs = std::pow(_bases.a, 2) +
+                        std::pow(_bases.c, 2) + 
+                        std::pow(_bases.g, 2) + 
+                        std::pow(_bases.t, 2); 
     }
     double r1 = _seq_size / (_seq_size + std::pow(_match_probs, kmer_len));
     return r1;
 }
 
-double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
+double Reference::jaccard_dist(Reference &query, const int kmer_len)
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
@@ -115,7 +115,7 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
     return(jaccard);
 }
 
-std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
+std::tuple<float, float> Reference::core_acc_dist(Reference &query)
 {
     std::vector<size_t> kmers = this->kmer_lengths();
     if (kmers != query.kmer_lengths())
@@ -130,8 +130,8 @@ std::tuple<float, float> Reference::core_acc_dist(const Reference &query) const
 }
 
 // Without k-mer sizes check
-std::tuple<float, float> Reference::core_acc_dist(const Reference &query, 
-                                                  const arma::mat &kmers) const
+std::tuple<float, float> Reference::core_acc_dist(Reference &query, 
+                                                  const arma::mat &kmers)
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 

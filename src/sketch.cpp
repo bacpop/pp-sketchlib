@@ -83,8 +83,7 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-std::tuple<std::vector<uint64_t>, size_t, bool> sketch(const std::string & name,
-                                                        SeqBuf &seq,
+std::tuple<std::vector<uint64_t>, size_t, bool> sketch(SeqBuf &seq,
                                                         const uint64_t sketchsize, 
                                                         const size_t kmer_len, 
                                                         const size_t bbits,
@@ -132,7 +131,6 @@ std::tuple<std::vector<uint64_t>, size_t, bool> sketch(const std::string & name,
     // Free memory from read_counter
     delete read_counter;
 
-    
     // Apply densifying function
     int densified = densifybin(signs);
     fillusigs(usigs, signs, bbits);

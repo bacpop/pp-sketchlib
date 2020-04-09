@@ -27,13 +27,13 @@ inline bool file_exists (const std::string& name) {
 // Internal function definitions
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
-                     const std::vector<Reference>& sketches,
+                     std::vector<Reference>& sketches,
                      const size_t start_pos,
                      const size_t calcs);
 
 void query_dist_row(DistMatrix& distMat,
-                    const Reference * ref_sketch_ptr,
-                    const std::vector<Reference>& query_sketches,
+                    Reference * ref_sketch_ptr,
+                    std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t row_start);
 
@@ -195,7 +195,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
             dist_threads.push_back(std::thread(&self_dist_block,
                                             std::ref(distMat),
                                             std::cref(kmer_lengths),
-                                            std::cref(ref_sketches),
+                                            std::ref(ref_sketches),
                                             start,
                                             thread_jobs));
             start += thread_jobs; 
@@ -222,7 +222,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         // Loop over threads, one per query, with FIFO queue
         std::queue<std::thread> dist_threads;
         size_t row_start = 0;
-        for (auto query_it = query_sketches.cbegin(); query_it < query_sketches.cend(); query_it++)
+        for (auto query_it = query_sketches.begin(); query_it < query_sketches.end(); query_it++)
         {
             // If all threads being used, wait for one to finish
             if (dist_threads.size() == num_dist_threads)
@@ -234,7 +234,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
             dist_threads.push(std::thread(&query_dist_row,
                               std::ref(distMat),
                               &(*query_it),
-                              std::cref(ref_sketches),
+                              std::ref(ref_sketches),
                               std::cref(kmer_lengths),
                               row_start));
             row_start += ref_sketches.size();
@@ -386,7 +386,7 @@ void sketch_block(std::vector<Reference>& sketches,
 // (run this function in a thread)
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
-                     const std::vector<Reference>& sketches,
+                     std::vector<Reference>& sketches,
                      const size_t start_pos,
                      const size_t calcs)
 {
@@ -419,14 +419,14 @@ void self_dist_block(DistMatrix& distMat,
 // Calculates dists ref v query
 // (run this function in a thread) 
 void query_dist_row(DistMatrix& distMat,
-                    const Reference * query_sketch_ptr,
-                    const std::vector<Reference>& ref_sketches,
+                    Reference * query_sketch_ptr,
+                    std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const size_t row_start)
 {
     arma::mat kmer_mat = kmer2mat(kmer_lengths);
     size_t current_row = row_start;
-    for (auto ref_it = ref_sketches.cbegin(); ref_it != ref_sketches.cend(); ref_it++)
+    for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
         std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
                 query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);

@@ -12,8 +12,8 @@
 const float core_upper = 0;
 const float accessory_upper = 0;
 
-std::tuple<float, float> regress_kmers(const Reference * r1, 
-                                       const Reference * r2, 
+std::tuple<float, float> regress_kmers(Reference * r1, 
+                                       Reference * r2, 
                                        const arma::mat& kmers)
 {
     // Vector of points 

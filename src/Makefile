@@ -10,21 +10,22 @@ endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
+LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -m64
 	ifdef PROFILE
 		CXXFLAGS+= -Wl,--compress-debug-sections=none
 	endif
-	LALIBS=-lpthread -lgfortran -lm -ldl
+	LDLIBS+= -lpthread -lgfortran -lm -ldl
 	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
-	LALIBS=-pthread
+	LDLIBS+= -pthread
 endif
 
 CPPFLAGS+=-I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
 LDFLAGS+= -L$(LIBLOC)/lib
-LDLIBS+=-lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lcudadevrt -lcudart_static $(LALIBS)
+CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LALIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
 CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
@@ -49,16 +50,16 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 sketch_test: $(SKETCH_OBJS) main.o
-	$(LINK.cpp) $^ -o $@
+	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
 read_test: $(SKETCH_OBJS) read_test.o
-	$(LINK.cpp) $^ -o $@
+	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
 python: $(PYTHON_LIB)
 
 $(PYTHON_LIB): $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
-	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(LDLIBS)
-	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(LDLIBS)
+	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(CUDA_LDLIBS)
 
 install_python: python
 	install -d $(PYTHON_LIB_PATH)
