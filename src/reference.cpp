@@ -65,7 +65,11 @@ Reference::Reference(const std::string& name,
         size_sum += estimated_size;
         _densified |= densified; // Densified at any k-mer length
     }
-    _seq_size = static_cast<size_t>(size_sum / (double)kmer_lengths.size());
+    if (sequence.is_reads()) {
+        _seq_size = static_cast<size_t>(size_sum / (double)kmer_lengths.size());
+    } else {
+        _seq_size = _bases.total;
+    }
 
     // SeqBuf containing sequences will get deleted here
     // usigs (the sketch) will be retained
@@ -94,7 +98,7 @@ double Reference::random_match(const int kmer_len)
                         std::pow(_bases.g, 2) + 
                         std::pow(_bases.t, 2); 
     }
-    double r1 = _seq_size / (_seq_size + std::pow(_match_probs, kmer_len));
+    double r1 = _seq_size / (_seq_size + std::pow(_match_probs, -kmer_len));
     return r1;
 }
 

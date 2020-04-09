@@ -23,6 +23,7 @@ struct BaseComp {
     T c;
     T g;
     T t;
+    size_t total;
 };
 
 class SeqBuf 

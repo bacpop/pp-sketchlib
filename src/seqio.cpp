@@ -17,6 +17,8 @@ KSEQ_INIT(gzFile, gzread)
 #include <iterator>
 #include <utility>
 
+#include "bitfuncs.hpp"
+
 // Stop counting after 1M bases. Useful for reads
 const size_t max_composition_sample = 1000000;
 
@@ -48,7 +50,6 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     /* 
     *   Reads entire sequence to memory
     */
-    size_t total = 0;
     BaseComp<size_t> base_counts = BaseComp<size_t>();
 
     _reads = false;
@@ -66,8 +67,8 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 for (char & c : sequence.back())
                 {
                     c = ascii_toupper_char(c);
-                    total++;
-                    if (total < max_composition_sample) {
+                    base_counts.total++;
+                    if (base_counts.total < max_composition_sample) {
                         track_composition(c, base_counts); 
                     }
                 }
@@ -84,10 +85,13 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         kseq_destroy(seq);
         gzclose(fp);
     }
+    double total = (double)(MIN(base_counts.total, max_composition_sample));
+    
     _bases.a = base_counts.a / (double)total;
     _bases.c = base_counts.c / (double)total;
     _bases.g = base_counts.g / (double)total;
     _bases.t = base_counts.t / (double)total;
+    _bases.total = base_counts.total; 
 
     this->reset();
 }

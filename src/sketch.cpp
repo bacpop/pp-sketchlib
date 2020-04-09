@@ -42,7 +42,7 @@ void binsign(std::vector<uint64_t> &signs,
 size_t estimatesize(std::vector<uint64_t> &signs)
 {
     uint64_t minhash = signs[0];
-    return(static_cast<size_t>(UINT64_MAX / (double)minhash));
+    return(static_cast<size_t>(SIGN_MOD / (double)minhash));
 }
 
 void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits) 
