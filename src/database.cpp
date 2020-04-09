@@ -52,7 +52,7 @@ void Database::add_sketch(const Reference& ref)
 
     // Write base composition and k-mer length vectors as further group attributes
     const std::vector<double> bases = ref.base_composition();
-    HighFive::Attribute bases_a = sketch_group.createAttribute<int>("base_freq", HighFive::DataSpace::From(bases));
+    HighFive::Attribute bases_a = sketch_group.createAttribute<double>("base_freq", HighFive::DataSpace::From(bases));
     bases_a.write(bases); 
     const std::vector<size_t> kmer_lengths = ref.kmer_lengths();
     HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
