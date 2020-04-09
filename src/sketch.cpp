@@ -39,10 +39,10 @@ void binsign(std::vector<uint64_t> &signs,
 	signs[binidx] = MIN(signs[binidx], sign);
 }
 
-size_t estimatesize(std::vector<uint64_t> &signs)
+double inverse_minhash(std::vector<uint64_t> &signs)
 {
     uint64_t minhash = signs[0];
-    return(static_cast<size_t>(SIGN_MOD / (double)minhash));
+    return(minhash / (double)SIGN_MOD);
 }
 
 void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits) 
@@ -83,7 +83,7 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-std::tuple<std::vector<uint64_t>, size_t, bool> sketch(SeqBuf &seq,
+std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
                                                         const uint64_t sketchsize, 
                                                         const size_t kmer_len, 
                                                         const size_t bbits,
@@ -127,6 +127,7 @@ std::tuple<std::vector<uint64_t>, size_t, bool> sketch(SeqBuf &seq,
         }
         seq.move_next_seq();
     }
+    double inv_minhash = inverse_minhash(signs);
 
     // Free memory from read_counter
     delete read_counter;
@@ -135,10 +136,9 @@ std::tuple<std::vector<uint64_t>, size_t, bool> sketch(SeqBuf &seq,
     int densified = densifybin(signs);
     fillusigs(usigs, signs, bbits);
     
-    size_t seq_size = estimatesize(signs);
     seq.reset();
 
-    return(std::make_tuple(usigs, seq_size, densified != 0));
+    return(std::make_tuple(usigs, inv_minhash, densified != 0));
 }
 
 

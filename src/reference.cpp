@@ -55,18 +55,21 @@ Reference::Reference(const std::string& name,
     }
     _bases = sequence.get_composition();
 
-    size_t size_sum = 0;
+    double minhash_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        size_t estimated_size = 0; bool densified;
-        std::tie(usigs[*kmer_it], estimated_size, densified) = 
+        double minhash = 0; bool densified;
+        std::tie(usigs[*kmer_it], minhash, densified) = 
             sketch(sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
         
-        size_sum += estimated_size;
+        minhash_sum += minhash;
         _densified |= densified; // Densified at any k-mer length
     }
+    
+    // 1/N =~ 1/E(Y) where Yi = minhash in [0,1] for k-mer i
+    // See https://www.cs.princeton.edu/courses/archive/fall13/cos521/lecnotes/lec4final.pdf
     if (sequence.is_reads()) {
-        _seq_size = static_cast<size_t>(size_sum / (double)kmer_lengths.size());
+        _seq_size = static_cast<size_t>((double)kmer_lengths.size() / minhash_sum);
     } else {
         _seq_size = _bases.total;
     }
