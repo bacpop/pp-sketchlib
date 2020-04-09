@@ -49,7 +49,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     *   Reads entire sequence to memory
     */
     size_t total = 0;
-    BaseComp<size_t> base_counts;
+    BaseComp<size_t> base_counts = BaseComp<size_t>();
 
     _reads = false;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)

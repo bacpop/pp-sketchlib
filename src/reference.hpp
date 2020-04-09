@@ -69,7 +69,7 @@ class Reference
         bool _densified;
         
         // Proportion of each base, and sum of squares
-        BaseComp _bases;
+        BaseComp<double> _bases;
         double _match_probs;
 
         // sketch - map keys are k-mer length

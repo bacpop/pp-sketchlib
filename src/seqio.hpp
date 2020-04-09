@@ -23,8 +23,7 @@ struct BaseComp {
     T c;
     T g;
     T t;
-    BaseComp():a(0), c(0), g(0), t(0) { }
-}
+};
 
 class SeqBuf 
 {
@@ -37,7 +36,7 @@ class SeqBuf
 	    size_t nseqs() const { return sequence.size(); }
         bool eof() const { return end; }
         bool is_reads() const { return _reads; }
-        BaseComp get_composition() const { return _bases; }
+        BaseComp<double> get_composition() const { return _bases; }
 
         bool move_next(size_t word_length);
         void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };

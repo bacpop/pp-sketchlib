@@ -48,7 +48,7 @@ void Database::add_sketch(const Reference& ref)
     HighFive::Attribute bbits_a = sketch_group.createAttribute<size_t>("bbits", HighFive::DataSpace::From(ref.bbits()));
     bbits_a.write(ref.bbits());
     HighFive::Attribute length_a = sketch_group.createAttribute<size_t>("length", HighFive::DataSpace::From(ref.seq_length()));
-    length_a.write(ref.seq_length())
+    length_a.write(ref.seq_length());
 
     // Write base composition and k-mer length vectors as further group attributes
     const std::vector<double> bases = ref.base_composition();
@@ -95,7 +95,7 @@ Reference Database::load_sketch(const std::string& name)
     size_t bbits;
     sketch_group.getAttribute("bbits").read(bbits);
     size_t seq_size;
-    sketch_group.getAttribute("length").read(seq_size)
+    sketch_group.getAttribute("length").read(seq_size);
 
     Reference new_ref(name, bbits, sketchsize64, seq_size, bases);
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)

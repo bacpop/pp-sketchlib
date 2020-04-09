@@ -15,8 +15,8 @@ inline T non_neg_minus(T a, T b) {
 	return a > b ? (a - b) : 0;
 }
 
-template <class T>
-inline T observed_excess(T obs, T exp, T max) {
+template <class T, class U>
+inline T observed_excess(T obs, T exp, U max) {
 	T diff = non_neg_minus(obs, exp);
 	return(diff * max / (max - exp));
 }

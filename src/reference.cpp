@@ -53,14 +53,14 @@ Reference::Reference(const std::string& name,
     {
         throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
-    _bases = sequence._bases
+    _bases = sequence.get_composition();
 
     size_t size_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
         size_t estimated_size = 0; bool densified;
         std::tie(usigs[*kmer_it], estimated_size, densified) = 
-            sketch(_name, sequence, estimated_size, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+            sketch(_name, sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
         
         size_sum += estimated_size;
         _densified |= densified; // Densified at any k-mer length
@@ -85,7 +85,7 @@ Reference::Reference(const std::string& name,
     _bases.t = bases[0];
 }
 
-double Reference::random_match(const int kmer_len)
+double Reference::random_match(const int kmer_len) const
 {
     if (_match_probs == 0)
     {
