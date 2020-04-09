@@ -6,7 +6,6 @@
  *
  */
 
-#include <tuple>
 #include <random>
 #include <vector>
 #include <exception>
@@ -84,15 +83,14 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-std::vector<uint64_t> sketch(const std::string & name,
-                             SeqBuf &seq,
-                             size_t &seq_size,
-                             const uint64_t sketchsize, 
-                             const size_t kmer_len, 
-                             const size_t bbits,
-                             const bool use_canonical,
-                             const uint8_t min_count,
-                             const bool exact)
+std::tuple<std::vector<uint64_t>, size_t, bool> sketch(const std::string & name,
+                                                        SeqBuf &seq,
+                                                        const uint64_t sketchsize, 
+                                                        const size_t kmer_len, 
+                                                        const size_t bbits,
+                                                        const bool use_canonical,
+                                                        const uint8_t min_count,
+                                                        const bool exact)
 {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
@@ -134,18 +132,15 @@ std::vector<uint64_t> sketch(const std::string & name,
     // Free memory from read_counter
     delete read_counter;
 
+    
     // Apply densifying function
-    sequence_size = estimatesize(signs);
-    int res = densifybin(signs);
-    if (res != 0) 
-    {
-        std::cerr << "Warning: the genome " << name << " is densified with flag " << res << std::endl;
-    }
+    int densified = densifybin(signs);
     fillusigs(usigs, signs, bbits);
     
+    size_t seq_size = estimatesize(signs);
     seq.reset();
 
-    return(usigs);
+    return(std::make_tuple(usigs, seq_size, densified != 0));
 }
 
 

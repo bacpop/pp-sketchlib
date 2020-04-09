@@ -8,15 +8,15 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <tuple>
 
 #include "seqio.hpp"
 
-std::vector<uint64_t> sketch(const std::string & name,
-                             SeqBuf &seq,
-                             size_t &seq_size,
-                             const uint64_t sketchsize, 
-                             const size_t kmer_len, 
-                             const size_t bbits,
-                             const bool use_canonical = true,
-                             const uint8_t min_count = 0,
-                             const bool exact = false);
+std::tuple<std::vector<uint64_t>, size_t, bool> sketch(const std::string & name,
+                                                        SeqBuf &seq,
+                                                        const uint64_t sketchsize, 
+                                                        const size_t kmer_len, 
+                                                        const size_t bbits,
+                                                        const bool use_canonical = true,
+                                                        const uint8_t min_count = 0,
+                                                        const bool exact = false);

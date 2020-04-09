@@ -27,7 +27,8 @@ Reference::Reference()
     _sketchsize64(def_sketchsize64),
     _use_rc(true),
     _seq_size(0),
-    _match_probs(0)
+    _match_probs(0),
+    _densified(false)
 {
 }
 
@@ -43,7 +44,8 @@ Reference::Reference(const std::string& name,
     _sketchsize64(sketchsize64),
     _use_rc(use_rc),
     _seq_size(0),
-    _match_probs(0)
+    _match_probs(0),
+    _densified(false)
 {
     // Read in sequence
     SeqBuf sequence(filenames, kmer_lengths.back());
@@ -56,9 +58,12 @@ Reference::Reference(const std::string& name,
     size_t size_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
-        size_t estimated_size = 0;
-        usigs[*kmer_it] = sketch(_name, sequence, estimated_size, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+        size_t estimated_size = 0; bool densified;
+        std::tie(usigs[*kmer_it], estimated_size, densified) = 
+            sketch(_name, sequence, estimated_size, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+        
         size_sum += estimated_size;
+        _densified |= densified; // Densified at any k-mer length
     }
     _seq_size = static_cast<size_t>(size_sum / (double)kmer_lengths.size());
 
@@ -72,7 +77,7 @@ Reference::Reference(const std::string& name,
                      const size_t seq_size,
                      const std::vector<double> bases)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
-   _seq_size(seq_size), _match_probs(0)
+   _seq_size(seq_size), _match_probs(0), _densified(false)
 {
     _bases.a = bases[0];
     _bases.c = bases[0];
@@ -102,8 +107,8 @@ double Reference::jaccard_dist(const Reference &query, const int kmer_len) const
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     double jaccard_obs = intersize/(double)unionsize;
     
-    double r1 = this->random_match();
-    double r2 = query.random_match();
+    double r1 = this->random_match(kmer_len);
+    double r2 = query.random_match(kmer_len);
     double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
     
     double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);

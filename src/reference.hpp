@@ -44,11 +44,11 @@ class Reference
         std::tuple<float, float> core_acc_dist(const Reference &query, const arma::mat& kmers) const;
         std::vector<size_t> kmer_lengths() const;
 
-
         std::string name() const { return _name; }
         size_t bbits() const { return _bbits; }
         size_t sketchsize64() const { return _sketchsize64; }
         size_t seq_length() const { return _seq_size; }
+        bool densified() const { return _densified; }
         std::vector<double> base_composition() const { return {_bases.a, _bases.c, _bases.g, _bases.t}; }
 
         // For sorting, order by name
@@ -66,6 +66,8 @@ class Reference
         
         // Sequence statistics
         size_t _seq_size;
+        bool _densified;
+        
         // Proportion of each base, and sum of squares
         BaseComp _bases;
         double _match_probs;
