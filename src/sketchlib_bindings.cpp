@@ -48,6 +48,7 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          std::vector<std::string> ref_names,
                          std::vector<std::string> query_names,
                          std::vector<size_t> kmer_lengths,
+                         bool jaccard = false,
                          size_t num_threads = 1,
                          bool use_gpu = false,
                          int device_id = 0)
@@ -69,12 +70,14 @@ DistMatrix queryDatabase(std::string ref_db_name,
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
+                jaccard,
                 num_threads);
     }
 #else
     dists = query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
+                    jaccard,
                     num_threads);
 #endif
     return(dists);
@@ -88,6 +91,7 @@ DistMatrix constructAndQuery(std::string db_name,
                              bool use_rc = true,
                              size_t min_count = 0,
                              bool exact = false,
+                             bool jaccard = false,
                              size_t num_threads = 1,
                              bool use_gpu = false,
                              int device_id = 0)
@@ -101,7 +105,7 @@ DistMatrix constructAndQuery(std::string db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
-DistMatrix dists; 
+    DistMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -115,12 +119,14 @@ DistMatrix dists;
         dists = query_db(ref_sketches,
                 ref_sketches,
                 kmer_lengths,
+                jaccard,
                 num_threads);
     }
 #else
     dists = query_db(ref_sketches,
                      ref_sketches,
                      kmer_lengths,
+                     jaccard,
                      num_threads);
 #endif
     return(dists);
@@ -157,6 +163,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("rList"),
         py::arg("qList"),
         py::arg("klist"),
+        py::arg("jaccard") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
@@ -170,6 +177,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("use_rc") = true,
         py::arg("min_count") = 0,
         py::arg("exact") = false,
+        py::arg("jaccard") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);

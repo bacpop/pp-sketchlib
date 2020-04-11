@@ -87,6 +87,9 @@ def get_options():
                     help='Prefix of reference database file')
     io.add_argument('--query-db',
                     help='Prefix of query database file')
+    io.add_argument('--subset',
+                    help='List of names to include in query',
+                    default=None)
     io.add_argument('--output',
                     default='ppsketch',
                     help="Output prefix [default = 'ppsketch']")
@@ -100,6 +103,8 @@ def get_options():
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
     kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
+    kmerGroup.add_argument('--jaccard', default=False, action='store_true', 
+                            help='Output adjusted Jaccard distances, not core and accessory distances')
     kmerGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
                                                                                 'e.g. for RNA viruses with preserved strand')
     kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
@@ -159,7 +164,6 @@ def main():
                                        args.min_count, args.exact_counter, args.cpus)
 
     elif args.query:
-        # TODO: add option to get names from HDF5 files
         rList = []
         ref = h5py.File(args.ref_db + ".h5", 'r')
         for sample_name in list(ref['sketches'].keys()):
@@ -170,15 +174,24 @@ def main():
         for sample_name in list(query['sketches'].keys()):
             qList.append(sample_name)
 
+        if not args.subset:
+            rList = list(set(rList).intersection(args.subset))
+            qList = list(set(qList).intersection(args.subset))
+
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
-                                             args.cpus, args.use_gpu, args.gpu_id)
+                                             args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
         
         # get names order
         if args.print:
             names = iterDistRows(rList, qList, rList == qList)
-            sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
-            for i, (ref, query) in enumerate(names):
-                sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+            if not args.jaccard:
+                sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
+                for i, (ref, query) in enumerate(names):
+                    sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+            else:
+                sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in kmers]) + "\n")
+                for i, (ref, query) in enumerate(names):
+                    sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
         else:
             storePickle(rList, qList, rList == qList, distMat, args.output)
 

@@ -28,6 +28,7 @@ inline bool file_exists (const std::string& name) {
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs);
 
@@ -35,6 +36,7 @@ void query_dist_row(DistMatrix& distMat,
                     Reference * ref_sketch_ptr,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    const bool jaccard,
                     const size_t row_start);
 
 void sketch_block(std::vector<Reference>& sketches,
@@ -151,7 +153,8 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
-                    const size_t num_threads) 
+                    const size_t num_threads,
+                    const bool jaccard) 
 {
     if (ref_sketches.size() < 1 or query_sketches.size() < 1)
     {
@@ -160,6 +163,12 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     DistMatrix distMat;
+    size_t dist_cols;
+    if (jaccard) {
+        dist_cols = kmer_lengths.size();
+    } else {
+        dist_cols = 2;
+    }
     
     // Check if ref = query, then run as self mode
     // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere 
@@ -170,7 +179,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     {
         // calculate dists
         size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
-        distMat.resize(dist_rows, 2);
+        distMat.resize(dist_rows, dist_cols);
         
         size_t num_dist_threads = num_threads;
         if (dist_rows < num_threads)
@@ -196,6 +205,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                                             std::ref(distMat),
                                             std::cref(kmer_lengths),
                                             std::ref(ref_sketches),
+                                            jaccard,
                                             start,
                                             thread_jobs));
             start += thread_jobs; 
@@ -211,7 +221,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     {
         // calculate dists
         size_t dist_rows = ref_sketches.size() * query_sketches.size();
-        distMat.resize(dist_rows, 2);
+        distMat.resize(dist_rows, dist_cols);
         
         size_t num_dist_threads = num_threads;
         if (dist_rows < num_threads)
@@ -387,6 +397,7 @@ void sketch_block(std::vector<Reference>& sketches,
 void self_dist_block(DistMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs)
 {
@@ -400,7 +411,13 @@ void self_dist_block(DistMatrix& distMat,
         {
             if (pos >= start_pos)
             {
-                std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat);
+                if (jaccard) {
+                    for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+                        distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx]);
+                    }
+                } else {
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat);
+                }
                 done_calcs++;
                 if (done_calcs >= calcs)
                 {
@@ -422,14 +439,21 @@ void query_dist_row(DistMatrix& distMat,
                     Reference * query_sketch_ptr,
                     std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    const bool jaccard,
                     const size_t row_start)
 {
     arma::mat kmer_mat = kmer2mat(kmer_lengths);
     size_t current_row = row_start;
     for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
-        std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);
+        if (jaccard) {
+            for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+                distMat(pos, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx]);
+            }
+        } else {
+            std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
+                     query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);
+        }
         current_row++;
     }
 }

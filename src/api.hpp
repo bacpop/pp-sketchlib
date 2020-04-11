@@ -16,7 +16,7 @@ using Eigen::MatrixXf;
 
 #include "reference.hpp"
 
-typedef Eigen::Matrix<float, Eigen::Dynamic, 2> DistMatrix;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> DistMatrix;
 
 // These are the four functions called by python bindings
 std::vector<Reference> create_sketches(const std::string& db_name,
@@ -32,6 +32,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    const bool jaccard,
                     const size_t num_threads);
 
 #ifdef GPU_AVAILABLE
