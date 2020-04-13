@@ -4,6 +4,8 @@
  * Author: Hamid Mohamadi
  * Genome Sciences Centre,
  * British Columbia Cancer Agency
+ * 
+ * Modified by John Lees (2020)
  */
 
 #ifndef NT_HASH_H
@@ -29,7 +31,7 @@ static const uint64_t seedT = 0x295549f54be24456;
 static const uint64_t seedN = 0x0000000000000000;
 
 static const uint64_t seedTab[256] = {
-    seedN, seedT, seedN, seedG, seedA, seedN, seedN, seedC, // 0..7
+    seedN, seedT, seedN, seedG, seedA, seedA, seedN, seedC, // 0..7
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 8..15
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 16..23
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 24..31
@@ -39,11 +41,11 @@ static const uint64_t seedTab[256] = {
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 56..63
     seedN, seedA, seedN, seedC, seedN, seedN, seedN, seedG, // 64..71
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 72..79
-    seedN, seedN, seedN, seedN, seedT, seedN, seedN, seedN, // 80..87
+    seedN, seedN, seedN, seedN, seedT, seedT, seedN, seedN, // 80..87
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 88..95
     seedN, seedA, seedN, seedC, seedN, seedN, seedN, seedG, // 96..103
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 104..111
-    seedN, seedN, seedN, seedN, seedT, seedN, seedN, seedN, // 112..119
+    seedN, seedN, seedN, seedN, seedT, seedT, seedN, seedN, // 112..119
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 120..127
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 128..135
     seedN, seedN, seedN, seedN, seedN, seedN, seedN, seedN, // 136..143
@@ -113,7 +115,7 @@ static const uint64_t N31l[31] = {
 
 
 static const uint64_t *msTab33r[256] = {
-    N33r, T33r, N33r, G33r, A33r, N33r, N33r, C33r, // 0..7
+    N33r, T33r, N33r, G33r, A33r, A33r, N33r, C33r, // 0..7
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 8..15
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 16..23
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 24..31
@@ -123,11 +125,11 @@ static const uint64_t *msTab33r[256] = {
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 56..63
     N33r, A33r, N33r, C33r, N33r, N33r, N33r, G33r, // 64..71
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 72..79
-    N33r, N33r, N33r, N33r, T33r, N33r, N33r, N33r, // 80..87
+    N33r, N33r, N33r, N33r, T33r, T33r, N33r, N33r, // 80..87
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 88..95
     N33r, A33r, N33r, C33r, N33r, N33r, N33r, G33r, // 96..103
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 104..111
-    N33r, N33r, N33r, N33r, T33r, N33r, N33r, N33r, // 112..119
+    N33r, N33r, N33r, N33r, T33r, T33r, N33r, N33r, // 112..119
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 120..127
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 128..135
     N33r, N33r, N33r, N33r, N33r, N33r, N33r, N33r, // 136..143
@@ -148,7 +150,7 @@ static const uint64_t *msTab33r[256] = {
 };
 
 static const uint64_t *msTab31l[256] = {
-    N31l, T31l, N31l, G31l, A31l, N31l, N31l, C31l, // 0..7
+    N31l, T31l, N31l, G31l, A31l, A31l, N31l, C31l, // 0..7
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 8..15
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 16..23
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 24..31
@@ -158,11 +160,11 @@ static const uint64_t *msTab31l[256] = {
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 56..63
     N31l, A31l, N31l, C31l, N31l, N31l, N31l, G31l, // 64..71
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 72..79
-    N31l, N31l, N31l, N31l, T31l, N31l, N31l, N31l, // 80..87
+    N31l, N31l, N31l, N31l, T31l, T31l, N31l, N31l, // 80..87
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 88..95
     N31l, A31l, N31l, C31l, N31l, N31l, N31l, G31l, // 96..103
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 104..111
-    N31l, N31l, N31l, N31l, T31l, N31l, N31l, N31l, // 112..119
+    N31l, N31l, N31l, N31l, T31l, T31l, N31l, N31l, // 112..119
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 120..127
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 128..135
     N31l, N31l, N31l, N31l, N31l, N31l, N31l, N31l, // 136..143
@@ -637,6 +639,117 @@ inline void NTMS64(const char *kmerSeq, const std::vector<std::vector<unsigned> 
         }
         hStn[j] = rsVal<fsVal;
         hVal[j] = hStn[j]? rsVal : fsVal;
+    }
+}
+
+// multihash spaced seed ntHash with multiple hashes per seed
+inline bool NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned k, const unsigned m, const unsigned m2,
+    uint64_t& fhVal, unsigned& locN, uint64_t* hVal)
+{
+    fhVal=0;
+    locN=0;
+    for(int i=k-1; i>=0; i--) {
+        if(seedTab[(unsigned char)kmerSeq[i]]==seedN) {
+            locN=i;
+            return false;
+        }
+        fhVal = rol1(fhVal);
+        fhVal = swapbits033(fhVal);
+        fhVal ^= seedTab[(unsigned char)kmerSeq[k-1-i]];
+    }
+
+    for(unsigned j=0; j<m; j++) {
+        uint64_t fsVal=fhVal;
+        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
+            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+        }
+        hVal[j * m2] = fsVal;
+        for(unsigned j2=1; j2<m2; j2++) {
+            uint64_t tVal = hVal[j * m2] * (j2 ^ k * multiSeed);
+            tVal ^= tVal >> multiShift;
+            hVal[j * m2 + j2] = tVal;
+        }
+    }
+    return true;
+}
+
+// multihash spaced seed ntHash for sliding k-mers with multiple hashes per seed
+inline void NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned char charOut, const unsigned char charIn,
+const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t *hVal)
+{
+    fhVal = NTF64(fhVal,k,charOut,charIn);
+    for(unsigned j=0; j<m; j++) {
+        uint64_t fsVal=fhVal;
+        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
+            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+        }
+        hVal[j * m2] = fsVal;
+        for(unsigned j2=1; j2<m2; j2++) {
+            uint64_t tVal = hVal[j * m2] * (j2 ^ k * multiSeed);
+            tVal ^= tVal >> multiShift;
+            hVal[j * m2 + j2] = tVal;
+        }
+    }
+}
+
+// strand-aware multihash spaced seed ntHash with multiple hashes per seed
+inline bool NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned k, const unsigned m, const unsigned m2,
+    uint64_t& fhVal, uint64_t& rhVal, unsigned& locN, uint64_t* hVal, bool *hStn)
+{
+    fhVal=rhVal=0;
+    locN=0;
+    for(int i=k-1; i>=0; i--) {
+        if(seedTab[(unsigned char)kmerSeq[i]]==seedN) {
+            locN=i;
+            return false;
+        }
+        fhVal = rol1(fhVal);
+        fhVal = swapbits033(fhVal);
+        fhVal ^= seedTab[(unsigned char)kmerSeq[k-1-i]];
+
+        rhVal = rol1(rhVal);
+        rhVal = swapbits033(rhVal);
+        rhVal ^= seedTab[(unsigned char)kmerSeq[i]&cpOff];
+    }
+
+    for(unsigned j=0; j<m; j++) {
+        uint64_t fsVal=fhVal, rsVal=rhVal;
+        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
+            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);
+        }
+        hStn[j * m2] = rsVal<fsVal;
+        hVal[j * m2] = hStn[j * m2]? rsVal : fsVal;
+        for(unsigned j2=1; j2<m2; j2++) {
+            uint64_t tVal = hVal[j * m2] * (j2 ^ k * multiSeed);
+            tVal ^= tVal >> multiShift;
+            hStn[j * m2 + j2] = hStn[j * m2];
+            hVal[j * m2 + j2] = tVal;
+        }
+    }
+    return true;
+}
+
+// strand-aware multihash spaced seed ntHash for sliding k-mers with multiple hashes per seed
+inline void NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned char charOut, const unsigned char charIn,
+const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t& rhVal, uint64_t *hVal, bool *hStn)
+{
+    fhVal = NTF64(fhVal,k,charOut,charIn);
+    rhVal = NTR64(rhVal,k,charOut,charIn);
+    for(unsigned j=0; j<m; j++) {
+        uint64_t fsVal=fhVal, rsVal=rhVal;
+        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
+            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);
+        }
+        hStn[j * m2] = rsVal<fsVal;
+        hVal[j * m2] = hStn[j * m2]? rsVal : fsVal;
+        for(unsigned j2=1; j2<m2; j2++) {
+            uint64_t tVal = hVal[j * m2] * (j2 ^ k * multiSeed);
+            tVal ^= tVal >> multiShift;
+            hStn[j * m2 + j2] = hStn[j * m2];
+            hVal[j * m2 + j2] = tVal;
+        }
     }
 }
 
