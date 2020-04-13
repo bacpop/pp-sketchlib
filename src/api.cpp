@@ -246,6 +246,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
                               &(*query_it),
                               std::ref(ref_sketches),
                               std::cref(kmer_lengths),
+                              jaccard,
                               row_start));
             row_start += ref_sketches.size();
         }
@@ -448,7 +449,7 @@ void query_dist_row(DistMatrix& distMat,
     {
         if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                distMat(pos, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx]);
+                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx]);
             }
         } else {
             std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
