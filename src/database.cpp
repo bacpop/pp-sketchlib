@@ -86,16 +86,24 @@ Reference Database::load_sketch(const std::string& name)
 {
     // Read in attributes
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches/" + name);
-    std::vector<int> kmer_lengths;
+
+    // Attributes in all sketches
+    std::vector<int> kmer_lengths; size_t sketchsize64; size_t bbits;
     sketch_group.getAttribute("kmers").read(kmer_lengths);
-    std::vector<double> bases;
-    sketch_group.getAttribute("base_freq").read(bases);
-    size_t sketchsize64;
     sketch_group.getAttribute("sketchsize64").read(sketchsize64);
-    size_t bbits;
     sketch_group.getAttribute("bbits").read(bbits);
-    size_t seq_size;
-    sketch_group.getAttribute("length").read(seq_size);
+
+    // Attributes added later (set defaults if not found)
+    size_t seq_size = DEFAULT_LENGTH;
+    std::vector<double> bases{0.25, 0.25, 0.25, 0.25};
+    std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
+    for (const auto& attr : attributes_keys) {
+        if (attr == "length") {
+            sketch_group.getAttribute("length").read(seq_size);
+        } else if (attr == "base_freq") {
+            sketch_group.getAttribute("base_freq").read(bases);
+        }
+    }
 
     Reference new_ref(name, bbits, sketchsize64, seq_size, bases);
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)

@@ -17,6 +17,8 @@
 
 #include "reference.hpp"
 
+const size_t DEFAULT_LENGTH = 3000000;
+
 class Database 
 {
     public:

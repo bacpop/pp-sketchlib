@@ -174,7 +174,7 @@ def main():
         for sample_name in list(query['sketches'].keys()):
             qList.append(sample_name)
 
-        if not args.subset:
+        if args.subset != None:
             rList = list(set(rList).intersection(args.subset))
             qList = list(set(qList).intersection(args.subset))
 

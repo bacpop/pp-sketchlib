@@ -153,8 +153,8 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 DistMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
-                    const size_t num_threads,
-                    const bool jaccard) 
+                    const bool jaccard,
+                    const size_t num_threads) 
 {
     if (ref_sketches.size() < 1 or query_sketches.size() < 1)
     {
