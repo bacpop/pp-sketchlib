@@ -12,7 +12,7 @@
 #include <cmath>
 #include <array>
 
-#include "ntHashIterator.hpp"
+#include "stHashIterator.hpp"
 #include "robin_hood.h"
 
 // Countmin parameters
@@ -31,8 +31,8 @@ class KmerCounter
         uint8_t min_count() const { return _min_count; }
         size_t num_hashes() const { return _num_hashes_needed; }
 
-        bool above_min(ntHashIterator& hash);
-        virtual uint8_t add_count(ntHashIterator& hash) = 0;
+        bool above_min(stHashIterator& hash);
+        virtual uint8_t add_count(stHashIterator& hash) = 0;
 
     protected:
         uint8_t _min_count;
@@ -45,7 +45,7 @@ class CountMin : public KmerCounter
     public:
         CountMin(const uint8_t min_count);
 
-        uint8_t add_count(ntHashIterator& hash) override;
+        uint8_t add_count(stHashIterator& hash) override;
     
     private:
         std::array<std::array<uint8_t, table_width>, table_rows> hash_table;
@@ -56,8 +56,8 @@ class HashCounter : public KmerCounter
     public:
         HashCounter(const uint8_t min_count);
         
-        uint8_t add_count(ntHashIterator& hash) override;
-        uint8_t probe(ntHashIterator& hash);
+        uint8_t add_count(stHashIterator& hash) override;
+        uint8_t probe(stHashIterator& hash);
 
     private:
         robin_hood::unordered_flat_map<uint64_t, uint8_t> hash_table;

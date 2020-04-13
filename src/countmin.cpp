@@ -36,7 +36,7 @@ HashCounter::HashCounter(const uint8_t min_count)
 {
 }
 
-uint8_t CountMin::add_count(ntHashIterator& hash)
+uint8_t CountMin::add_count(stHashIterator& hash)
 {
     uint8_t min_count = std::numeric_limits<uint8_t>::max();
     for (unsigned int hash_nr = 0; hash_nr < table_rows; hash_nr+=hash_per_hash)
@@ -58,12 +58,12 @@ uint8_t CountMin::add_count(ntHashIterator& hash)
     return(min_count);
 }
 
-bool KmerCounter::above_min(ntHashIterator& hash)
+bool KmerCounter::above_min(stHashIterator& hash)
 {
     return (add_count(hash) > _min_count);
 }
 
-uint8_t HashCounter::add_count(ntHashIterator& hash)
+uint8_t HashCounter::add_count(stHashIterator& hash)
 {
     uint8_t count = 0;
     auto table_val = hash_table.find((*hash)[0]);
@@ -80,7 +80,7 @@ uint8_t HashCounter::add_count(ntHashIterator& hash)
     return(count);
 }
 
-uint8_t HashCounter::probe(ntHashIterator& hash)
+uint8_t HashCounter::probe(stHashIterator& hash)
 {
     return(hash_table[(*hash)[0]]);
 }

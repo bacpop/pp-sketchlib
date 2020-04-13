@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <iostream>
 
-#include "ntHashIterator.hpp"
 #include "stHashIterator.hpp"
 
 #include "sketch.hpp"
@@ -25,30 +24,6 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
 
-// Classes for hash iterators
-
-// Parent class to make assignment in loop similar to KmerCounter
-class NTIterator {
-    public:
-        virtual void ntIterator() = 0;
-        virtual ~NTIterator() = 0;
-};
-
-// Class for simple hashes using ntHashIterator
-class NTHashIt : public NTIterator {
-    public:
-        NTHashIt(const SeqBuf& seq, unsigned h, unsigned k, bool rc) {
-            _hashIt = ntHashIterator(*(seq.getseq()), h, k, rc);
-        }
-        const uint64_t* operator*() const { return *_hashIt; }
-    
-    private:
-        ntHashIterator _hashIt;
-         
-};
-
-// Class for spaced seed hashes
-
 // Seeds for small k-mers
 const unsigned int seedN = 2; // Number of seeds per k-mer length
 const unsigned int small_k = 9;
@@ -58,29 +33,6 @@ std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
     {8, {{1,1,0,1,0,1,1,1,1,1}, {1,1,1,0,1,1,1,0,1,1}}},
     {9, {{1,1,0,1,1,0,1,0,1,1,1,1}, {1,0,1,1,1,0,1,1,1,1,0,1}}}
 });
-
-class NTSHashIt : public NTIterator {
-    public:
-        NTSHashIt(const SeqBuf& seq, unsigned h, unsigned k, bool rc) : _h(h) {
-            _hashIt = stHashIterator(*(seq.getseq()), kmer_seeds[k], kmer_seeds[k].size(), 
-                                     h, kmer_seeds[k][0].size(), rc);
-        }
-        
-        // Deals with structure of m_hVec, uses doublehash() for each pair
-        // of seeds
-        const uint64_t* operator*() const {  
-            const uint64_t* m_hVec = *_hashIt;
-            std::vector<uint64_t> hash_ret(_h);
-            for (unsigned int hIt = 0; hIt <= hash_ret.size(); hIt++) {
-                hash_ret[hIt] = doublehash(m_hVec[hIt * seedN], m_hVec[hIt * seedN + 1]);
-            }
-            return hash_ret.data();
-        }
-    
-    private:
-        stHashIterator _hashIt; 
-        unsigned int _h;
-};
 
 // Universal hashing function for densifybin
 uint64_t univhash(uint64_t s, uint64_t t) 
@@ -170,18 +122,18 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
         }
     }
 
+    // Use spaced seeds for small k
+    unsigned int seed_length = kmer_len; bool ss = false;
+    if (kmer_len < small_k) {
+        seed_length = kmer_seeds[kmer_len][0].size();
+        ss = true;
+    }
+
     // Rolling hash through string
     while (!seq.eof()) 
     {
-        NTIterator * hashIt = nullptr;
-        if (kmer_len <= small_k) {
-            hashIt = new NTHashIt(seq, h, kmer_len, use_canonical);
-        } else {
-
-        }
-        ntHashIterator hashIt(*(seq.getseq()), h, kmer_len, use_canonical);
         stHashIterator hashIt(*(seq.getseq()), kmer_seeds[kmer_len], kmer_seeds[kmer_len].size(), 
-                              h, kmer_seeds[kmer_len][0].size(), use_canonical);
+                              h, seed_length, use_canonical, ss);
         while (hashIt != hashIt.end())
         {
             auto hash = (*hashIt)[0] % SIGN_MOD;

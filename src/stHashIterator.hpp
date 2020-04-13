@@ -4,6 +4,7 @@
 #include <string>
 #include <limits>
 #include "nthash.hpp"
+#include "bitfuncs.hpp"
 
 
 /**
@@ -50,9 +51,10 @@ public:
      * @param h number of seeds
      * @param h2 number of hashes per seed
      * @param rc use canonical k-mers (allow reverse complement)
+     * @param ss use spaced seeds
     */
-    stHashIterator(const std::string& seq, const std::vector<std::vector<unsigned> >& seed, unsigned h, unsigned h2, unsigned k, bool rc):
-    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_hVec(new uint64_t[h * h2]), m_hStn(new bool[h * h2]), m_pos(0)
+    stHashIterator(const std::string& seq, const std::vector<std::vector<unsigned> >& seed, unsigned h, unsigned h2, unsigned k, bool rc, bool ss):
+    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_ss(ss), m_hVec(new uint64_t[h * h2]), m_hStn(new bool[h * h2]), m_pos(0)
     {
         init();
     }
@@ -65,10 +67,18 @@ public:
             return;
         }
         unsigned locN=0;
-        while (m_pos<m_seq.length()-m_k+1 
-               && (m_rc ? !NTMSMC64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, m_rhVal, locN, m_hVec, m_hStn)
-               : !NTMSM64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, locN, m_hVec)))
-            m_pos+=locN+1;
+        if (m_ss) {
+            while (m_pos<m_seq.length()-m_k+1 
+                && (m_rc ? !NTMSMC64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, m_rhVal, locN, m_hVec, m_hStn)
+                : !NTMSM64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, locN, m_hVec)))
+                m_pos+=locN+1;
+        } else {
+            while (m_pos<m_seq.length()-m_k+1
+               && (m_rc ? !NTMC64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, m_rhVal, locN, m_hVec)
+               : !NTM64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, locN, m_hVec)))
+                m_pos+=locN+1;
+        }
+
         if (m_pos >= m_seq.length()-m_k+1)
             m_pos = std::numeric_limits<std::size_t>::max();
     }
@@ -86,12 +96,15 @@ public:
             init();
         }
         else {
-            if (m_rc) {
+            if (m_rc && m_ss) {
                 NTMSMC64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_rhVal, m_hVec, m_hStn);
-            } else {
+            } else if (m_ss) {
                 NTMSM64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_hVec);
+            } else if (m_rc) {
+                NTMC64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_fhVal, m_rhVal, m_hVec);
+            } else {
+                NTM64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_hVec);
             }
-
         }
     }
 
@@ -105,11 +118,21 @@ public:
         return m_hStn;
     }
 
-
     /** get pointer to hash values for current k-mer */
     const uint64_t* operator*() const
     {
-        return m_hVec;
+        if (m_ss) {
+            std::vector<uint64_t> hash_ret(m_h2);
+            for (unsigned int hIt = 0; hIt <= m_h2; hIt++) {
+                hash_ret[hIt] = m_hVec[hIt * m_h];
+                for (unsigned int seedIt = 1; seedIt < m_h; seedIt++) {
+                    hash_ret[hIt] = MIN(hash_ret[hIt], m_hVec[hIt * m_h + seedIt])
+                }
+            }
+            return hash_ret.data();
+        } else {
+            return m_hVec;
+        }
     }
 
 
@@ -165,6 +188,9 @@ private:
 
     /** canonical k-mers */
     bool m_rc;
+
+    /** spaced seeds */
+    bool m_ss;
 
     /** hash values
      *  For m_h = n and m_h2 = m:
