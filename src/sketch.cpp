@@ -25,7 +25,6 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
 
 // Seeds for small k-mers
-const unsigned int seedN = 2; // Number of seeds per k-mer length
 const unsigned int small_k = 9;
 std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
     {6, {{1,1,0,1,0,1,1,1}, {1,0,1,1,1,0,1,1}}},

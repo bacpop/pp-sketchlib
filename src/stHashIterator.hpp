@@ -126,7 +126,7 @@ public:
             for (unsigned int hIt = 0; hIt <= m_h2; hIt++) {
                 hash_ret[hIt] = m_hVec[hIt * m_h];
                 for (unsigned int seedIt = 1; seedIt < m_h; seedIt++) {
-                    hash_ret[hIt] = MIN(hash_ret[hIt], m_hVec[hIt * m_h + seedIt])
+                    hash_ret[hIt] = MIN(hash_ret[hIt], m_hVec[hIt * m_h + seedIt]);
                 }
             }
             return hash_ret.data();
