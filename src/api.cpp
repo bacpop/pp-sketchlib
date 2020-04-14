@@ -335,9 +335,12 @@ std::vector<Reference> load_sketches(const std::string& db_name,
             // throw if any of the requested k-mer lengths were not found
             if (kmer_it != kmer_lengths.end())
             {
-                std::string err_message;
-                err_message << "k-mer lengths in old database (" << loaded_sizes
-                            << ") do not match those requested (" << kmer_lengths << ")";
+                std::stringstream old_kmers, new_kmers;
+                std::copy(loaded_sizes.begin(), loaded_sizes.end(), std::ostream_iterator<size_t>(old_kmers, ","));
+                std::copy(kmer_lengths.begin(), kmer_lengths.end(), std::ostream_iterator<size_t>(new_kmers, ","));
+                
+                std::string err_message = "k-mer lengths in old database (";
+                err_message += old_kmers.str() + ") do not match those requested (" + new_kmers.str() + ")";
                 throw std::runtime_error(err_message);
             }
 
