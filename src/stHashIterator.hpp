@@ -4,7 +4,6 @@
 #include <string>
 #include <limits>
 #include "nthash.hpp"
-#include "bitfuncs.hpp"
 
 
 /**
@@ -54,7 +53,8 @@ public:
      * @param ss use spaced seeds
     */
     stHashIterator(const std::string& seq, const std::vector<std::vector<unsigned> >& seed, unsigned h, unsigned h2, unsigned k, bool rc, bool ss):
-    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_ss(ss), m_hVec(new uint64_t[h * h2]), m_hStn(new bool[h * h2]), m_pos(0)
+    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_ss(ss), 
+    m_hVec(new uint64_t[h * h2]), m_minhVec(new uint64_t[h2]), m_hStn(new bool[h * h2]), m_pos(0)
     {
         init();
     }
@@ -69,8 +69,8 @@ public:
         unsigned locN=0;
         if (m_ss) {
             while (m_pos<m_seq.length()-m_k+1 
-                && (m_rc ? !NTMSMC64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, m_rhVal, locN, m_hVec, m_hStn)
-                : !NTMSM64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, locN, m_hVec)))
+                && (m_rc ? !NTMSMC64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, m_rhVal, locN, m_hVec, m_minhVec, m_hStn)
+                : !NTMSM64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, locN, m_hVec, m_minhVec)))
                 m_pos+=locN+1;
         } else {
             while (m_pos<m_seq.length()-m_k+1
@@ -97,9 +97,9 @@ public:
         }
         else {
             if (m_rc && m_ss) {
-                NTMSMC64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_rhVal, m_hVec, m_hStn);
+                NTMSMC64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_rhVal, m_hVec, m_minhVec, m_hStn);
             } else if (m_ss) {
-                NTMSM64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_hVec);
+                NTMSM64(m_seq.data()+m_pos, m_seed, m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_h2, m_fhVal, m_hVec, m_minhVec);
             } else if (m_rc) {
                 NTMC64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_fhVal, m_rhVal, m_hVec);
             } else {
@@ -122,14 +122,7 @@ public:
     const uint64_t* operator*() const
     {
         if (m_ss) {
-            std::vector<uint64_t> hash_ret(m_h2);
-            for (unsigned int hIt = 0; hIt < m_h2; hIt++) {
-                hash_ret[hIt] = m_hVec[hIt * m_h];
-                for (unsigned int seedIt = 1; seedIt < m_h; seedIt++) {
-                    hash_ret[hIt] = MIN(hash_ret[hIt], m_hVec[hIt * m_h + seedIt]);
-                }
-            }
-            return hash_ret.data();
+            return m_minhVec;
         } else {
             return m_hVec;
         }
@@ -165,6 +158,7 @@ public:
     ~stHashIterator() {
         if(m_hVec!=NULL) {
             delete [] m_hVec;
+            delete [] m_minhVec;
             delete [] m_hStn;
         }
     }
@@ -195,8 +189,10 @@ private:
     /** hash values
      *  For m_h = n and m_h2 = m:
      *  [seed1Hash1, seed1Hash2 ... seed(n)Hash(m-1), seed(n)Hash(m)]
+     *  minhVec is the minimum across all seeds
     */
     uint64_t *m_hVec;
+    uint64_t *m_minhVec;
 
     /** hash strands, forward = 0, reverse-complement = 1 */
     bool *m_hStn;

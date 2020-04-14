@@ -25,12 +25,13 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
 
 // Seeds for small k-mers
+// Make sure they are symmetric so RC works
 const unsigned int small_k = 9;
 std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
-    {6, {{1,1,0,1,0,1,1,1}, {1,0,1,1,1,0,1,1}}},
-    {7, {{1,1,1,0,1,0,1,1,1}, {1,0,1,1,1,0,1,1,1}}},
-    {8, {{1,1,0,1,0,1,1,1,1,1}, {1,1,1,0,1,1,1,0,1,1}}},
-    {9, {{1,1,0,1,1,0,1,0,1,1,1,1}, {1,0,1,1,1,0,1,1,1,1,0,1}}}
+    {6, {{1,1,0,1,1,0,1,1}, {1,0,1,1,1,1,0,1}}},
+    {7, {{1,1,1,0,0,1,1,1,1}, {1,0,1,1,1,1,1,0,1}}},
+    {8, {{1,0,1,1,1,1,1,1,0,1}, {1,1,0,1,1,1,1,0,1,1}}},
+    {9, {{1,0,1,1,1,1,1,1,0,1}, {1,1,0,1,1,1,1,0,1,1}}}
 });
 
 // Universal hashing function for densifybin

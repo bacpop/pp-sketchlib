@@ -14,6 +14,8 @@
 #include <stdint.h>
 #include <vector>
 
+#include "bitfuncs.hpp"
+
 // offset for the complement base in the random seeds table
 const uint8_t cpOff = 0x07;
 
@@ -648,7 +650,7 @@ inline void NTMS64(const char *kmerSeq, const std::vector<std::vector<unsigned> 
 
 // multihash spaced seed ntHash with multiple hashes per seed
 inline bool NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned k, const unsigned m, const unsigned m2,
-    uint64_t& fhVal, unsigned& locN, uint64_t* hVal)
+    uint64_t& fhVal, unsigned& locN, uint64_t* hVal, uint64_t* minhVal)
 {
     fhVal=0;
     locN=0;
@@ -676,12 +678,18 @@ inline bool NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned>
             hVal[j * m2 + j2] = tVal;
         }
     }
+    for (unsigned int hIt = 0; hIt < m2; hIt++) {
+        minhVal[hIt] = hVal[hIt * m];
+        for (unsigned int seedIt = 1; seedIt < m; seedIt++) {
+            minhVal[hIt] = MIN(minhVal[hIt], hVal[hIt * m + seedIt]);
+        }
+    }
     return true;
 }
 
 // multihash spaced seed ntHash for sliding k-mers with multiple hashes per seed
 inline void NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned char charOut, const unsigned char charIn,
-const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t *hVal)
+const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t *hVal, uint64_t * minhVal)
 {
     fhVal = NTF64(fhVal,k,charOut,charIn);
     for(unsigned j=0; j<m; j++) {
@@ -698,11 +706,17 @@ const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t
             hVal[j * m2 + j2] = tVal;
         }
     }
+    for (unsigned int hIt = 0; hIt < m2; hIt++) {
+        minhVal[hIt] = hVal[hIt * m];
+        for (unsigned int seedIt = 1; seedIt < m; seedIt++) {
+            minhVal[hIt] = MIN(minhVal[hIt], hVal[hIt * m + seedIt]);
+        }
+    }
 }
 
 // strand-aware multihash spaced seed ntHash with multiple hashes per seed
 inline bool NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned k, const unsigned m, const unsigned m2,
-    uint64_t& fhVal, uint64_t& rhVal, unsigned& locN, uint64_t* hVal, bool *hStn)
+    uint64_t& fhVal, uint64_t& rhVal, unsigned& locN, uint64_t* hVal, uint64_t* minhVal, bool *hStn)
 {
     fhVal=rhVal=0;
     locN=0;
@@ -737,12 +751,18 @@ inline bool NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned
             hVal[j * m2 + j2] = tVal;
         }
     }
+    for (unsigned int hIt = 0; hIt < m2; hIt++) {
+        minhVal[hIt] = hVal[hIt * m];
+        for (unsigned int seedIt = 1; seedIt < m; seedIt++) {
+            minhVal[hIt] = MIN(minhVal[hIt], hVal[hIt * m + seedIt]);
+        }
+    }
     return true;
 }
 
 // strand-aware multihash spaced seed ntHash for sliding k-mers with multiple hashes per seed
 inline void NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned> > &seedSeq, const unsigned char charOut, const unsigned char charIn,
-const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t& rhVal, uint64_t *hVal, bool *hStn)
+const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t& rhVal, uint64_t *hVal, uint64_t *minhVal, bool *hStn)
 {
     fhVal = NTF64(fhVal,k,charOut,charIn);
     rhVal = NTR64(rhVal,k,charOut,charIn);
@@ -761,6 +781,12 @@ const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t
             tVal ^= tVal >> multiShift;
             hStn[j * m2 + j2] = hStn[j * m2];
             hVal[j * m2 + j2] = tVal;
+        }
+    }
+    for (unsigned int hIt = 0; hIt < m2; hIt++) {
+        minhVal[hIt] = hVal[hIt * m];
+        for (unsigned int seedIt = 1; seedIt < m; seedIt++) {
+            minhVal[hIt] = MIN(minhVal[hIt], hVal[hIt * m + seedIt]);
         }
     }
 }
