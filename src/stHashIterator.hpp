@@ -74,8 +74,8 @@ public:
                 m_pos+=locN+1;
         } else {
             while (m_pos<m_seq.length()-m_k+1
-               && (m_rc ? !NTMC64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, m_rhVal, locN, m_hVec)
-               : !NTM64(m_seq.data()+m_pos, m_k, m_h, m_fhVal, locN, m_hVec)))
+               && (m_rc ? !NTMC64(m_seq.data()+m_pos, m_k, m_h2, m_fhVal, m_rhVal, locN, m_hVec)
+               : !NTM64(m_seq.data()+m_pos, m_k, m_h2, m_fhVal, locN, m_hVec)))
                 m_pos+=locN+1;
         }
 
@@ -123,7 +123,7 @@ public:
     {
         if (m_ss) {
             std::vector<uint64_t> hash_ret(m_h2);
-            for (unsigned int hIt = 0; hIt <= m_h2; hIt++) {
+            for (unsigned int hIt = 0; hIt < m_h2; hIt++) {
                 hash_ret[hIt] = m_hVec[hIt * m_h];
                 for (unsigned int seedIt = 1; seedIt < m_h; seedIt++) {
                     hash_ret[hIt] = MIN(hash_ret[hIt], m_hVec[hIt * m_h + seedIt]);

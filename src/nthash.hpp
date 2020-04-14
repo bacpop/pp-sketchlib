@@ -617,9 +617,11 @@ inline bool NTMS64(const char *kmerSeq, const std::vector<std::vector<unsigned> 
     
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal, rsVal=rhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
-            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+                rsVal ^= (msTab31l[(unsigned char)kmerSeq[i]&cpOff][i%31] | msTab33r[(unsigned char)kmerSeq[i]&cpOff][i%33]);
+            }
         }
         hStn[j] = rsVal<fsVal;
         hVal[j] = hStn[j]? rsVal : fsVal;
@@ -633,9 +635,11 @@ inline void NTMS64(const char *kmerSeq, const std::vector<std::vector<unsigned> 
     rhVal = NTR64(rhVal,k,charOut,charIn);
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal, rsVal=rhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
-            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);;
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+                rsVal ^= (msTab31l[(unsigned char)kmerSeq[i]&cpOff][i%31] | msTab33r[(unsigned char)kmerSeq[i]&cpOff][i%33]);
+            }
         }
         hStn[j] = rsVal<fsVal;
         hVal[j] = hStn[j]? rsVal : fsVal;
@@ -660,8 +664,10 @@ inline bool NTMSM64(const char *kmerSeq, const std::vector<std::vector<unsigned>
 
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+            }
         }
         hVal[j * m2] = fsVal;
         for(unsigned j2=1; j2<m2; j2++) {
@@ -680,8 +686,10 @@ const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t
     fhVal = NTF64(fhVal,k,charOut,charIn);
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+            }
         }
         hVal[j * m2] = fsVal;
         for(unsigned j2=1; j2<m2; j2++) {
@@ -714,9 +722,11 @@ inline bool NTMSMC64(const char *kmerSeq, const std::vector<std::vector<unsigned
 
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal, rsVal=rhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
-            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+                rsVal ^= (msTab31l[(unsigned char)kmerSeq[i]&cpOff][i%31] | msTab33r[(unsigned char)kmerSeq[i]&cpOff][i%33]);
+            }
         }
         hStn[j * m2] = rsVal<fsVal;
         hVal[j * m2] = hStn[j * m2]? rsVal : fsVal;
@@ -738,9 +748,11 @@ const unsigned k, const unsigned m, const unsigned m2, uint64_t& fhVal, uint64_t
     rhVal = NTR64(rhVal,k,charOut,charIn);
     for(unsigned j=0; j<m; j++) {
         uint64_t fsVal=fhVal, rsVal=rhVal;
-        for(std::vector<unsigned>::const_iterator i=seedSeq[j].begin(); i!=seedSeq[j].end(); ++i) {
-            fsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]][(k-1-*i)%31] | msTab33r[(unsigned char)kmerSeq[*i]][(k-1-*i)%33]);
-            rsVal ^= (msTab31l[(unsigned char)kmerSeq[*i]&cpOff][*i%31] | msTab33r[(unsigned char)kmerSeq[*i]&cpOff][*i%33]);
+        for(unsigned i=0; i<k; i++) {
+            if (!seedSeq[j][i]) {
+                fsVal ^= (msTab31l[(unsigned char)kmerSeq[i]][(k-1-i)%31] | msTab33r[(unsigned char)kmerSeq[i]][(k-1-i)%33]);
+                rsVal ^= (msTab31l[(unsigned char)kmerSeq[i]&cpOff][i%31] | msTab33r[(unsigned char)kmerSeq[i]&cpOff][i%33]);
+            }
         }
         hStn[j * m2] = rsVal<fsVal;
         hVal[j * m2] = hStn[j * m2]? rsVal : fsVal;

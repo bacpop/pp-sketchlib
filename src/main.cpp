@@ -44,6 +44,7 @@ int main (int argc, char* argv[])
     MatrixXf dists = query_db(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
+                              false,
                               2);
 
     std::cout << dists << std::endl;
@@ -90,6 +91,7 @@ int main (int argc, char* argv[])
     MatrixXf listeria_dists = query_db(listeria_sketches,
                             listeria_sketches,
                             kmer_lengths,
+                            false,
                             4); 
     std::cout << listeria_dists << std::endl;
 
