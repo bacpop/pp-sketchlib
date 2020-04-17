@@ -187,6 +187,8 @@ void calculate_query_dists(const uint64_t * ref,
 					 const int kmer_n,
 					 float * dists,
 					 const long long dist_n,
+					 const float * random_match_ref,
+					 const float * random_match_query,
 					 const SketchStrides ref_strides,
 					 const SketchStrides query_strides)
 {
@@ -221,7 +223,13 @@ void calculate_query_dists(const uint64_t * ref,
 		if (ref_idx < ref_n)
 		{
 			// Calculate Jaccard distance at current k-mer length
-			float y = __logf(jaccard_dist(ref, query_shared, ref_strides, query_strides));
+			float jaccard_obs = __logf(jaccard_dist(ref, query_shared, ref_strides, query_strides));
+
+			// Adjust for random matches
+			float r1 = random_match_ref[kmer_idx * ref_n + i];
+			float r2 = random_match_query[kmer_idx * query_n + j];
+			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+			float y = observed_excess(jaccard_obs, jaccard_expected, 1);
 
 			// Running totals for regression
 			xsum += kmers[kmer_idx]; 
@@ -266,7 +274,8 @@ void calculate_self_dists(const uint64_t * ref,
 					      const int * kmers,
 					      const int kmer_n,
 					      float * dists,
-					      const long long dist_n,
+						  const long long dist_n,
+						  const float * random_match,
 					      const SketchStrides ref_strides)
 {
 	// Grid-stride loop
@@ -288,18 +297,24 @@ void calculate_self_dists(const uint64_t * ref,
 
 		float xsum = 0; float ysum = 0; float xysum = 0;
 		float xsquaresum = 0; float ysquaresum = 0;
-		for (int kmer_it = 0; kmer_it < kmer_n; ++kmer_it)
+		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx)
 		{
 			// Get Jaccard distance and move pointers to next k-mer
-			float y = __logf(jaccard_dist(ref, query, ref_strides, ref_strides)); 
+			float jaccard_obs = __logf(jaccard_dist(ref, query, ref_strides, ref_strides)); 
 			ref += ref_strides.kmer_stride;
 			query += ref_strides.kmer_stride;
+
+			// Adjust for random matches
+			float r1 = random_match[kmer_idx * ref_n + i];
+			float r2 = random_match[kmer_idx * ref_n + j];
+			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+			float y = observed_excess(jaccard_obs, jaccard_expected, 1);
 			
 			// Running totals for regression
-			xsum += kmers[kmer_it]; 
+			xsum += kmers[kmer_idx]; 
 			ysum += y; 
-			xysum += kmers[kmer_it] * y;
-			xsquaresum += kmers[kmer_it] * kmers[kmer_it];
+			xysum += kmers[kmer_idx] * y;
+			xsquaresum += kmers[kmer_idx] * kmers[kmer_idx];
 			ysquaresum += y * y;
 		}
 		
@@ -396,6 +411,19 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	return flat_ref;
 }
 
+// Calculates the random match probability for all sketches at all k-mer lengths
+thrust::host_vector<float> preloadRandom(const std::vector<Reference>& sketches, 
+								 		 const std::vector<size_t>& kmer_lengths) {
+	thrust::host_vector<float> random_sample_strided(sketches.size() * kmer_lengths.size())
+	for (unsigned int kmer_idx = 0; kmer_idx <= kmer_lengths.size(); kmer_idx++) {
+		for (unsigned int sketch_idx = 0; sketch_idx <= sketches.size(); sketch_idx++) {
+			random_sample_strided[kmer_idx * sketches.size() + sketch_idx] = 
+				sketches[sketch_idx].random_match(kmer_len);
+		}
+	}
+	return random_sample_strided;
+}
+
 // Checks bbits, sketchsize and k-mer lengths are identical in
 // all sketches
 // throws runtime_error if mismatches (should be ensured in passing
@@ -464,6 +492,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
 	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + \
+						kmer_lengths.size() * n_samples * sizeof(float) + \
 						dist_rows * sizeof(float));
 	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size/(1048576) << "Mb" << std::endl;
 
@@ -509,12 +538,21 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		d_query_array = thrust::raw_pointer_cast( &d_query_sketches[0] ); 
 	}
 
+	// Preload random match chances
+	thrust::device_vector<float> d_ref_random = preloadRandom(ref_sketches, kmer_lengths);
+	float* d_ref_random_array = thrust::raw_pointer_cast( &d_ref_random[0] );
+	float *d_query_random_array = nullptr;
+	if (!self) {
+		thrust::device_vector<float> d_query_random = preloadRandom(query_sketches, kmer_lengths);
+		d_query_random_array = thrust::raw_pointer_cast( &d_query_random[0] );
+	}
+
 	// Copy other arrays needed on device (kmers and distance output)
 	thrust::device_vector<int> d_kmers = kmer_lengths;
 	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
 	thrust::device_vector<float> dist_mat(dist_rows*2, 0);
 	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
-	
+
 	// cudaDeviceSynchronize();
 	// std::chrono::steady_clock::time_point b = std::chrono::steady_clock::now();
 
@@ -538,6 +576,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 			kmer_lengths.size(),
 			d_dist_array,
 			dist_rows,
+			d_ref_random_array,
 			ref_strides
 		);
 	}
@@ -571,6 +610,8 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 			kmer_lengths.size(),
 			d_dist_array,
 			dist_rows,
+			d_ref_random_array,
+			d_query_random_array,
 			ref_strides,
 			query_strides
 		);

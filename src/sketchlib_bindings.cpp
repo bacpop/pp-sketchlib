@@ -53,6 +53,10 @@ DistMatrix queryDatabase(std::string ref_db_name,
                          bool use_gpu = false,
                          int device_id = 0)
 {
+    if (jaccard && use_gpu) {
+        throw std::runtime_error("Extracting Jaccard distances not supported on GPU")
+    }
+    
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
