@@ -197,8 +197,8 @@ void calculate_query_dists(const uint64_t * ref,
 	long query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
 	long ref_idx = (blockIdx.x % blocksPerQuery) * blockDim.x + threadIdx.x;
 	long dist_idx = query_idx * ref_n + ref_idx;
-	ref += ref_idx * ref_strides.sample_stride;
-	query += query_idx * query_strides.sample_stride;
+	const uint64_t* ref_start = ref + ref_idx * ref_strides.sample_stride;
+	const uint64_t* query_start = query + query_idx * query_strides.sample_stride;
 	
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
@@ -213,7 +213,7 @@ void calculate_query_dists(const uint64_t * ref,
 		int lidx = threadIdx.x;
 		while (lidx < query_strides.bbits * query_strides.sketchsize64)
 		{
-			query_shared[lidx] = query[lidx];
+			query_shared[lidx] = query_start[lidx];
 			lidx += blockDim.x;
 		}
 		__syncthreads();
@@ -223,7 +223,7 @@ void calculate_query_dists(const uint64_t * ref,
 		if (ref_idx < ref_n)
 		{
 			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref, query_shared, ref_strides, query_strides);
+			float jaccard_obs = jaccard_dist(ref_start, query_shared, ref_strides, query_strides);
 
 			// Adjust for random matches
 			float r1 = random_match_ref[kmer_idx * ref_n + ref_idx];
@@ -240,8 +240,8 @@ void calculate_query_dists(const uint64_t * ref,
 		}
 
 		// Move to next k-mer length
-		ref += ref_strides.kmer_stride;
-		query += query_strides.kmer_stride;
+		ref_start += ref_strides.kmer_stride;
+		query_start += query_strides.kmer_stride;
 	}
 
 	if (ref_idx < ref_n)
@@ -292,17 +292,17 @@ void calculate_self_dists(const uint64_t * ref,
 		}
 		
 		// Set pointers to start of sketch i, j
-		ref += i * ref_strides.sample_stride;
-		const uint64_t* query = ref + j * ref_strides.sample_stride;
+		const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
+		const uint64_t* query_start = ref + j * ref_strides.sample_stride;
 
 		float xsum = 0; float ysum = 0; float xysum = 0;
 		float xsquaresum = 0; float ysquaresum = 0;
 		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx)
 		{
 			// Get Jaccard distance and move pointers to next k-mer
-			float jaccard_obs = jaccard_dist(ref, query, ref_strides, ref_strides); 
-			ref += ref_strides.kmer_stride;
-			query += ref_strides.kmer_stride;
+			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, ref_strides); 
+			ref_start += ref_strides.kmer_stride;
+			query_start += ref_strides.kmer_stride;
 
 			// Adjust for random matches
 			float r1 = random_match[kmer_idx * ref_n + i];
