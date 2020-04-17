@@ -226,10 +226,10 @@ void calculate_query_dists(const uint64_t * ref,
 			float jaccard_obs = __logf(jaccard_dist(ref, query_shared, ref_strides, query_strides));
 
 			// Adjust for random matches
-			float r1 = random_match_ref[kmer_idx * ref_n + i];
-			float r2 = random_match_query[kmer_idx * query_n + j];
+			float r1 = random_match_ref[kmer_idx * ref_n + ref_idx];
+			float r2 = random_match_query[kmer_idx * query_n + query_idx];
 			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
-			float y = observed_excess(jaccard_obs, jaccard_expected, 1);
+			float y = observed_excess(jaccard_obs, jaccard_expected, 1.0);
 
 			// Running totals for regression
 			xsum += kmers[kmer_idx]; 
@@ -308,7 +308,7 @@ void calculate_self_dists(const uint64_t * ref,
 			float r1 = random_match[kmer_idx * ref_n + i];
 			float r2 = random_match[kmer_idx * ref_n + j];
 			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
-			float y = observed_excess(jaccard_obs, jaccard_expected, 1);
+			float y = observed_excess(jaccard_obs, jaccard_expected, 1.0);
 			
 			// Running totals for regression
 			xsum += kmers[kmer_idx]; 
@@ -414,7 +414,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 // Calculates the random match probability for all sketches at all k-mer lengths
 thrust::host_vector<float> preloadRandom(const std::vector<Reference>& sketches, 
 								 		 const std::vector<size_t>& kmer_lengths) {
-	thrust::host_vector<float> random_sample_strided(sketches.size() * kmer_lengths.size())
+	thrust::host_vector<float> random_sample_strided(sketches.size() * kmer_lengths.size());
 	for (unsigned int kmer_idx = 0; kmer_idx <= kmer_lengths.size(); kmer_idx++) {
 		for (unsigned int sketch_idx = 0; sketch_idx <= sketches.size(); sketch_idx++) {
 			random_sample_strided[kmer_idx * sketches.size() + sketch_idx] = 

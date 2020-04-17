@@ -58,6 +58,19 @@ distances add the ``--print`` option::
 
     poppunk_sketch --query --ref_db listeria --query_db listeria --cpus 4 --print > distances.txt
 
+Other options
+^^^^^^^^^^^^^
+Sketching:
+
+- ``--strand`` ignores reverse complement k-mers, if input is all in the same sense
+- ``--min-count`` minimum k-mer count to include when using reads
+- ``--exact-counter`` uses a hash table to count k-mers, which is recommended for non-bacterial datasets.
+
+Query:
+
+- To only use some of the samples in the sketch database, you can add the ``--subset`` option with a file which lists the required sample names.
+- ``--jaccard`` will output the Jaccard distances, rather than core and accessory distances.
+
 Large datasets
 ^^^^^^^^^^^^^^
 
@@ -68,6 +81,9 @@ For calculating large numbers of distances, if you have a CUDA compatible GPU,
 you can calculate distances on your graphics device even more quickly. Add the ``--use-gpu`` option::
 
    python pp_sketch-runner.py --query --ref-db listeria --query-db listeria --use-gpu
+
+You can set the ``--gpu-id`` if you have more than one device, which may be necessary on
+cluster systems.
 
 Benchmarks
 ^^^^^^^^^^
@@ -102,8 +118,10 @@ Import the package and call commands. See ``pp_sketch/__main__.py``::
 
     import pp_sketchlib
 
-    pp_sketchlib.constructDatabase(ref_db, names, sequences, kmers, int(round(sketch_size/64)), min_count, cpus)
-    distMat = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, qList, kmers, cpus)
+    pp_sketchlib.constructDatabase(ref_db, names, sequences, kmers, int(round(sketch_size/64)), 
+                                   strand_preserved, min_count, use_exact, cpus)
+    distMat = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, qList, kmers, 
+                                         jaccard, cpus, use_gpu, deviceid)
 
     print(distMat)
 
@@ -125,8 +143,8 @@ See ``main.cpp`` for examples::
     std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
     
     // Create a two sketches
-    Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, 0);
-    Reference query(argv[3], {argv[4]}, kmer_lengths, 156, 0);
+    Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, true, 0, false);
+    Reference query(argv[3], {argv[4]}, kmer_lengths, 156, true, 0, false);
 
     // Output some distances at a single k-mer length
     std::cout << ref.jaccard_dist(query, 15) << std::endl;
@@ -150,14 +168,17 @@ See ``main.cpp`` for examples::
                                {argv[1], argv[3]}, 
                                {{argv[2]}, {argv[4]}}, 
                                kmer_lengths,
-                               32,
+                               156,
+                               true,
                                0,
+                               false,
                                2);
 
     // Calculate distances between sketches using multiple threads
     MatrixXf dists = query_db(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
+                              false,
                               2);
 
     std::cout << dists << std::endl;
