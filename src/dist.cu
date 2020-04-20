@@ -27,6 +27,7 @@
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 
+const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
 
 // mallocManaged for limited device memory
@@ -208,22 +209,23 @@ void calculate_query_dists(const uint64_t * ref,
 		// Copy query sketch into __shared__ mem (on chip) for faster access within block
 		// Hopefully this doesn't suffer from bank conflicts as the sketch2 access in
 		// jaccard_distance() should result in a broadcast
-		// Uses all threads to do the copy
+		// Uses all threads *in a single warp* to do the copy
+		// NB there is no disadvantage vs using multiple warps, as they would have to wait
+		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
 		extern __shared__ uint64_t query_shared[];
-		int lidx = threadIdx.x;
-		while (lidx < query_strides.bbits * query_strides.sketchsize64)
-		{
-			query_shared[lidx] = query_start[lidx];
-			lidx += blockDim.x;
+		if (threadIdx.x < WARP_SIZE) {
+			for (long lidx = threadIdx.x; lidx < query_strides.bbits * query_strides.sketchsize64; lidx += WARP_SIZE) {
+				query_shared[lidx] = query_start[lidx * query_strides.bin_stride];
+			}
 		}
 		__syncthreads();
 	
 		// Some threads at the end of the last block will have nothing to do
-		// But need to have conditional here to avoid block on __syncthreads() above
+		// Need to have conditional here to avoid block on __syncthreads() above
 		if (ref_idx < ref_n)
 		{
 			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref_start, query_shared, ref_strides, query_strides);
+			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, query_strides);
 
 			// Adjust for random matches
 			float r1 = random_match_ref[kmer_idx * ref_n + ref_idx];
@@ -491,9 +493,9 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		dist_rows = ref_sketches.size() * query_sketches.size();
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
-	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + \
-						kmer_lengths.size() * n_samples * sizeof(float) + \
-						dist_rows * sizeof(float));
+	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + \ // Size of sketches
+						kmer_lengths.size() * n_samples * sizeof(float) + \                           // Size of random matches
+						dist_rows * 2 * sizeof(float));												  // Size of distance matrix
 	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size/(1048576) << "Mb" << std::endl;
 
 	size_t mem_free = 0; size_t mem_total = 0;
@@ -541,9 +543,10 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	// Preload random match chances
 	thrust::device_vector<float> d_ref_random = preloadRandom(ref_sketches, kmer_lengths);
 	float* d_ref_random_array = thrust::raw_pointer_cast( &d_ref_random[0] );
-	float *d_query_random_array = nullptr;
+	thrust::device_vector<float> d_query_random; float *d_query_random_array = nullptr;
 	if (!self) {
-		thrust::device_vector<float> d_query_random = preloadRandom(query_sketches, kmer_lengths);
+		thrust::host_vector<float> query_random = preloadRandom(query_sketches, kmer_lengths);
+		d_query_random = query_random;
 		d_query_random_array = thrust::raw_pointer_cast( &d_query_random[0] );
 	}
 
@@ -598,7 +601,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		int blockCount = blocksPerQuery * query_sketches.size();
 		
 		// Third argument is the size of __shared__ memory needed by a thread block
-		// This is equal to the query sketch size in bytes
+		// This is equal to the query sketch size in bytes (at a single k-mer length)
 		calculate_query_dists<<<blockCount, blockSize, 
 								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
