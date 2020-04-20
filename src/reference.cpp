@@ -87,9 +87,9 @@ Reference::Reference(const std::string& name,
    _seq_size(seq_size), _densified(false), _match_probs(0)
 {
     _bases.a = bases[0];
-    _bases.c = bases[0];
-    _bases.g = bases[0];
-    _bases.t = bases[0];
+    _bases.c = bases[1];
+    _bases.g = bases[2];
+    _bases.t = bases[3];
 }
 
 double Reference::random_match(const int kmer_len)
