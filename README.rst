@@ -5,8 +5,8 @@ pp-sketchlib
 .. |Build status| image:: https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master
    :target: https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master
 
-.. |Anaconda package| image:: https://anaconda.org/bioconda/pp-sketchlib/badges/version.svg
-   :target: https://anaconda.org/bioconda/pp-sketchlib
+.. |Anaconda package| image:: https://anaconda.org/conda-forge/pp-sketchlib/badges/version.svg
+   :target: https://anaconda.org/conda-forge/pp-sketchlib
 
 Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
