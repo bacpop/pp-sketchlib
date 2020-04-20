@@ -25,7 +25,7 @@ endif
 
 CPPFLAGS+=-I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
 LDFLAGS+= -L$(LIBLOC)/lib
-CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LALIBS)
+CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
 CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
