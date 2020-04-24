@@ -175,8 +175,13 @@ def main():
             qList.append(sample_name)
 
         if args.subset != None:
-            rList = list(set(rList).intersection(args.subset))
-            qList = list(set(qList).intersection(args.subset))
+            subset = []
+            with open(args.subset, 'r') as subset_file:
+                for line in subset_file:
+                    sample_name = line.rstrip().split("\t")[0]
+                    subset.append(sample_name)
+            rList = list(set(rList).intersection(subset))
+            qList = list(set(qList).intersection(subset))
 
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
                                              args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
