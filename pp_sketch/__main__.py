@@ -99,7 +99,7 @@ def get_options():
                     help='Print results to stdout instead of file')
 
     kmerGroup = parser.add_argument_group('Kmer comparison options')
-    kmerGroup.add_argument('--read-k', default = False, type=bool, action='store_true',
+    kmerGroup.add_argument('--read-k', default = False, action='store_true',
                             help='Use k-mer lengths found in query databases (query mode only)')
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
