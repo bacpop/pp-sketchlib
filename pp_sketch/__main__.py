@@ -193,16 +193,16 @@ def main():
            query['sketches/' + rList[0]].attrs['kmers'] 
         )
         if args.read_k:
-            kmers = list(db_kmers)
-        elif not all(kmers in db_kmers):
-            kmers = list(set(kmers).intersection(db_kmers))
+            query_kmers = sorted(db_kmers)
+        else:
+            query_kmers = sorted(set(kmers).intersection(db_kmers))
             if (len(kmers) == 0):
                 sys.stderr.write("No requested k-mer lengths found in DB\n")
                 sys.exit(1)
-            else:
+            elif (len(query_kmers) < len(query_kmers)):
                 sys.stderr.write("Some requested k-mer lengths not found in DB\n")
 
-        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
+        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
                                              args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
         
         # get names order
