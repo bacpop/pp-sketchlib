@@ -99,6 +99,8 @@ def get_options():
                     help='Print results to stdout instead of file')
 
     kmerGroup = parser.add_argument_group('Kmer comparison options')
+    kmerGroup.add_argument('--read-k', default = False, type=bool, action='store_true',
+                            help='Use k-mer lengths found in query databases (query mode only)')
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
@@ -182,6 +184,23 @@ def main():
                     subset.append(sample_name)
             rList = list(set(rList).intersection(subset))
             qList = list(set(qList).intersection(subset))
+            if (len(rList) == 0 or len(qList) == 0):
+                sys.stderr.write("Subset has removed all samples\n")
+                sys.exit(1)
+
+        # Check inputs overlap
+        db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
+           query['sketches/' + rList[0]].attrs['kmers'] 
+        )
+        if args.read_k:
+            kmers = list(db_kmers)
+        elif not all(kmers in db_kmers):
+            kmers = list(set(kmers).intersection(db_kmers))
+            if (len(kmers) == 0):
+                sys.stderr.write("No requested k-mer lengths found in DB\n")
+                sys.exit(1)
+            else:
+                sys.stderr.write("Some requested k-mer lengths not found in DB\n")
 
         distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, kmers, 
                                              args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
