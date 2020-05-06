@@ -75,6 +75,11 @@ def get_options():
                         action='store_true',
                         default=False,
                         help='Create a database of sketches')
+    mode.add_argument('--join',
+                        action='store_true',
+                        default=False,
+                        help='Combine two sketch databases '
+                             '--ref-db and --query-db')
     mode.add_argument('--query',
                         action='store_true',
                         default=False,
@@ -165,6 +170,33 @@ def main():
                                        int(round(args.sketch_size/64)), args.strand, 
                                        args.min_count, args.exact_counter, args.cpus)
 
+    elif args.join:
+        join_name = args.output + ".h5"
+        db1_name = args.ref_db + ".h5"
+        db2_name = args.query_db + ".h5"
+
+        hdf1 = h5py.File(db1_name, 'r')
+        hdf2 = h5py.File(db2_name, 'r')
+        hdf_join = h5py.File(join_name + ".tmp", 'w') # add .tmp in case join_name exists
+
+        # Can only copy into new group, so for second file these are appended one at a time
+        try:
+            hdf1.copy('sketches', hdf_join)
+            join_grp = hdf_join['sketches']
+            read_grp = hdf2['sketches']
+            for dataset in read_grp:
+                join_grp.copy(read_grp[dataset], dataset)
+        except RuntimeError as e:
+            sys.stderr.write("ERROR: " + str(e) + "\n")
+            sys.stderr.write("Joining sketches failed\n")
+            sys.exit(1)
+
+        # Clean up
+        hdf1.close()
+        hdf2.close()
+        hdf_join.close()
+        os.rename(join_name + ".tmp", join_name)
+    
     elif args.query:
         rList = []
         ref = h5py.File(args.ref_db + ".h5", 'r')

@@ -22,11 +22,14 @@ outputFiles = [
     "test_db.h5",
     "listeria.h5",
     "sample.h5",
-    "full.h5"
+    "full.h5",
+    "joined.h5"
 ]
 for delFile in outputFiles:
-    os.remove(delFile)
+    if os.path.isfile(delFile):
+        os.remove(delFile)
 
 for ref in refs:
-    os.remove(ref)
+    if os.path.isfile(ref):
+        os.remove(ref)
 
