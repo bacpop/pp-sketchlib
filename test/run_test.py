@@ -31,8 +31,9 @@ sys.stderr.write("Testing distances via python\n")
 subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4", shell=True, check=True)
 # Joining
 sys.stderr.write("Testing join via python\n")
-subprocess.run("poppunk_sketch --join --ref-db test_db --query-db test_db --output joined", shell=True, check=True)
-
+subprocess.run("poppunk_sketch --sketch --rfile db1_refs.txt --ref-db db1 --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile db1_refs.txt --ref-db db2 --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
+subprocess.run("poppunk_sketch --join --ref-db db1 --query-db db2 --output joined", shell=True, check=True)
 
 # C++ test
 if not args.no_cpp:

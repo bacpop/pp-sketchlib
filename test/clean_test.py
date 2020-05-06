@@ -23,6 +23,8 @@ outputFiles = [
     "listeria.h5",
     "sample.h5",
     "full.h5",
+    "db1.h5",
+    "db2.h5",
     "joined.h5"
 ]
 for delFile in outputFiles:
