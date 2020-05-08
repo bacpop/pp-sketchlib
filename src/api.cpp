@@ -186,16 +186,16 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         {
             num_dist_threads = dist_rows; 
         }
-        unsigned long int calc_per_thread = (unsigned long int)dist_rows / num_dist_threads;
+        unsigned long long int calc_per_thread = (unsigned long long int)dist_rows / num_dist_threads;
         unsigned int num_big_threads = dist_rows % num_dist_threads; 
         
         // Loop over threads
         std::vector<std::thread> dist_threads;
-        size_t start = 0;
+        unsigned long long int start = 0;
         for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
         {
             // First 'big' threads have an extra job
-            unsigned long int thread_jobs = calc_per_thread;
+            unsigned long long int thread_jobs = calc_per_thread;
             if (thread_idx < num_big_threads)
             {
                 thread_jobs++;
