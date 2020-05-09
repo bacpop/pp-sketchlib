@@ -17,8 +17,8 @@ using Eigen::MatrixXf;
 #include "reference.hpp"
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> DistMatrix;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> SquareMatrix;
 
-// These are the four functions called by python bindings
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::vector<std::string>>& files, 
@@ -46,3 +46,9 @@ std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
                                      std::vector<size_t> kmer_lengths,
                                      const bool messages = true);
+
+// matrix_ops.cpp
+SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 
+                            const Eigen::VectorXf& qrDists,
+                            const Eigen::VectorXf& qqDists,
+                            unsigned int num_threads);

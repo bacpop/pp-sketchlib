@@ -63,6 +63,7 @@ endif()
 # Compile CPU library
 add_library("${TARGET_NAME}" MODULE src/sketchlib_bindings.cpp
                                     src/dist.cpp
+                                    src/matrix_ops.cpp
                                     src/reference.cpp
                                     src/seqio.cpp
                                     src/countmin.cpp

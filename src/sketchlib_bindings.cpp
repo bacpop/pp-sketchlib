@@ -145,6 +145,17 @@ double jaccardDist(std::string db_name,
     return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size));
 }
 
+SquareMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> distVec,
+                            const Eigen::Ref<Eigen::VectorXf> query_ref_distVec,
+                            const Eigen::Ref<Eigen::VectorXf> query_query_distVec,
+                            const unsigned int num_threads) {
+    SquareMatrix converted = long_to_square(distVec, 
+                                            query_ref_distVec, 
+                                            query_query_distVec,
+                                            num_threads);
+    return(converted);
+}
+
 PYBIND11_MODULE(pp_sketchlib, m)
 {
   m.doc() = "Sketch implementation for PopPUNK";
@@ -191,6 +202,12 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("ref_name"),
         py::arg("query_name"),
         py::arg("kmer_length"));
+
+  m.def("longToSquare", &longToSquare, py::return_value_policy::reference_internal, "Convert dense long form distance matrices to square form",
+        py::arg("distVec"),
+        py::arg("query_ref_distVec"),
+        py::arg("query_query_distVec"),
+        py::arg("num_threads") = 1);
 
     // Exceptions
     py::register_exception<HighFive::Exception>(m, "HDF5Exception");
