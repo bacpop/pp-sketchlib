@@ -65,7 +65,13 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
                             unsigned int num_threads) {
     // Set up square matrix to move values into
     size_t nrrSamples = rows_to_samples(rrDists);
-    size_t nqqSamples = rows_to_samples(qqDists);
+    size_t nqqSamples = 0;
+    if (qrDists.size() > 0) {
+        nqqSamples = rows_to_samples(qqDists);
+        if (qrDists.size() != nrrSamples * nqqSamples) {
+            throw std::runtime_error("Shape of reference, query and ref vs query matrices mismatches");
+        }
+    }
     SquareMatrix squareDists = SquareMatrix::Zero(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
 
     // Loop over threads for ref v ref square
