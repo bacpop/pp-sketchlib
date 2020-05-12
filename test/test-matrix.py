@@ -1,6 +1,12 @@
 import pp_sketchlib
 import numpy as np
 
+def check_res(res, expected):
+    if (not np.all(res == expected)):
+        print(res)
+        print(expected)
+        raise RuntimeError("Results don't match")
+
 rr_mat = np.array([1, 2, 3, 4, 5, 6], dtype=np.float32)
 qq_mat = np.array([8], dtype=np.float32)
 qr_mat = np.array([0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1], dtype=np.float32)
@@ -21,5 +27,5 @@ square2_res = np.array([[0, 1, 2, 3, 0.5, 1],
                         [0.5, 1, 0.5, 1, 0, 8],
                         [1, 0.5, 1, 0.5, 8, 0]], dtype=np.float32)
 
-assert(square1 == square1_res)
-assert(square2 == square2_res)
+check_res(square1_res, square1)
+check_res(square2_res, square2)
