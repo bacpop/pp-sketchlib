@@ -5,8 +5,8 @@ rr_mat = np.array([1, 2, 3, 4, 5, 6], dtype=np.float32)
 qq_mat = np.array([8], dtype=np.float32)
 qr_mat = np.array([0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1], dtype=np.float32)
 
-square1 = longToSquare(rr_mat, 2)
-square2 = longToSquareMulti(rr_mat, qr_mat, qq_mat)
+square1 = pp_sketchlib.longToSquare(rr_mat, 2)
+square2 = pp_sketchlib.longToSquareMulti(rr_mat, qr_mat, qq_mat)
 
 square1_res = np.array([[0, 1, 2, 3], 
                         [1, 0, 4, 5], 
