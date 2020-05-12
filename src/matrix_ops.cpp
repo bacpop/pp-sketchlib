@@ -76,7 +76,7 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
     // Initialise matrix and set diagonal to zero
     SquareMatrix squareDists(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
     for (size_t diag_idx = 0; diag_idx < nrrSamples + nqqSamples; diag_idx++) {
-        squareDists(diag_idx, diag_idx) = 0
+        squareDists(diag_idx, diag_idx) = 0;
     }
 
     // Loop over threads for ref v ref square
