@@ -72,7 +72,12 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
             throw std::runtime_error("Shape of reference, query and ref vs query matrices mismatches");
         }
     }
-    SquareMatrix squareDists = SquareMatrix::Zero(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
+    
+    // Initialise matrix and set diagonal to zero
+    SquareMatrix squareDists(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
+    for (size_t diag_idx = 0; diag_idx < nrrSamples + nqqSample; diag_idx++) {
+        squareDists(diag_idx, diag_idx) = 0
+    }
 
     // Loop over threads for ref v ref square
     size_t calc_per_thread; unsigned int used_threads; unsigned int num_big_threads; 
@@ -100,7 +105,7 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
     }
 
     // Query v query block
-    if (nqqSamples > 0) {
+    if (qqDists.size() > 0) {
         std::tie(calc_per_thread, used_threads, num_big_threads) = jobs_per_thread(qqDists.rows(), num_threads); 
         start = 0;
         copy_threads.clear();
@@ -123,8 +128,10 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
         for (auto it = copy_threads.begin(); it != copy_threads.end(); it++) {
             it->join();
         }
+    }
 
-        // Query vs ref rectangles
+    // Query vs ref rectangles
+    if (qrDists.size() > 0) {
         std::tie(calc_per_thread, used_threads, num_big_threads) = jobs_per_thread(qrDists.rows(), num_threads); 
         start = 0;
         copy_threads.clear();
