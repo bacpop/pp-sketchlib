@@ -99,7 +99,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         {
             num_sketch_threads = sketches.size(); 
         } 
-        unsigned long int calc_per_thread = (unsigned long int)sketches.size() / num_sketch_threads;
+        size_t calc_per_thread = (size_t)sketches.size() / num_sketch_threads;
         unsigned int num_big_threads = sketches.size() % num_sketch_threads;
         std::vector<std::thread> sketch_threads;
 
@@ -109,7 +109,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         for (unsigned int thread_idx = 0; thread_idx < num_sketch_threads; ++thread_idx) // Loop over threads
         {
             // First 'big' threads have an extra job
-            unsigned long int thread_jobs = calc_per_thread;
+            size_t thread_jobs = calc_per_thread;
             if (thread_idx < num_big_threads)
             {
                 thread_jobs++;
@@ -186,7 +186,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         {
             num_dist_threads = dist_rows; 
         }
-        unsigned long int calc_per_thread = (unsigned long int)dist_rows / num_dist_threads;
+        size_t calc_per_thread = (size_t)dist_rows / num_dist_threads;
         unsigned int num_big_threads = dist_rows % num_dist_threads; 
         
         // Loop over threads
@@ -195,7 +195,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
         for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
         {
             // First 'big' threads have an extra job
-            unsigned long int thread_jobs = calc_per_thread;
+            size_t thread_jobs = calc_per_thread;
             if (thread_idx < num_big_threads)
             {
                 thread_jobs++;
