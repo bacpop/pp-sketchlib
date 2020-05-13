@@ -33,7 +33,7 @@ class Reference
                   const size_t bbits,
                   const size_t sketchsize64,
                   const size_t seq_size,
-                  const std::vector<double> bases
+                  const std::vector<double> bases,
                   const unsigned long int missing_bases); // For loading from DB
         
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;

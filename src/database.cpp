@@ -122,7 +122,7 @@ Reference Database::load_sketch(const std::string& name)
         } else if (attr == "base_freq") {
             sketch_group.getAttribute("base_freq").read(bases);
         } else if (attr == "missing_bases") {
-            sketch_group.getAttribute("missing_bases".read(missing_bases));
+            sketch_group.getAttribute("missing_bases").read(missing_bases);
         }
     }
 
