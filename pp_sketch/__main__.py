@@ -232,7 +232,7 @@ def main():
 
         # Check inputs overlap
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
-           query['sketches/' + rList[0]].attrs['kmers'] 
+           query['sketches/' + qList[0]].attrs['kmers'] 
         )
         if args.read_k:
             query_kmers = sorted(db_kmers)

@@ -100,11 +100,12 @@ double Reference::random_match(const int kmer_len)
     if (_match_probs == 0)
     {
         _match_probs = std::pow(_bases.a, 2) +
-                        std::pow(_bases.c, 2) + 
-                        std::pow(_bases.g, 2) + 
-                        std::pow(_bases.t, 2); 
+                       std::pow(_bases.c, 2) + 
+                       std::pow(_bases.g, 2) + 
+                       std::pow(_bases.t, 2); 
     }
-    double r1 = _seq_size / (_seq_size + std::pow(_match_probs, -kmer_len));
+    int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
+    double r1 = _seq_size / (_seq_size + rc_factor * std::pow(_match_probs, -kmer_len));
     return r1;
 }
 
