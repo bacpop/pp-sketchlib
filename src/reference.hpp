@@ -14,7 +14,7 @@
 #include <tuple>
 
 #define ARMA_DONT_USE_WRAPPER
-#include <armadillo>
+//#include <armadillo>
 
 #include "seqio.hpp"
 class Reference

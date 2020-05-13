@@ -9,6 +9,7 @@
 # C++
 sketch_test
 read_test
+version.h
 
 # Prerequisites
 *.d

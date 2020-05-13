@@ -177,6 +177,16 @@ def main():
 
         hdf1 = h5py.File(db1_name, 'r')
         hdf2 = h5py.File(db2_name, 'r')
+
+        try:
+            v1 = hdf1['sketches'].attrs['sketch_version']
+            v2 = hdf2['sketches'].attrs['sketch_version']
+            if (v1 != v2):
+                sys.stderr.write("Databases have been written with different sketch versions, "
+                                 "joining not recommended\n")
+        except RuntimeError as e:
+            sys.stderr.write("Unable to check sketch version\n")
+
         hdf_join = h5py.File(join_name + ".tmp", 'w') # add .tmp in case join_name exists
 
         # Can only copy into new group, so for second file these are appended one at a time

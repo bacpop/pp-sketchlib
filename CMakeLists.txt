@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.12)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
+# Set sketch version
+execute_process(COMMAND openssl sha256 src/sketch.cpp OUTPUT_VARIABLE sketch_hash)
+file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"")
+
 # Variable definitions
 set(TARGET_NAME pp_sketchlib)
 add_compile_definitions(PYTHON_EXT)

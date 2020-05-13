@@ -43,7 +43,7 @@ CUDA_OBJS=dist.cu.o
 all: $(PROGRAMS)
 
 clean:
-	$(RM) *.o *.so ~* $(PROGRAMS)
+	$(RM) *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
@@ -54,6 +54,11 @@ sketch_test: $(SKETCH_OBJS) main.o
 
 read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
+
+version.h:
+	openssl sha256 sketch.cpp | awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h
+
+database.o: version.h
 
 python: $(PYTHON_LIB)
 
