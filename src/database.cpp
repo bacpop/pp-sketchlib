@@ -23,9 +23,9 @@ Database::Database(const std::string& filename)
 {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
     
-    strcpy(_version_hash, SKETCH_VERSION); 
+    _version_hash = SKETCH_VERSION; 
     HighFive::Attribute sketch_version_a = 
-        sketch_group.createAttribute<char[41]>("sketch_version", HighFive::DataSpace::From(_version_hash));
+        sketch_group.createAttribute<std::string>("sketch_version", HighFive::DataSpace::From(_version_hash));
     sketch_version_a.write(_version_hash);
 }
 
@@ -35,7 +35,7 @@ Database::Database(HighFive::File& h5_file)
 {
     _filename = _h5_file.getName();
     
-    strcpy(_version_hash, DEFAULT_VERSION); 
+    _version_hash = DEFAULT_VERSION; 
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches");
     std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
     for (const auto& attr : attributes_keys) {
@@ -65,11 +65,13 @@ void Database::add_sketch(const Reference& ref)
     bbits_a.write(ref.bbits());
     HighFive::Attribute length_a = sketch_group.createAttribute<size_t>("length", HighFive::DataSpace::From(ref.seq_length()));
     length_a.write(ref.seq_length());
+    HighFive::Attribute missing_a = sketch_group.createAttribute<unsigned long int>("missing_bases", HighFive::DataSpace::From(ref.missing_bases()));
+    missing_a.write(ref.missing_bases());  
 
     // Write base composition and k-mer length vectors as further group attributes
     const std::vector<double> bases = ref.base_composition();
     HighFive::Attribute bases_a = sketch_group.createAttribute<double>("base_freq", HighFive::DataSpace::From(bases));
-    bases_a.write(bases); 
+    bases_a.write(bases);
     const std::vector<size_t> kmer_lengths = ref.kmer_lengths();
     HighFive::Attribute kmers_a = sketch_group.createAttribute<int>("kmers", HighFive::DataSpace::From(kmer_lengths));
     kmers_a.write(kmer_lengths); 
@@ -112,16 +114,19 @@ Reference Database::load_sketch(const std::string& name)
     // Attributes added later (set defaults if not found)
     size_t seq_size = DEFAULT_LENGTH;
     std::vector<double> bases{0.25, 0.25, 0.25, 0.25};
+    unsigned long int missing_bases = 0;
     std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
     for (const auto& attr : attributes_keys) {
         if (attr == "length") {
             sketch_group.getAttribute("length").read(seq_size);
         } else if (attr == "base_freq") {
             sketch_group.getAttribute("base_freq").read(bases);
+        } else if (attr == "missing_bases") {
+            sketch_group.getAttribute("missing_bases".read(missing_bases));
         }
     }
 
-    Reference new_ref(name, bbits, sketchsize64, seq_size, bases);
+    Reference new_ref(name, bbits, sketchsize64, seq_size, bases, missing_bases);
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
     {
         std::vector<uint64_t> usigs;

@@ -52,14 +52,14 @@ void sketch_block(std::vector<Reference>& sketches,
 
 
 bool same_db_version(const std::string& db1_name,
-                         const std::string& db2_name) {
+                     const std::string& db2_name) {
     // Open databases
     HighFive::File h5_db1(db1_name + ".h5");
-    Database prev_db(h5_db1);
+    Database db1(h5_db1);
     HighFive::File h5_db2(db2_name + ".h5");
-    Database prev_db(h5_db2);
+    Database db2(h5_db2);
 
-    return(prev_db.check_version(h5_db2));
+    return(db1.check_version(db2));
 }
 
 // Create sketches, save to file

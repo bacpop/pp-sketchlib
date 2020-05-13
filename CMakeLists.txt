@@ -3,10 +3,14 @@ project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
 # Set sketch version
-execute_process(COMMAND cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp 
-                COMMAND openssl sha256 
-                COMMAND awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h)
-file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"")
+execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.hpp 
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/ntHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash.hpp 
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp 
+                COMMAND openssl sha1
+                COMMAND cut -d " " -f 2
+                OUTPUT_VARIABLE sketch_hash) 
+string(REGEX REPLACE "\n$" "" sketch_hash "${sketch_hash}")
+file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"\n")
 
 # Variable definitions
 set(TARGET_NAME pp_sketchlib)

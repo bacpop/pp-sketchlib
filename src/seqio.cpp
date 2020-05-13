@@ -9,7 +9,7 @@
 #include <stdint.h>
 KSEQ_INIT(gzFile, gzread)
 
-// C/C++/C++11/C++17 headers
+// C++ headers
 #include <inttypes.h>
 #include <iostream>
 #include <fstream>
@@ -52,7 +52,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     */
     BaseComp<size_t> base_counts = BaseComp<size_t>();
 
-    _reads = false;
+    _reads = false; _N_count = 0;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
         // from kseq.h
@@ -71,11 +71,14 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                     if (base_counts.total < max_composition_sample) {
                         track_composition(c, base_counts); 
                     }
+                    if (c == 'N') {
+                        _N_count++;
+                    }
                 }
             }
             
             // Presence of any quality scores - assume reads as input
-            if (seq->qual.l)
+            if (!_reads && seq->qual.l)
             {
                 _reads = true;
             }
