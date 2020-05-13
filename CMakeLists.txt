@@ -3,7 +3,9 @@ project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
 # Set sketch version
-execute_process(COMMAND openssl sha256 src/sketch.cpp OUTPUT_VARIABLE sketch_hash)
+execute_process(COMMAND cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp 
+                COMMAND openssl sha256 
+                COMMAND awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h)
 file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"")
 
 # Variable definitions

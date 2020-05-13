@@ -56,7 +56,7 @@ read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
 version.h:
-	openssl sha256 sketch.cpp | awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h
+	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h
 
 database.o: version.h
 
