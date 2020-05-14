@@ -43,7 +43,7 @@ oldDistMat = np.hstack((oldDistMat, oldJaccardDistMat))
 assert(rList_old == rList)
 names = iterDistRows(rList, rList, True)
 for i, (ref, query) in enumerate(names):
-    for j, (dist) in enumerate(['core', 'accessory'] + db_kmers):
+    for j, (dist) in enumerate(['core', 'accessory'] + [str(x) for x in db_kmers]):
         if oldDistMat[i, j] != 0 and distMat[i, j] != 0:
             diff = 2*(distMat[i, j] - oldDistMat[i, j])/(oldDistMat[i, j] + distMat[i, j]) 
             if (abs(diff) > max_diff):
