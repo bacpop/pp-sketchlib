@@ -52,3 +52,4 @@ for i, (ref, query) in enumerate(names):
                 sys.exit(1)
 
 
+sys.exit(0)
