@@ -18,6 +18,7 @@ using Eigen::MatrixXf;
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> DistMatrix;
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> SquareMatrix;
+typedef std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<float>> sparse_coo;
 
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 

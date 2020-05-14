@@ -5,6 +5,8 @@
  *
  */
 #include <vector>
+#include <numeric>
+#include <algorithm>
 #include <thread>
 #include <cstdint>
 #include <cstddef>
@@ -59,6 +61,76 @@ std::tuple<size_t, unsigned int, unsigned int>
     unsigned int num_big_threads = num_jobs % used_threads;
 
     return(std::make_tuple(calc_per_thread, used_threads, num_big_threads)); 
+}
+
+//https://stackoverflow.com/a/12399290
+template <typename T>
+std::vector<size_t> sort_indexes(const std::vector<T> &v) {
+
+  // initialize original index locations
+  std::vector<size_t> idx(v.size());
+  std::iota(idx.begin(), idx.end(), 0);
+
+  std::stable_sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+  return idx;
+}
+
+sparse_coo sparsify_dists(const SquareMatrix& denseDists,
+                          const float distCutoff,
+                          const unsigned long int kNN) {
+    if (kNN > 0 && distCutoff > 0) {
+        throw std::runtime_error("Specify only one of kNN or distCutoff");
+    } else if (kNN < 1 || distCutoff < 0) {
+        throw std::runtime_error("kNN must be >1 or distCutoff > 0")
+    }
+    
+    // ijv vectors
+    std::vector<float> dists;
+    std::vector<size_t> i_vec;
+    std::vector<size_t> j_vec;
+
+    // Only add values below a cutoff
+    if (distCutoff > 0) {
+        for (size_t i = 0; i < denseDists.rows(); i++) {
+            for (size_t j = i + 1; j < denseDists.cols(); j++) {
+                if (denseDists(i, j) < distCutoff) {
+                    dists.push_back(denseDists(i, j));
+                    i_vec.push_back(i);
+                    j_vec.push_back(j);
+                }
+            }
+        }
+    } else if (kNN > 1) {
+        // Only add the k nearest (unique) neighbours
+        // May be >k if repeats, often zeros
+        size_t i = 0;
+        for (auto row : denseDists.rowwise()) {
+            long unique_neighbors = 0;
+            float prev_value = 0;
+            for (auto j : sort_indexes(row)) {
+                if (j == i) {
+                    continue; // Ignore diagonal which will always be one of the closest
+                else {
+                    dists.push_back(row[j]);
+                    i_vec.push_back(i);
+                    j_vec.push_back(j);
+                }
+
+                if (unique_neighbors == 0 || v[j] != prev_value) {
+                    prev_value = v[j];
+                    // Move to the next row if k unique neighbors found
+                    if (unique_neighbors++ >= kNN) {
+                        break;
+                    }
+                }
+            }
+            i++;
+        }
+    }
+
+    return(std::make_tuple(i_vec, j_vec, dists));
 }
 
 SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 
