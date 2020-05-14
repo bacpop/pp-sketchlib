@@ -145,7 +145,7 @@ def get_options():
 def main():
     args = get_options()
 
-    if args.min_k >= args.max_k or args.min_k < 3 or args.max_k > 101 or args.k_step < 2:
+    if args.min_k >= args.max_k or args.min_k < 3 or args.max_k > 101 or args.k_step < 1:
         sys.stderr.write("Minimum kmer size " + str(args.min_k) + " must be smaller than maximum kmer size " +
                          str(args.max_k) + "; range must be between 3 and 101, step must be at least one\n")
         sys.exit(1)
@@ -177,6 +177,16 @@ def main():
 
         hdf1 = h5py.File(db1_name, 'r')
         hdf2 = h5py.File(db2_name, 'r')
+
+        try:
+            v1 = hdf1['sketches'].attrs['sketch_version']
+            v2 = hdf2['sketches'].attrs['sketch_version']
+            if (v1 != v2):
+                sys.stderr.write("Databases have been written with different sketch versions, "
+                                 "joining not recommended\n")
+        except RuntimeError as e:
+            sys.stderr.write("Unable to check sketch version\n")
+
         hdf_join = h5py.File(join_name + ".tmp", 'w') # add .tmp in case join_name exists
 
         # Can only copy into new group, so for second file these are appended one at a time
@@ -222,7 +232,7 @@ def main():
 
         # Check inputs overlap
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
-           query['sketches/' + rList[0]].attrs['kmers'] 
+           query['sketches/' + qList[0]].attrs['kmers'] 
         )
         if args.read_k:
             query_kmers = sorted(db_kmers)
@@ -245,7 +255,7 @@ def main():
                 for i, (ref, query) in enumerate(names):
                     sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
             else:
-                sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in kmers]) + "\n")
+                sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in query_kmers]) + "\n")
                 for i, (ref, query) in enumerate(names):
                     sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
         else:

@@ -28,10 +28,10 @@ inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + has
 // Make sure they are symmetric so RC works
 const unsigned int small_k = 9;
 std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
-    {6, {{1,1,0,1,1,0,1,1}, {1,0,1,1,1,1,0,1}}},
-    {7, {{1,1,1,0,0,1,1,1,1}, {1,0,1,1,1,1,1,0,1}}},
-    {8, {{1,0,1,1,1,1,1,1,0,1}, {1,1,0,1,1,1,1,0,1,1}}},
-    {9, {{1,0,1,1,1,1,1,1,0,1}, {1,1,0,1,1,1,1,0,1,1}}}
+    {6, {{1,1,0,1,1,0,1,1}}},
+    {7, {{1,1,1,0,1,0,1,1,1}}},
+    {8, {{1,1,0,1,1,1,1,0,1,1}}},
+    {9, {{1,0,1,1,1,1,1,1,1,0,1}}}
 });
 
 // Universal hashing function for densifybin
@@ -124,7 +124,7 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
 
     // Use spaced seeds for small k
     unsigned int seed_length = kmer_len; bool ss = false;
-    if (kmer_len < small_k) {
+    if (kmer_len <= small_k) {
         seed_length = kmer_seeds[kmer_len][0].size();
         ss = true;
     }

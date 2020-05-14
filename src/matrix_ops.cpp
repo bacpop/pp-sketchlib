@@ -29,19 +29,21 @@ void rectangle_block(const Eigen::VectorXf& longDists,
                   const size_t max_elems);
 
 template<class T>
-size_t rows_to_samples(const T& longMat) {
+inline size_t rows_to_samples(const T& longMat) {
     return 0.5*(1 + sqrt(1 + 8*(longMat.rows())));
 }
 
-long calc_row_idx(const long long k, const long n) {
+// These are inlined partially to avoid conflicting with the cuda
+// versions which have the same prototype
+inline long calc_row_idx(const long long k, const long n) {
 	return n - 2 - floor(sqrt((double)(-8*k + 4*n*(n-1)-7))/2 - 0.5);
 }
 
-long calc_col_idx(const long long k, const long i, const long n) {
+inline long calc_col_idx(const long long k, const long i, const long n) {
 	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
 }
 
-long long square_to_condensed(long i, long j, long n) {
+inline long long square_to_condensed(long i, long j, long n) {
     assert(i > j);
 	return (n*j - ((j*(j+1)) >> 1) + i - 1 - j);
 }

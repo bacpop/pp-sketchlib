@@ -50,12 +50,17 @@ void sketch_block(std::vector<Reference>& sketches,
                                     const size_t start,
                                     const size_t end);
 
-/*
- * Main functions
- * 1) Create new sketches (tries calling 3) first)
- * 2) Calculate distances from sketches
- * 3) Load skteches from a database
- */
+
+bool same_db_version(const std::string& db1_name,
+                     const std::string& db2_name) {
+    // Open databases
+    HighFive::File h5_db1(db1_name + ".h5");
+    Database db1(h5_db1);
+    HighFive::File h5_db2(db2_name + ".h5");
+    Database db2(h5_db2);
+
+    return(db1.check_version(db2));
+}
 
 // Create sketches, save to file
 std::vector<Reference> create_sketches(const std::string& db_name,

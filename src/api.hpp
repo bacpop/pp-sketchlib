@@ -42,6 +42,9 @@ DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
     const int device_id = 0);
 #endif
 
+bool same_db_version(const std::string& db1_name,
+                         const std::string& db2_name);
+
 std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
                                      std::vector<size_t> kmer_lengths,

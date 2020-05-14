@@ -54,6 +54,7 @@ Reference::Reference(const std::string& name,
         throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
     _bases = sequence.get_composition();
+    _missing_bases = sequence.missing_bases();
 
     double minhash_sum = 0;
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
@@ -82,9 +83,11 @@ Reference::Reference(const std::string& name,
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size,
-                     const std::vector<double> bases)
+                     const std::vector<double> bases,
+                     const unsigned long int missing_bases)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
-   _seq_size(seq_size), _densified(false), _match_probs(0)
+   _seq_size(seq_size), _missing_bases(missing_bases), _densified(false), 
+   _match_probs(0)
 {
     _bases.a = bases[0];
     _bases.c = bases[1];
@@ -97,11 +100,12 @@ double Reference::random_match(const int kmer_len)
     if (_match_probs == 0)
     {
         _match_probs = std::pow(_bases.a, 2) +
-                        std::pow(_bases.c, 2) + 
-                        std::pow(_bases.g, 2) + 
-                        std::pow(_bases.t, 2); 
+                       std::pow(_bases.c, 2) + 
+                       std::pow(_bases.g, 2) + 
+                       std::pow(_bases.t, 2); 
     }
-    double r1 = _seq_size / (_seq_size + std::pow(_match_probs, -kmer_len));
+    int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
+    double r1 = _seq_size / (_seq_size + rc_factor * std::pow(_match_probs, -kmer_len));
     return r1;
 }
 

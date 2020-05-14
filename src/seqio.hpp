@@ -38,6 +38,7 @@ class SeqBuf
         bool eof() const { return end; }
         bool is_reads() const { return _reads; }
         BaseComp<double> get_composition() const { return _bases; }
+        unsigned long int missing_bases() const { return _N_count; }
 
         bool move_next(size_t word_length);
         void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };
@@ -52,6 +53,7 @@ class SeqBuf
         std::string::iterator out_base;
 
         BaseComp<double> _bases;
+        unsigned long int _N_count;
 
         bool end;
         bool _reads;
