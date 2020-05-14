@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cmath>
 #include <string>
+#include <omp.h>
 
 #include "api.hpp"
 
@@ -79,7 +80,8 @@ std::vector<size_t> sort_indexes(const std::vector<T> &v) {
 
 sparse_coo sparsify_dists(const SquareMatrix& denseDists,
                           const float distCutoff,
-                          const unsigned long int kNN) {
+                          const unsigned long int kNN,
+                          const unsigned int num_threads) {
     if (kNN > 0 && distCutoff > 0) {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
     } else if (kNN < 1 || distCutoff < 0) {
@@ -90,9 +92,10 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     std::vector<float> dists;
     std::vector<size_t> i_vec;
     std::vector<size_t> j_vec;
-
-    // Only add values below a cutoff
+    omp_set_num_threads(num_threads);
     if (distCutoff > 0) {
+        // Only add values below a cutoff
+        #pragma omp parallel for simd
         for (size_t i = 0; i < denseDists.rows(); i++) {
             for (size_t j = i + 1; j < denseDists.cols(); j++) {
                 if (denseDists(i, j) < distCutoff) {
@@ -105,8 +108,8 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     } else if (kNN > 1) {
         // Only add the k nearest (unique) neighbours
         // May be >k if repeats, often zeros
-        size_t i = 0;
-        for (auto row : denseDists.rowwise()) {
+        #pragma omp parallel for simd
+        for (size_t i = 0; i < denseDists.rows(); i++) {
             long unique_neighbors = 0;
             float prev_value = 0;
             for (auto j : sort_indexes(row)) {
@@ -126,11 +129,41 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
                     }
                 }
             }
-            i++;
         }
     }
 
     return(std::make_tuple(i_vec, j_vec, dists));
+}
+
+Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
+                                 int slope,
+                                 double x_max,
+                                 double y_max,
+                                 unsigned int num_threads) {
+    Eigen::VectorXf boundary_test(distMat.rows())
+    
+    omp_set_num_threads(num_threads);
+    #pragma omp parallel for simd
+    for (size_t row_idx = 0; row_idx < distMat.rows(); row_idx++) {
+        float in_tri = 0;
+        if (slope == 2) {
+            in_tri = distMat(row_idx, 0)*distsMat(row_idx, 1) - \
+                        (x_max - distMat[row_idx, 0]) * (y_max - distMat[row_idx, 1]);
+        } else if (slope == 0) {
+            in_tri = distMat[row_idx, 0] - x_max;
+        } else if (slope == 1) {
+            in_tri = distMat[row_idx, 1] - y_max;
+        }
+
+        if (in_tri < 0) {
+            boundary_test[row_idx] = -1;
+        } else if (in_tri == 0) {
+            boundary_test[row_idx] = 0;
+        } else {
+            boundary_test[row_idx] = 1;
+        }
+    }
+    return(boundary_test)
 }
 
 SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 
