@@ -6,7 +6,8 @@ import pickle
 
 ref_db = "test_db"
 old_results = "ppsketch_ref"
-max_diff = 0.02
+warn_diff = 0.02
+max_diff = 0.05
 
 def iterDistRows(refSeqs, querySeqs, self=True):
     if self:
@@ -46,10 +47,10 @@ for i, (ref, query) in enumerate(names):
     for j, (dist) in enumerate(['core', 'accessory'] + [str(x) for x in db_kmers]):
         if oldDistMat[i, j] != 0 and distMat[i, j] != 0:
             diff = 2*(distMat[i, j] - oldDistMat[i, j])/(oldDistMat[i, j] + distMat[i, j]) 
-            if (abs(diff) > max_diff):
+            if (abs(diff) > warn_diff):
                 sys.stderr.write(dist + " mismatches for " + ref + "," + query + "\n")
                 sys.stderr.write("expected: " + str(oldDistMat[i, j]) + "; calculated: " + str(distMat[i, j]) + "\n")
+            if (abs(diff) > max_diff):
                 sys.exit(1)
-
 
 sys.exit(0)
