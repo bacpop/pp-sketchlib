@@ -21,7 +21,7 @@ namespace py = pybind11;
  * Query db - creates query sketches, loads ref sketches, runs query_db
  */
 
-NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> distVec,
+NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf>& distVec,
                           const unsigned int num_threads) {
     Eigen::VectorXf dummy_query_ref;
     Eigen::VectorXf dummy_query_query;
@@ -32,9 +32,9 @@ NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> distVec,
     return(converted);
 }
 
-NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf> distVec,
-                            const Eigen::Ref<Eigen::VectorXf> query_ref_distVec,
-                            const Eigen::Ref<Eigen::VectorXf> query_query_distVec,
+NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf>& distVec,
+                            const Eigen::Ref<Eigen::VectorXf>& query_ref_distVec,
+                            const Eigen::Ref<Eigen::VectorXf>& query_query_distVec,
                             const unsigned int num_threads) {
     NumpyMatrix converted = long_to_square(distVec, 
                                             query_ref_distVec, 
@@ -44,15 +44,15 @@ NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf> distVec,
 }
 
 // Calls function, but returns void
-void constructDatabase(std::string db_name,
-                       std::vector<std::string> sample_names,
-                       std::vector<std::vector<std::string>> file_names,
+void constructDatabase(const std::string& db_name,
+                       const std::vector<std::string>& sample_names,
+                       const std::vector<std::vector<std::string>>& file_names,
                        std::vector<size_t> kmer_lengths,
-                       size_t sketch_size,
-                       bool use_rc = true,
+                       const size_t sketch_size,
+                       const bool use_rc = true,
                        size_t min_count = 0,
-                       bool exact = false,
-                       size_t num_threads = 1)
+                       const bool exact = false,
+                       const size_t num_threads = 1)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
                                                             sample_names, 
@@ -65,15 +65,15 @@ void constructDatabase(std::string db_name,
                                                             num_threads);
 }
 
-NumpyMatrix queryDatabase(std::string ref_db_name,
-                         std::string query_db_name,
-                         std::vector<std::string> ref_names,
-                         std::vector<std::string> query_names,
+NumpyMatrix queryDatabase(const std::string& ref_db_name,
+                         const std::string& query_db_name,
+                         const std::vector<std::string>& ref_names,
+                         const std::vector<std::string>& query_names,
                          std::vector<size_t> kmer_lengths,
-                         bool jaccard = false,
-                         size_t num_threads = 1,
-                         bool use_gpu = false,
-                         int device_id = 0)
+                         const bool jaccard = false,
+                         const size_t num_threads = 1,
+                         const bool use_gpu = false,
+                         const int device_id = 0)
 {
     if (jaccard && use_gpu) {
         throw std::runtime_error("Extracting Jaccard distances not supported on GPU");
@@ -113,17 +113,17 @@ NumpyMatrix queryDatabase(std::string ref_db_name,
     return(dists);
 }
 
-sparse_coo sparseQuery(std::string ref_db_name,
-                         std::string query_db_name,
-                         std::vector<std::string> ref_names,
-                         std::vector<std::string> query_names,
+sparse_coo sparseQuery(const std::string& ref_db_name,
+                         const std::string& query_db_name,
+                         const std::vector<std::string>& ref_names,
+                         const std::vector<std::string>& query_names,
                          std::vector<size_t> kmer_lengths,
                          const float dist_cutoff = 0,
                          const unsigned long int kNN = 0,
-                         bool core = true,
-                         size_t num_threads = 1,
-                         bool use_gpu = false,
-                         int device_id = 0)
+                         const bool core = true,
+                         const size_t num_threads = 1,
+                         const bool use_gpu = false,
+                         const int device_id = 0)
 {
     if (!same_db_version(ref_db_name, query_db_name)) {
         std::cerr << "WARNING: versions of input databases sketches are different," \
@@ -168,18 +168,18 @@ sparse_coo sparseQuery(std::string ref_db_name,
     return(sparse_return);
 }
 
-NumpyMatrix constructAndQuery(std::string db_name,
-                             std::vector<std::string> sample_names,
-                             std::vector<std::vector<std::string>> file_names,
+NumpyMatrix constructAndQuery(const std::string& db_name,
+                             const std::vector<std::string>& sample_names,
+                             const std::vector<std::vector<std::string>>& file_names,
                              std::vector<size_t> kmer_lengths,
-                             size_t sketch_size,
-                             bool use_rc = true,
+                             const size_t sketch_size,
+                             const bool use_rc = true,
                              size_t min_count = 0,
-                             bool exact = false,
-                             bool jaccard = false,
-                             size_t num_threads = 1,
-                             bool use_gpu = false,
-                             int device_id = 0)
+                             const bool exact = false,
+                             const bool jaccard = false,
+                             const size_t num_threads = 1,
+                             const bool use_gpu = false,
+                             const int device_id = 0)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
                                                             sample_names, 
@@ -217,17 +217,17 @@ NumpyMatrix constructAndQuery(std::string db_name,
     return(dists);
 }
 
-double jaccardDist(std::string db_name,
-                   std::string sample1,
-                   std::string sample2,
-                   size_t kmer_size)
+double jaccardDist(const std::string& db_name,
+                   const std::string& sample1,
+                   const std::string& sample2,
+                   const size_t kmer_size)
 {
     auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
     return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size));
 }
 
 // Wrapper which makes a ref to the python/numpy array
-sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> denseDists,
+sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix>& denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
                          const unsigned int num_threads) {
@@ -235,11 +235,11 @@ sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> denseDists,
 }
 
 // Wrapper which makes a ref to the python/numpy array
-Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix> distMat,
-                                 int slope,
-                                 double x_max,
-                                 double y_max,
-                                 unsigned int num_threads = 1) {
+Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix>& distMat,
+                                const int slope,
+                                const double x_max,
+                                const double y_max,
+                                const unsigned int num_threads = 1) {
     Eigen::VectorXf assigned = assign_threshold(distMat, slope, x_max, y_max, num_threads);
     return(assigned);
 }
