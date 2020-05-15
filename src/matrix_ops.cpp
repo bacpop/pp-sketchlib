@@ -78,6 +78,7 @@ std::vector<size_t> sort_indexes(const std::vector<T> &v) {
   return idx;
 }
 
+#pragma omp declare simd aligned(denseDists:16)
 sparse_coo sparsify_dists(const SquareMatrix& denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
@@ -95,55 +96,76 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     omp_set_num_threads(num_threads);
     if (distCutoff > 0) {
         // Only add values below a cutoff
-        #pragma omp parallel for simd
-        for (size_t i = 0; i < denseDists.rows(); i++) {
-            for (size_t j = i + 1; j < denseDists.cols(); j++) {
-                if (denseDists(i, j) < distCutoff) {
-                    dists.push_back(denseDists(i, j));
-                    i_vec.push_back(i);
-                    j_vec.push_back(j);
+        #pragma omp parallel
+        {
+            std::vector<float> dists_private;
+            std::vector<size_t> i_vec_private;
+            std::vector<size_t> j_vec_private; 
+            #pragma omp parallel for nowait simd aligned(denseDists,dists_private:16)
+            for (size_t i = 0; i < denseDists.rows(); i++) {
+                for (size_t j = i + 1; j < denseDists.cols(); j++) {
+                    if (denseDists(i, j) < distCutoff) {
+                        dists.push_back(denseDists(i, j));
+                        i_vec.push_back(i);
+                        j_vec.push_back(j);
+                    }
                 }
             }
+            #pragma omp critical
+            dists.insert(dists.end(), dists_private.begin(), dists_private.end());
+            i_vec.insert(i_vec.end(), i_vec_private.begin(), i_vec_private.end());
+            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end());
         }
     } else if (kNN > 1) {
         // Only add the k nearest (unique) neighbours
         // May be >k if repeats, often zeros
-        #pragma omp parallel for simd
-        for (size_t i = 0; i < denseDists.rows(); i++) {
-            long unique_neighbors = 0;
-            float prev_value = 0;
-            for (auto j : sort_indexes(row)) {
-                if (j == i) {
-                    continue; // Ignore diagonal which will always be one of the closest
-                else {
-                    dists.push_back(row[j]);
-                    i_vec.push_back(i);
-                    j_vec.push_back(j);
-                }
+        #pragma omp parallel
+        {
+            std::vector<float> dists_private;
+            std::vector<size_t> i_vec_private;
+            std::vector<size_t> j_vec_private; 
+            #pragma omp parallel for simd aligned(denseDists,dists_private:16)
+            for (size_t i = 0; i < denseDists.rows(); i++) {
+                long unique_neighbors = 0;
+                float prev_value = 0;
+                for (auto j : sort_indexes(row)) {
+                    if (j == i) {
+                        continue; // Ignore diagonal which will always be one of the closest
+                    else {
+                        dists.push_back(row[j]);
+                        i_vec.push_back(i);
+                        j_vec.push_back(j);
+                    }
 
-                if (unique_neighbors == 0 || v[j] != prev_value) {
-                    prev_value = v[j];
-                    // Move to the next row if k unique neighbors found
-                    if (unique_neighbors++ >= kNN) {
-                        break;
+                    if (unique_neighbors == 0 || v[j] != prev_value) {
+                        prev_value = v[j];
+                        // Move to the next row if k unique neighbors found
+                        if (unique_neighbors++ >= kNN) {
+                            break;
+                        }
                     }
                 }
             }
+            #pragma omp critical
+            dists.insert(dists.end(), dists_private.begin(), dists_private.end());
+            i_vec.insert(i_vec.end(), i_vec_private.begin(), i_vec_private.end());
+            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end()); 
         }
     }
 
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
+#pragma omp declare simd aligned(x_max,y_max,distMat:16)
 Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
                                  int slope,
-                                 double x_max,
-                                 double y_max,
+                                 float x_max,
+                                 float y_max,
                                  unsigned int num_threads) {
     Eigen::VectorXf boundary_test(distMat.rows())
     
     omp_set_num_threads(num_threads);
-    #pragma omp parallel for simd
+    #pragma omp parallel for simd aligned(x_max,y_max,distMat,boundary_test:16)
     for (size_t row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
         if (slope == 2) {
