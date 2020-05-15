@@ -65,8 +65,7 @@ std::tuple<size_t, unsigned int, unsigned int>
 }
 
 //https://stackoverflow.com/a/12399290
-template <typename T>
-std::vector<size_t> sort_indexes(const std::vector<T> &v) {
+std::vector<size_t> sort_indexes(const Eigen::VectorXf &v) {
 
   // initialize original index locations
   std::vector<size_t> idx(v.size());
@@ -78,7 +77,6 @@ std::vector<size_t> sort_indexes(const std::vector<T> &v) {
   return idx;
 }
 
-#pragma omp declare simd aligned(denseDists:16)
 sparse_coo sparsify_dists(const SquareMatrix& denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
@@ -86,7 +84,7 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     if (kNN > 0 && distCutoff > 0) {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
     } else if (kNN < 1 || distCutoff < 0) {
-        throw std::runtime_error("kNN must be >1 or distCutoff > 0")
+        throw std::runtime_error("kNN must be >1 or distCutoff > 0");
     }
     
     // ijv vectors
@@ -101,7 +99,7 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
             std::vector<float> dists_private;
             std::vector<size_t> i_vec_private;
             std::vector<size_t> j_vec_private; 
-            #pragma omp parallel for nowait simd aligned(denseDists,dists_private:16)
+            #pragma omp for simd nowait 
             for (size_t i = 0; i < denseDists.rows(); i++) {
                 for (size_t j = i + 1; j < denseDists.cols(); j++) {
                     if (denseDists(i, j) < distCutoff) {
@@ -124,21 +122,21 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
             std::vector<float> dists_private;
             std::vector<size_t> i_vec_private;
             std::vector<size_t> j_vec_private; 
-            #pragma omp parallel for simd aligned(denseDists,dists_private:16)
+            #pragma omp for simd nowait
             for (size_t i = 0; i < denseDists.rows(); i++) {
                 long unique_neighbors = 0;
                 float prev_value = 0;
-                for (auto j : sort_indexes(row)) {
+                for (auto j : sort_indexes(denseDists.row(i))) {
                     if (j == i) {
                         continue; // Ignore diagonal which will always be one of the closest
-                    else {
-                        dists.push_back(row[j]);
+                    } else {
+                        dists.push_back(denseDists(i, j));
                         i_vec.push_back(i);
                         j_vec.push_back(j);
                     }
 
-                    if (unique_neighbors == 0 || v[j] != prev_value) {
-                        prev_value = v[j];
+                    if (unique_neighbors == 0 || denseDists(i, j) != prev_value) {
+                        prev_value = denseDists(i, j);
                         // Move to the next row if k unique neighbors found
                         if (unique_neighbors++ >= kNN) {
                             break;
@@ -156,25 +154,24 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
-#pragma omp declare simd aligned(x_max,y_max,distMat:16)
 Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
                                  int slope,
                                  float x_max,
                                  float y_max,
                                  unsigned int num_threads) {
-    Eigen::VectorXf boundary_test(distMat.rows())
+    Eigen::VectorXf boundary_test(distMat.rows());
     
     omp_set_num_threads(num_threads);
-    #pragma omp parallel for simd aligned(x_max,y_max,distMat,boundary_test:16)
+    #pragma omp parallel for simd
     for (size_t row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
         if (slope == 2) {
-            in_tri = distMat(row_idx, 0)*distsMat(row_idx, 1) - \
-                        (x_max - distMat[row_idx, 0]) * (y_max - distMat[row_idx, 1]);
+            in_tri = distMat(row_idx, 0)*distMat(row_idx, 1) - \
+                        (x_max - distMat(row_idx, 0)) * (y_max - distMat(row_idx, 1));
         } else if (slope == 0) {
-            in_tri = distMat[row_idx, 0] - x_max;
+            in_tri = distMat(row_idx, 0) - x_max;
         } else if (slope == 1) {
-            in_tri = distMat[row_idx, 1] - y_max;
+            in_tri = distMat(row_idx, 1) - y_max;
         }
 
         if (in_tri < 0) {
@@ -185,7 +182,7 @@ Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
             boundary_test[row_idx] = 1;
         }
     }
-    return(boundary_test)
+    return(boundary_test);
 }
 
 SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 

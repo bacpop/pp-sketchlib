@@ -235,12 +235,13 @@ sparse_coo sparsifyDists(const Eigen::Ref<SquareMatrix> denseDists,
 }
 
 // Wrapper which makes a ref to the python/numpy array
-Eigen::VectorXf assignThreshold(const Eigen::ref<DistMatrix>& distMat,
+Eigen::VectorXf assignThreshold(const Eigen::Ref<DistMatrix> distMat,
                                  int slope,
                                  double x_max,
                                  double y_max,
                                  unsigned int num_threads = 1) {
     Eigen::VectorXf assigned = assign_threshold(distMat, slope, x_max, y_max, num_threads);
+    return(assigned);
 }
 
 PYBIND11_MODULE(pp_sketchlib, m)

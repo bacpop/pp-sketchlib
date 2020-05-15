@@ -1,5 +1,5 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
@@ -10,7 +10,7 @@ endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
-LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack
+LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack 
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -m64
 	ifdef PROFILE
