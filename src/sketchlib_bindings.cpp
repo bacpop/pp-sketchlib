@@ -315,13 +315,13 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("num_threads") = 1);
 
   m.def("sparsifyDists", &sparsifyDists, py::return_value_policy::reference_internal, "Transform all distances into a sparse matrix", 
-        py::arg("distMat"),
+        py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("num_threads") = 1);
 
   m.def("assignThreshold", &assignThreshold, py::return_value_policy::reference_internal, "Assign samples based on their relation to a 2D boundary", 
-        py::arg("distMat"),
+        py::arg("distMat").noconvert(),
         py::arg("slope"),
         py::arg("x_max"),
         py::arg("y_max"),
