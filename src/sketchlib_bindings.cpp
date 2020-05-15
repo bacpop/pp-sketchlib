@@ -162,7 +162,12 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     if (!core) {
         dist_col = 1;
     }
-    NumpyMatrix long_form = longToSquare(dists.col(dist_col), num_threads);
+    Eigen::VectorXf dummy_query_ref;
+    Eigen::VectorXf dummy_query_query;
+    NumpyMatrix long_form = long_to_square(dists.col(dist_col), 
+                                            dummy_query_ref, 
+                                            dummy_query_query,
+                                            num_threads);
     sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN, num_threads); 
 
     return(sparse_return);
