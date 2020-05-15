@@ -25,14 +25,14 @@ inline bool file_exists (const std::string& name) {
 }
 
 // Internal function definitions
-void self_dist_block(DistMatrix& distMat,
+void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
                      const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs);
 
-void query_dist_row(DistMatrix& distMat,
+void query_dist_row(NumpyMatrix& distMat,
                     Reference * ref_sketch_ptr,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
@@ -155,7 +155,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 
 // Calculates distances against another database
 // Input is vectors of sketches
-DistMatrix query_db(std::vector<Reference>& ref_sketches,
+NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
@@ -167,7 +167,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
     }
     
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
-    DistMatrix distMat;
+    NumpyMatrix distMat;
     size_t dist_cols;
     if (jaccard) {
         dist_cols = kmer_lengths.size();
@@ -267,7 +267,7 @@ DistMatrix query_db(std::vector<Reference>& ref_sketches,
 }
 
 #ifdef GPU_AVAILABLE
-DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
+NumpyMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
     const int device_id)
@@ -280,8 +280,8 @@ DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
                                                 kmer_lengths, device_id);
     
     // Map this memory into an eigen matrix
-    DistMatrix dists_ret = \
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> >(dist_vec.data(),dist_vec.size()/2,2);
+    NumpyMatrix dists_ret = \
+		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
 
     return dists_ret;
 }
@@ -406,7 +406,7 @@ void sketch_block(std::vector<Reference>& sketches,
 
 // Calculates dists self v self
 // (run this function in a thread)
-void self_dist_block(DistMatrix& distMat,
+void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
                      const bool jaccard,
@@ -447,7 +447,7 @@ void self_dist_block(DistMatrix& distMat,
 
 // Calculates dists ref v query
 // (run this function in a thread) 
-void query_dist_row(DistMatrix& distMat,
+void query_dist_row(NumpyMatrix& distMat,
                     Reference * query_sketch_ptr,
                     std::vector<Reference>& ref_sketches,
                     const std::vector<size_t>& kmer_lengths,

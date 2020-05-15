@@ -18,14 +18,14 @@
 
 // Prototypes for cppying functions run in threads
 void square_block(const Eigen::VectorXf& longDists,
-                  SquareMatrix& squareMatrix,
+                  NumpyMatrix& squareMatrix,
                   const size_t n_samples,
                   const size_t start,
                   const size_t offset,
                   const size_t max_elems);
 
 void rectangle_block(const Eigen::VectorXf& longDists,
-                  SquareMatrix& squareMatrix,
+                  NumpyMatrix& squareMatrix,
                   const size_t nrrSamples,
                   const size_t nqqSamples,
                   const size_t start,
@@ -77,7 +77,7 @@ std::vector<size_t> sort_indexes(const Eigen::VectorXf &v) {
   return idx;
 }
 
-sparse_coo sparsify_dists(const SquareMatrix& denseDists,
+sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
                           const unsigned int num_threads) {
@@ -154,7 +154,7 @@ sparse_coo sparsify_dists(const SquareMatrix& denseDists,
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
-Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
+Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
                                  int slope,
                                  float x_max,
                                  float y_max,
@@ -185,7 +185,7 @@ Eigen::VectorXf assign_threshold(const DistMatrix& distMat,
     return(boundary_test);
 }
 
-SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 
+NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists, 
                             const Eigen::VectorXf& qrDists,
                             const Eigen::VectorXf& qqDists,
                             unsigned int num_threads) {
@@ -200,7 +200,7 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
     }
     
     // Initialise matrix and set diagonal to zero
-    SquareMatrix squareDists(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
+    NumpyMatrix squareDists(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
     for (size_t diag_idx = 0; diag_idx < nrrSamples + nqqSamples; diag_idx++) {
         squareDists(diag_idx, diag_idx) = 0;
     }
@@ -286,7 +286,7 @@ SquareMatrix long_to_square(const Eigen::VectorXf& rrDists,
 } 
 
 void square_block(const Eigen::VectorXf& longDists,
-                  SquareMatrix& squareMatrix,
+                  NumpyMatrix& squareMatrix,
                   const size_t n_samples,
                   const size_t start,
                   const size_t offset,
@@ -304,7 +304,7 @@ void square_block(const Eigen::VectorXf& longDists,
 }
 
 void rectangle_block(const Eigen::VectorXf& longDists,
-                  SquareMatrix& squareMatrix,
+                  NumpyMatrix& squareMatrix,
                   const size_t nrrSamples,
                   const size_t nqqSamples,
                   const size_t start,

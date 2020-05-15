@@ -21,22 +21,22 @@ namespace py = pybind11;
  * Query db - creates query sketches, loads ref sketches, runs query_db
  */
 
-SquareMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> distVec,
+NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> distVec,
                           const unsigned int num_threads) {
     Eigen::VectorXf dummy_query_ref;
     Eigen::VectorXf dummy_query_query;
-    SquareMatrix converted = long_to_square(distVec, 
+    NumpyMatrix converted = long_to_square(distVec, 
                                             dummy_query_ref, 
                                             dummy_query_query,
                                             num_threads);
     return(converted);
 }
 
-SquareMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf> distVec,
+NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf> distVec,
                             const Eigen::Ref<Eigen::VectorXf> query_ref_distVec,
                             const Eigen::Ref<Eigen::VectorXf> query_query_distVec,
                             const unsigned int num_threads) {
-    SquareMatrix converted = long_to_square(distVec, 
+    NumpyMatrix converted = long_to_square(distVec, 
                                             query_ref_distVec, 
                                             query_query_distVec,
                                             num_threads);
@@ -65,7 +65,7 @@ void constructDatabase(std::string db_name,
                                                             num_threads);
 }
 
-DistMatrix queryDatabase(std::string ref_db_name,
+NumpyMatrix queryDatabase(std::string ref_db_name,
                          std::string query_db_name,
                          std::vector<std::string> ref_names,
                          std::vector<std::string> query_names,
@@ -86,7 +86,7 @@ DistMatrix queryDatabase(std::string ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
-    DistMatrix dists; 
+    NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -133,7 +133,7 @@ sparse_coo sparseQuery(std::string ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
-    DistMatrix dists; 
+    NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -162,13 +162,13 @@ sparse_coo sparseQuery(std::string ref_db_name,
     if (!core) {
         dist_col = 1;
     }
-    SquareMatrix long_form = longToSquare(dists.col(dist_col), num_threads);
+    NumpyMatrix long_form = longToSquare(dists.col(dist_col), num_threads);
     sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN, num_threads); 
 
     return(sparse_return);
 }
 
-DistMatrix constructAndQuery(std::string db_name,
+NumpyMatrix constructAndQuery(std::string db_name,
                              std::vector<std::string> sample_names,
                              std::vector<std::vector<std::string>> file_names,
                              std::vector<size_t> kmer_lengths,
@@ -190,7 +190,7 @@ DistMatrix constructAndQuery(std::string db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
-    DistMatrix dists; 
+    NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -227,7 +227,7 @@ double jaccardDist(std::string db_name,
 }
 
 // Wrapper which makes a ref to the python/numpy array
-sparse_coo sparsifyDists(const Eigen::Ref<SquareMatrix> denseDists,
+sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
                          const unsigned int num_threads) {
@@ -235,7 +235,7 @@ sparse_coo sparsifyDists(const Eigen::Ref<SquareMatrix> denseDists,
 }
 
 // Wrapper which makes a ref to the python/numpy array
-Eigen::VectorXf assignThreshold(const Eigen::Ref<DistMatrix> distMat,
+Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix> distMat,
                                  int slope,
                                  double x_max,
                                  double y_max,

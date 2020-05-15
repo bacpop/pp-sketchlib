@@ -38,6 +38,7 @@ find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+find_package(OpenMP)
 
 # Set paths for non standard lib/ and include/ locations
 if(DEFINED ENV{CONDA_PREFIX})
@@ -94,3 +95,6 @@ if(CMAKE_CUDA_COMPILER)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen 
                                                z hdf5_cpp hdf5 openblas lapack gfortran m dl)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
+endif()
