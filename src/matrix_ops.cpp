@@ -83,8 +83,8 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
                           const unsigned int num_threads) {
     if (kNN > 0 && distCutoff > 0) {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
-    } else if (kNN < 1 || distCutoff < 0) {
-        throw std::runtime_error("kNN must be >1 or distCutoff > 0");
+    } else if (kNN < 1 && distCutoff < 0) {
+        throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
     
     // ijv vectors
@@ -99,13 +99,14 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             std::vector<float> dists_private;
             std::vector<size_t> i_vec_private;
             std::vector<size_t> j_vec_private; 
-            #pragma omp for simd nowait 
-            for (size_t i = 0; i < denseDists.rows(); i++) {
+            #pragma omp for simd schedule(guided, 1) nowait 
+            // This loop is 'backwards' to try and get better scheduling
+            for (size_t i = denseDists.rows() - 1; i >= 0 ; i--) {
                 for (size_t j = i + 1; j < denseDists.cols(); j++) {
                     if (denseDists(i, j) < distCutoff) {
-                        dists.push_back(denseDists(i, j));
-                        i_vec.push_back(i);
-                        j_vec.push_back(j);
+                        dists_private.push_back(denseDists(i, j));
+                        i_vec_private.push_back(i);
+                        j_vec_private.push_back(j);
                     }
                 }
             }
@@ -122,7 +123,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             std::vector<float> dists_private;
             std::vector<size_t> i_vec_private;
             std::vector<size_t> j_vec_private; 
-            #pragma omp for simd nowait
+            #pragma omp for simd schedule(guided, 1) nowait
             for (size_t i = 0; i < denseDists.rows(); i++) {
                 long unique_neighbors = 0;
                 float prev_value = 0;
@@ -130,9 +131,9 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
                     if (j == i) {
                         continue; // Ignore diagonal which will always be one of the closest
                     } else {
-                        dists.push_back(denseDists(i, j));
-                        i_vec.push_back(i);
-                        j_vec.push_back(j);
+                        dists_private.push_back(denseDists(i, j));
+                        i_vec_private.push_back(i);
+                        j_vec_private.push_back(j);
                     }
 
                     if (unique_neighbors == 0 || denseDists(i, j) != prev_value) {
@@ -162,7 +163,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
     Eigen::VectorXf boundary_test(distMat.rows());
     
     omp_set_num_threads(num_threads);
-    #pragma omp parallel for simd
+    #pragma omp parallel for simd schedule(static)
     for (size_t row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
         if (slope == 2) {

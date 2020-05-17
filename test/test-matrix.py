@@ -67,3 +67,7 @@ assign2_res = withinBoundary(distMat, 0.5, 0.5, 2)
 check_res(assign0, assign0_res)
 check_res(assign1, assign1_res)
 check_res(assign2, assign2_res)
+
+# sparsification
+sparse1 = pp_sketchlib.sparsifyDists(square2_res, distCutoff=5, kNN=0, num_threads=2)
+sparse2 = pp_sketchlib.sparsifyDists(square2_res, distCutoff=0, kNN=2, num_threads=2)
