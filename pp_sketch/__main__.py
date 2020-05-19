@@ -271,7 +271,8 @@ def main():
 
         if args.sparse:
             sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                                args.cutoff, args.kNN, ~args.accessory, args.cpu, args.use_gpu, args.gpu_id)
+                                                         args.threshold, args.kNN, ~args.accessory, args.cpus, 
+                                                         args.use_gpu, args.gpu_id)
             if args.print:
                 if args.accessory:
                     distName = 'Accessory'
@@ -281,7 +282,7 @@ def main():
                 
                 (i_vec, j_vec, dist_vec) = sparseIdx
                 for (i, j, dist) in zip(i_vec, j_vec, dist_vec):
-                    sys.stdout.write("\t".join(rList[i], qList[j], str(dist)))
+                    sys.stdout.write("\t".join([rList[i], qList[j], str(dist)]) + "\n")
 
             else:
                 coo_matrix = ijv_to_coo(sparseIdx, (len(rList), len(qList)), np.float32)
