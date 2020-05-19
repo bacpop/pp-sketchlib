@@ -1,8 +1,27 @@
 import os, sys
+import numpy as np
 
 sys.path.insert(0, '../build/lib.linux-x86_64-3.7')
 import pp_sketchlib
-import numpy as np
+try:
+    from pp_sketch.matrix import sparsify
+except ImportError as e:
+    from scipy.sparse import coo_matrix
+    def sparsify(distMat, cutoff, kNN, threads):
+        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat, 
+                                                        distCutoff=cutoff, 
+                                                        kNN=kNN, 
+                                                        num_threads=threads)
+        sparse_scipy = coo_matrix((sparse_coordinates[2], 
+                                (sparse_coordinates[0], sparse_coordinates[1])), 
+                                shape=distMat.shape, 
+                                dtype=np.float32)
+        
+        # Mirror to fill in lower triangle
+        if cutoff > 0:
+            sparse_scipy = sparse_scipy + sparse_scipy.transpose() 
+        
+        return(sparse_scipy)
 
 # Original PopPUNK function
 def withinBoundary(dists, x_max, y_max, slope=2):
@@ -69,5 +88,28 @@ check_res(assign1, assign1_res)
 check_res(assign2, assign2_res)
 
 # sparsification
-sparse1 = pp_sketchlib.sparsifyDists(square2_res, distCutoff=5, kNN=0, num_threads=2)
-sparse2 = pp_sketchlib.sparsifyDists(square2_res, distCutoff=0, kNN=2, num_threads=2)
+sparse1 = sparsify(square2_res, cutoff=5, kNN=0, threads=2)
+
+sparse1_res = square2_res.copy()
+sparse1_res[sparse1_res >= 5] = 0
+check_res(sparse1.todense(), sparse1_res)
+
+kNN = 2
+sparse2 = sparsify(square2_res, cutoff=0, kNN=kNN, threads=2)
+
+sparse2_res = square2_res.copy()
+row_sort = np.argsort(sparse2_res, axis=1)
+for i, row in enumerate(sparse2_res):
+    neighbours = 0
+    prev_val = 0
+    for j in row_sort[i, :]:
+        if i == j or row[j] == prev_val:
+            continue
+        else:
+            prev_val = row[j]
+            if neighbours >= kNN:
+                sparse2_res[i, j] = 0
+            else:
+                neighbours += 1
+
+check_res(sparse2.todense(), sparse2_res)

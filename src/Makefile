@@ -10,7 +10,7 @@ endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
-LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack 
+LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lgomp
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -m64
 	ifdef PROFILE

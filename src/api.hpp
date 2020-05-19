@@ -17,7 +17,7 @@ using Eigen::MatrixXf;
 #include "reference.hpp"
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
-typedef std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<float>> sparse_coo;
+typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<float>> sparse_coo;
 
 // api.cpp
 std::vector<Reference> create_sketches(const std::string& db_name,

@@ -237,6 +237,7 @@ sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix>& denseDists,
                          const unsigned long int kNN,
                          const unsigned int num_threads) {
     sparse_coo coo_idx = sparsify_dists(denseDists, distCutoff, kNN, num_threads);
+    return coo_idx;
 }
 
 // Wrapper which makes a ref to the python/numpy array

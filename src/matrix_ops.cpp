@@ -89,20 +89,20 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
     
     // ijv vectors
     std::vector<float> dists;
-    std::vector<size_t> i_vec;
-    std::vector<size_t> j_vec;
+    std::vector<long> i_vec;
+    std::vector<long> j_vec;
     omp_set_num_threads(num_threads);
     if (distCutoff > 0) {
         // Only add values below a cutoff
         #pragma omp parallel
         {
             std::vector<float> dists_private;
-            std::vector<size_t> i_vec_private;
-            std::vector<size_t> j_vec_private; 
+            std::vector<long> i_vec_private;
+            std::vector<long> j_vec_private; 
             #pragma omp for simd schedule(guided, 1) nowait 
             // This loop is 'backwards' to try and get better scheduling
-            for (size_t i = denseDists.rows() - 1; i >= 0 ; i--) {
-                for (size_t j = i + 1; j < denseDists.cols(); j++) {
+            for (long i = denseDists.rows() - 1; i >= 0; i--) {
+                for (long j = i + 1; j < denseDists.cols(); j++) {
                     if (denseDists(i, j) < distCutoff) {
                         dists_private.push_back(denseDists(i, j));
                         i_vec_private.push_back(i);
@@ -115,33 +115,31 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             i_vec.insert(i_vec.end(), i_vec_private.begin(), i_vec_private.end());
             j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end());
         }
-    } else if (kNN > 1) {
+    } else if (kNN >= 1) {
         // Only add the k nearest (unique) neighbours
         // May be >k if repeats, often zeros
         #pragma omp parallel
         {
             std::vector<float> dists_private;
-            std::vector<size_t> i_vec_private;
-            std::vector<size_t> j_vec_private; 
+            std::vector<long> i_vec_private;
+            std::vector<long> j_vec_private; 
             #pragma omp for simd schedule(guided, 1) nowait
-            for (size_t i = 0; i < denseDists.rows(); i++) {
-                long unique_neighbors = 0;
+            for (long i = 0; i < denseDists.rows(); i++) {
+                unsigned long unique_neighbors = 0;
                 float prev_value = 0;
                 for (auto j : sort_indexes(denseDists.row(i))) {
                     if (j == i) {
                         continue; // Ignore diagonal which will always be one of the closest
-                    } else {
+                    } else if (unique_neighbors < kNN || denseDists(i, j) == prev_value) {
                         dists_private.push_back(denseDists(i, j));
                         i_vec_private.push_back(i);
                         j_vec_private.push_back(j);
-                    }
-
-                    if (unique_neighbors == 0 || denseDists(i, j) != prev_value) {
-                        prev_value = denseDists(i, j);
-                        // Move to the next row if k unique neighbors found
-                        if (unique_neighbors++ >= kNN) {
-                            break;
+                        if (denseDists(i, j) != prev_value) {
+                            unique_neighbors++;
+                            prev_value = denseDists(i, j);
                         }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -151,7 +149,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end()); 
         }
     }
-
+    
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
@@ -164,7 +162,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
     
     omp_set_num_threads(num_threads);
     #pragma omp parallel for simd schedule(static)
-    for (size_t row_idx = 0; row_idx < distMat.rows(); row_idx++) {
+    for (long row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
         if (slope == 2) {
             in_tri = distMat(row_idx, 0)*distMat(row_idx, 1) - \
