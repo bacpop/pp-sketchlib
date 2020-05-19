@@ -290,7 +290,7 @@ def main():
 
         else:
             distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                                args.cutoff, args.cpus, args.use_gpu, args.gpu_id)
+                                                args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
             
             # get names order
             if args.print:
