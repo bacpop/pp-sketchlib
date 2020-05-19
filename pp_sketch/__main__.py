@@ -5,10 +5,13 @@
 import os, sys
 
 import numpy as np
+from scipy.sparse import save_npz
 import pickle
 import h5py
 
 import pp_sketchlib
+
+from .matrix import ijv_to_coo
 
 from .__init__ import __version__
 
@@ -60,7 +63,10 @@ def storePickle(rlist, qlist, self, X, pklName):
     """
     with open(pklName + ".pkl", 'wb') as pickle_file:
         pickle.dump([rlist, qlist, self], pickle_file)
-    np.save(pklName + ".npy", X)
+    if isinstance(X, np.ndarray):
+        np.save(pklName + ".npy", X)
+    else:
+        save_npz(pklName + ".npz", X) 
 
 def get_options():
     import argparse
@@ -92,16 +98,9 @@ def get_options():
                     help='Prefix of reference database file')
     io.add_argument('--query-db',
                     help='Prefix of query database file')
-    io.add_argument('--subset',
-                    help='List of names to include in query',
-                    default=None)
     io.add_argument('--output',
                     default='ppsketch',
                     help="Output prefix [default = 'ppsketch']")
-    io.add_argument('--print',
-                    default=False,
-                    action='store_true',
-                    help='Print results to stdout instead of file')
 
     kmerGroup = parser.add_argument_group('Kmer comparison options')
     kmerGroup.add_argument('--read-k', default = False, action='store_true',
@@ -119,6 +118,32 @@ def get_options():
                             help='Use an exact rather than approximate k-mer counter '
                                   'when using reads as input (increases memory use) '
                                   '[default = False]')
+
+    query = parser.add_argument_group('Query options')
+    query.add_argument('--subset',
+                        help='List of names to include in query',
+                        default=None)
+    query.add_argument('--print',
+                        default=False,
+                        action='store_true',
+                        help='Print results to stdout instead of file')
+    query.add_argument('--sparse',
+                        default=False,
+                        action='store_true',
+                        help='Output query results in ijv sparse format')
+    query.add_argument('--kNN',
+                        help='Nearest neighbours to sparsify to',
+                        type=float,
+                        default=0)
+    query.add_argument('--threshold',
+                        help='Distance threshold to sparsify with',
+                        type=float,
+                        default=0)
+    query.add_argument('--accessory',
+                        help='Use accessory distances for sparsification '
+                             '[default = use core]',
+                        action='store_true',
+                        default=False)
 
     optimisation = parser.add_argument_group('Optimisation options')
     optimisation.add_argument('--cpus',
@@ -244,22 +269,41 @@ def main():
             elif (len(query_kmers) < len(query_kmers)):
                 sys.stderr.write("Some requested k-mer lengths not found in DB\n")
 
-        distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                             args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
-        
-        # get names order
-        if args.print:
-            names = iterDistRows(rList, qList, rList == qList)
-            if not args.jaccard:
-                sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
-                for i, (ref, query) in enumerate(names):
-                    sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+        if args.sparse:
+            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers, 
+                                                args.cutoff, args.kNN, ~args.accessory, args.cpu, args.use_gpu, args.gpu_id)
+            if args.print:
+                if args.accessory:
+                    distName = 'Accessory'
+                else:
+                    distName = 'Core'
+                sys.stdout.write("\t".join(['Query', 'Reference', distName]) + "\n")
+                
+                (i_vec, j_vec, dist_vec) = sparseIdx
+                for (i, j, dist) in zip(i_vec, j_vec, dist_vec):
+                    sys.stdout.write("\t".join(rList[i], qList[j], str(dist)))
+
             else:
-                sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in query_kmers]) + "\n")
-                for i, (ref, query) in enumerate(names):
-                    sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
+                coo_matrix = ijv_to_coo(sparseIdx, (len(rList), len(qList)), np.float32)
+                storePickle(rList, qList, rList == qList, coo_matrix, args.output) 
+
         else:
-            storePickle(rList, qList, rList == qList, distMat, args.output)
+            distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
+                                                args.cutoff, args.cpus, args.use_gpu, args.gpu_id)
+            
+            # get names order
+            if args.print:
+                names = iterDistRows(rList, qList, rList == qList)
+                if not args.jaccard:
+                    sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
+                    for i, (ref, query) in enumerate(names):
+                        sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
+                else:
+                    sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in query_kmers]) + "\n")
+                    for i, (ref, query) in enumerate(names):
+                        sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
+            else:
+                storePickle(rList, qList, rList == qList, distMat, args.output)
 
     sys.exit(0)
 

@@ -1,7 +1,6 @@
 import os, sys
 import numpy as np
 
-sys.path.insert(0, '../build/lib.linux-x86_64-3.7')
 import pp_sketchlib
 try:
     from pp_sketch.matrix import sparsify
