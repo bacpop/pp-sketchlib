@@ -30,10 +30,6 @@
 const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
 
-// mallocManaged for limited device memory
-template<class T>
-using managed_device_vector = thrust::device_vector<T, managed_allocator<T>>;
-
 // Structure of flattened vectors
 struct SketchStrides
 {
@@ -191,8 +187,7 @@ void calculate_query_dists(const uint64_t * ref,
 					 const float * random_match_ref,
 					 const float * random_match_query,
 					 const SketchStrides ref_strides,
-					 const SketchStrides query_strides)
-{
+					 const SketchStrides query_strides) {
 	// Calculate indices for query, ref and results
 	long blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
 	long query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
@@ -507,7 +502,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	// std::chrono::steady_clock::time_point a = std::chrono::steady_clock::now();
 	SketchStrides query_strides = ref_strides;
 	uint64_t *d_ref_array = nullptr, *d_query_array = nullptr;
-	managed_device_vector<uint64_t> d_managed_ref_sketches;
 	thrust::device_vector<uint64_t> d_ref_sketches, d_query_sketches;
 
 	// Set up reference sketches, flatten and copy to device
@@ -517,12 +511,11 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		// Try managedMalloc, if device memory likely to be exceeded
 		if (self)
 		{
-			d_managed_ref_sketches = flat_ref;	
-			d_ref_array = thrust::raw_pointer_cast( &d_managed_ref_sketches[0] );
+			// TODO chunk
 		}
 		else
 		{
-			throw std::runtime_error("Using greater than device memory is unsupport for query mode. "
+			throw std::runtime_error("Using greater than device memory is unsupported for query mode. "
 				 					 "Split your input into smaller chunks");	
 		}
 	}
@@ -625,12 +618,9 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	
 	// copy results from device back to host
 	std::vector<float> dist_results(dist_mat.size());
-	try
-	{
+	try {
 		thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
-	}
-	catch (thrust::system_error &e)
-	{
+	} catch (thrust::system_error &e) {
 		// output a non-threatening but likely inaccurate error message and exit
 		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
 		// error will have occurred elsewhere as launch is async, but better to catch 
