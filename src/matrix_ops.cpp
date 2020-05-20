@@ -325,9 +325,13 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
     if (squareDists.rows() != squareDists.cols()) {
         throw std::runtime_error("square_to_long input must be a square matrix");
     }
+    
     long n = squareDists.rows(); 
-
     Eigen::VectorXf longDists((n * (n - 1)) >> 1);
+    
+    // Each inner loop increases in size linearly with outer index
+    // due to reverse direction
+    // guided schedules inversely proportional to outer index
     #pragma omp parallel for simd schedule(guided, 1)
     for (long i = n - 1; i >= 0; i--) {
         for (long j = i + 1; j < n; j++) {

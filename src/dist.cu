@@ -13,6 +13,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <vector>
+#include <tuple>
 #include <algorithm>
 #include <iomanip>
 #include <chrono>
@@ -29,6 +30,17 @@
 
 const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
+const float mem_epsilon = 0.05;
+
+struct DeviceMemory
+{
+	thrust::device_vector<uint64_t> ref_sketches;	
+	thrust::device_vector<uint64_t> query_sketches;	
+	thrust::device_vector<float> ref_random;	
+	thrust::device_vector<float> query_random;	
+	thrust::device_vector<int> kmers;	
+	thrust::device_vector<float> dist_mat;	
+}
 
 // Structure of flattened vectors
 struct SketchStrides
@@ -254,7 +266,7 @@ void calculate_query_dists(const uint64_t * ref,
 								 kmer_n);
 
 		// Progress indicator
-		// The >> 10 is a divide by 1024 - update roughly every 0.1
+		// The >> 10 is a divide by 1024 - update roughly every 0.1%
 		if (dist_idx % (dist_n >> 10) == 0) 
 		{
 			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
@@ -421,6 +433,38 @@ thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches,
 	return random_sample_strided;
 }
 
+DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
+					  SketchStrides& query_strides,
+					  const std::vector<Reference>& ref_sketches,
+					  const std::vector<Reference>& query_sketches,
+					  const bool self) {
+	DeviceMemory loaded;
+
+	// Set up reference sketches, flatten and copy to device
+	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
+	loaded.ref_sketches = flat_ref;
+
+	// If ref v query mode, also flatten query vector and copy to device
+	if (!self)
+	{
+		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
+		loaded.query_sketches = flat_query;
+	}
+
+	// Preload random match chances
+	loaded.ref_random = preloadRandom(ref_sketches, kmer_lengths);
+	if (!self) {
+		thrust::host_vector<float> query_random = preloadRandom(query_sketches, kmer_lengths);
+		loaded.query_random = query_random;
+	}
+
+	// Copy other arrays needed on device (kmers and distance output)
+	loaded.kmers = kmer_lengths;
+	loaded.dist_mat.resize(dist_rows*2, 0);
+
+	return(loaded);
+}
+
 // Checks bbits, sketchsize and k-mer lengths are identical in
 // all sketches
 // throws runtime_error if mismatches (should be ensured in passing
@@ -470,10 +514,12 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	size_t sketchsize64 = ref_sketches[0].sketchsize64();
 	checkSketchParamsMatch(ref_sketches, kmer_lengths, bbits, sketchsize64);
 	
-	// Set up memory on device
+	// Set up sketch information and sizes
 	SketchStrides ref_strides;
 	ref_strides.bbits = bbits;
 	ref_strides.sketchsize64 = sketchsize64;
+	SketchStrides query_strides = ref_strides;
+
 	long long dist_rows; long n_samples = 0;
 	if (ref_sketches == query_sketches)
     {
@@ -498,59 +544,10 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
 	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
 
-	// Data structures for host and device
-	// std::chrono::steady_clock::time_point a = std::chrono::steady_clock::now();
-	SketchStrides query_strides = ref_strides;
-	uint64_t *d_ref_array = nullptr, *d_query_array = nullptr;
-	thrust::device_vector<uint64_t> d_ref_sketches, d_query_sketches;
-
-	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
-	if (est_size > mem_free * 0.9)
-	{
-		// Try managedMalloc, if device memory likely to be exceeded
-		if (self)
-		{
-			// TODO chunk
-		}
-		else
-		{
-			throw std::runtime_error("Using greater than device memory is unsupported for query mode. "
-				 					 "Split your input into smaller chunks");	
-		}
+	if (est_size > mem_free * (1 - mem_epsilon) && !self) {
+		throw std::runtime_error("Using greater than device memory is unsupported for query mode. "
+							     "Split your input into smaller chunks");	
 	}
-	else
-	{
-		d_ref_sketches = flat_ref;
-		d_ref_array = thrust::raw_pointer_cast( &d_ref_sketches[0] );	
-	}
-
-	// If ref v query mode, also flatten query vector and copy to device
-	if (!self)
-	{
-		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
-		d_query_sketches = flat_query;
-		d_query_array = thrust::raw_pointer_cast( &d_query_sketches[0] ); 
-	}
-
-	// Preload random match chances
-	thrust::device_vector<float> d_ref_random = preloadRandom(ref_sketches, kmer_lengths);
-	float* d_ref_random_array = thrust::raw_pointer_cast( &d_ref_random[0] );
-	thrust::device_vector<float> d_query_random; float *d_query_random_array = nullptr;
-	if (!self) {
-		thrust::host_vector<float> query_random = preloadRandom(query_sketches, kmer_lengths);
-		d_query_random = query_random;
-		d_query_random_array = thrust::raw_pointer_cast( &d_query_random[0] );
-	}
-
-	// Copy other arrays needed on device (kmers and distance output)
-	thrust::device_vector<int> d_kmers = kmer_lengths;
-	int* d_kmers_array = thrust::raw_pointer_cast( &d_kmers[0] );
-	thrust::device_vector<float> dist_mat(dist_rows*2, 0);
-	float* d_dist_array = thrust::raw_pointer_cast( &dist_mat[0] );
-
-	// cudaDeviceSynchronize();
-	// std::chrono::steady_clock::time_point b = std::chrono::steady_clock::now();
 
 	// Ready to run dists on device
 
@@ -558,9 +555,16 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	// Upper dist memory access is hard to predict, so try and cache as much
 	// as possible
 	// Query uses on-chip cache (__shared__) to store query sketch
+	// std::chrono::steady_clock::time_point b;
+	DeviceMemory device_arrays
 	if (self)
 	{
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+		//TODO
+		int chunks = 1;
+		if (est_size > mem_free * (1 - mem_epsilon)) {
+			continue; // TODO
+		}
 		
 		// Empirically a blockSize of 32 or 256 seemed best
 		int blockCount = (dist_rows + selfBlockSize - 1) / selfBlockSize;
@@ -584,6 +588,16 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		// but this option didn't make much difference in practice
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
 
+		device_arrays = loadDeviceMemory(
+			ref_strides,
+			query_strides,
+			ref_sketches,
+			query_sketches,
+			self);
+			
+		// cudaDeviceSynchronize();	
+		// b = std::chrono::steady_clock::now()
+		
 		// Each block processes a single query. As max size is 512 threads
 		// per block, may need multiple blocks (non-exact multiples lead
 		// to some wasted computation in threads)
@@ -598,39 +612,41 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 		calculate_query_dists<<<blockCount, blockSize, 
 								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
-			d_ref_array,
+			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 			ref_sketches.size(),
-			d_query_array,
+			thrust::raw_pointer_cast(&device_arrays.query_sketches[0]),
 			query_sketches.size(),
-			d_kmers_array,
+			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
 			kmer_lengths.size(),
-			d_dist_array,
+			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
 			dist_rows,
-			d_ref_random_array,
-			d_query_random_array,
+			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
 			query_strides
 		);
 	}
-				
 	// cudaDeviceSynchronize();
 	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
-	
-	// copy results from device back to host
-	std::vector<float> dist_results(dist_mat.size());
-	try {
-		thrust::copy(dist_mat.begin(), dist_mat.end(), dist_results.begin());
-	} catch (thrust::system_error &e) {
-		// output a non-threatening but likely inaccurate error message and exit
-		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
-		// error will have occurred elsewhere as launch is async, but better to catch 
-		// and deal with it here
-		std::cerr << "Error getting result: " << std::endl;
-		std::cerr << e.what() << std::endl;
-		exit(1);
-	}
 	printf("%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
+	
+	// copy results from device back to host
+	if (self) {
+		//TODO
+	} else {
+		try {
+			thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
+		} catch (thrust::system_error &e) {
+			// output a non-threatening but likely inaccurate error message and exit
+			// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
+			// error will have occurred elsewhere as launch is async, but better to catch 
+			// and deal with it here
+			std::cerr << "Error getting result: " << std::endl;
+			std::cerr << e.what() << std::endl;
+			exit(1);
+		}
+	}
 
 	/* Code used to time in development:
 	// Report timings of each step
