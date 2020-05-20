@@ -270,19 +270,12 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 NumpyMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-    const int device_id)
+    const int device_id,
+    const unsigned int num_cpu_threads)
 {
-    // Calculate dists on GPU, which is returned as a flattened array
-    // CUDA code now returns column major data (i.e. all core dists, then all accessory dists)
-    // to try and coalesce writes.
-    // NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
-    std::vector<float> dist_vec = query_db_cuda(ref_sketches, query_sketches, 
-                                                kmer_lengths, device_id);
-    
-    // Map this memory into an eigen matrix
-    NumpyMatrix dists_ret = \
-		Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
-
+    // Calculate dists on GPU
+    NumpyMatrix dists_ret = query_db_cuda(ref_sketches, query_sketches, 
+                                          kmer_lengths, device_id, num_cpu_threads);
     return dists_ret;
 }
 #endif

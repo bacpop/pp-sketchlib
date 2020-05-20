@@ -46,7 +46,7 @@ struct SketchSlice {
 	size_t ref_size;
 	size_t query_offset;
 	size_t query_size;
-}
+};
 
 // Structure of flattened vectors
 struct SketchStrides {
@@ -631,10 +631,11 @@ void dispatchDists(DeviceMemory& device_arrays,
 // Copies flattened sketches to device
 // Runs kernel function across distance elements
 // Copies and returns results
-std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
+NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-    const int device_id)
+	const int device_id,
+	const unsigned int num_cpu_threads)
 {
 	std::cerr << "Calculating distances on GPU device " << device_id << std::endl;
 	
@@ -685,16 +686,24 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 
 	// Ready to run dists on device
 	DeviceMemory device_arrays
+	std::vector<float> dist_results(dist_rows * 2);
+	NumpyMatrix dists_ret_matrix(dist_rows, 2);
+	NumpyMatrix coreSquare, accessorySquare; 
 	if (self)
 	{
 		// To prevent memory being exceeded, total distance matrix is split up into
 		// chunks which do fit in memory. These are iterated over in the same order
 		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
-		NumpyMatrix distSquare(n_samples);
-		int chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
+		unsigned int chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
 		size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
+
+		// Only allocate these square matrices if they are needed
+		if (chunks > 1) {
+			coreSquare.resize(n_samples, n_samples);
+			accessorySquare.resize(n_samples, n_samples);
+		}
 
 		SketchSlice sketch_subsample;
 		sketch_subsample.ref_offset = 0; 
@@ -704,6 +713,7 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 				sketch_subsample.ref_size++;
 			}
 			
+			sketch_subsample.query_offset = sketch_subsample.ref_size; 
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
 
 				sketch_subsample.query_size = calc_per_chunk;
@@ -720,9 +730,6 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 						query_strides,
 						sketch_subsample,
 						true);
-					
-					// TODO: read dists out
-					
 				} else {
 					// 'query' block
 					dispatchDists(device_arrays,
@@ -732,10 +739,48 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 						query_strides,
 						sketch_subsample,
 						false);
-
-				    // TODO: read dists out
 				}
 				sketch_subsample.query_offset += sketch_subsample.query_size; 
+
+				// Read intermediate dists out
+				if (chunks > 1) {
+					try {
+						// Copy results from device into Nx2 matrix
+						thrust::host_vector<float> block_results;
+						thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), block_results.begin());
+						NumpyMatrix blockMat = \
+							Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(block_results.data(),block_results.size()/2,2);
+						
+						// Convert each long form column of Nx2 matrix into square distance matrix
+						// Add this square matrix into the correct submatrix (block) of the final square matrix
+						Eigen::VectorXf dummy_query_ref;
+						Eigen::VectorXf dummy_query_query;
+						NumpyMatrix long_form = long_to_square(blockMat.col(0), 
+																dummy_query_ref, 
+																dummy_query_query,
+																num_cpu_threads);
+						coreSquare.block(sketch_subsample.ref_offset, 
+										 sketch_subsample.query_offset,
+										 sketch_subsample.ref_size, 
+										 sketch_subsample.query_size) = long_form; 
+
+						NumpyMatrix long_form = long_to_square(blockMat.col(1), 
+																dummy_query_ref, 
+																dummy_query_query,
+																num_cpu_threads);
+						accessorySquare.block(sketch_subsample.ref_offset, 
+											sketch_subsample.query_offset,
+											sketch_subsample.ref_size, 
+											sketch_subsample.query_size) = blockMat.col(0); 
+
+					} catch (thrust::system_error &e) {
+						std::cerr << "Error getting result: " << std::endl;
+						std::cerr << e.what() << std::endl;
+						exit(1);
+					}
+					
+				}
+
 			}
 			sketch_subsample.ref_offset += sketch_subsample.ref_size; 
 		}
@@ -757,11 +802,21 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::cout << std::endl << "" << std::endl;
 	
 	// copy results from device back to host
-	if (self) {
-		//TODO
+	if (self && chunks > 1) {
+		// Chunked computation yields ssquare matrix, which needs to be converted back to long
+		// form
+		Eigen::VectorXf core_dists = square_to_long(coreSquare, num_cpu_threads);
+		Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_cpu_threads);
+		dists_ret_matrix << core_dists, accessory_dists; // Join columns 
 	} else {
 		try {
+			// Single chunks just need to be moved from the device into the return vector
+			// CUDA code now returns column major data (i.e. all core dists, then all accessory dists)
+			// to try and coalesce writes.
+			// NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
 			thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
+			dists_ret_matrix = \
+				Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
 		} catch (thrust::system_error &e) {
 			// output a non-threatening but likely inaccurate error message and exit
 			// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
@@ -785,5 +840,5 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::cout << "Saving: " << save_time.count()<< "s" << std::endl;
 	*/
 
-	return dist_results;
+	return dists_ret_matrix;
 }

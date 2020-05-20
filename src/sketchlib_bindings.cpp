@@ -93,7 +93,8 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
         dists = query_db_gpu(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
-                            device_id);
+                            device_id,
+                            num_threads);
     }
     else
     {
@@ -140,7 +141,8 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
         dists = query_db_gpu(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
-                            device_id);
+                            device_id,
+                            num_threads);
     }
     else
     {
@@ -202,7 +204,8 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
         dists = query_db_gpu(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
-                             device_id);
+                             device_id,
+                             num_threads);
     }
     else
     {
