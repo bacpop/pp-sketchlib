@@ -121,7 +121,8 @@ def get_options():
 
     query = parser.add_argument_group('Query options')
     query.add_argument('--subset',
-                        help='List of names to include in query',
+                        help='List of names to include in query, default is to use '
+                             'everything in the database',
                         default=None)
     query.add_argument('--print',
                         default=False,
@@ -130,18 +131,21 @@ def get_options():
     query.add_argument('--sparse',
                         default=False,
                         action='store_true',
-                        help='Output query results in ijv sparse format')
+                        help='Output query results in ijv sparse format '
+                             '(only for use with SCE)')
     query.add_argument('--kNN',
-                        help='Nearest neighbours to sparsify to',
+                        help='With --sparse, pick this number of nearest neighbours '
+                             'to include in the output sparse distance matrix',
                         type=float,
                         default=0)
     query.add_argument('--threshold',
-                        help='Distance threshold to sparsify with',
+                        help='With --sparse, pick distances under this value '
+                             'to include in the output sparse distance matrix',
                         type=float,
                         default=0)
     query.add_argument('--accessory',
-                        help='Use accessory distances for sparsification '
-                             '[default = use core]',
+                        help='With --sparse, use accessory distances instead '
+                             'of core',
                         action='store_true',
                         default=False)
 
@@ -149,15 +153,15 @@ def get_options():
     optimisation.add_argument('--cpus',
                               type=int,
                               default=1,
-                              help='Number of CPUs to use '
+                              help='Number of CPUs to use (--sketch and --query) '
                                    '[default = 1]')
     optimisation.add_argument('--use-gpu', default=False, action='store_true',
                               help='Use GPU code to calculate distances, '
-                                   'if available [default = False]')
+                                   'if available (--query only) [default = False]')
     optimisation.add_argument('--gpu-id',
                               type=int,
                               default=0,
-                              help='ID of GPU to use '
+                              help='Device ID of GPU to use '
                                    '[default = 0]')
 
     other = parser.add_argument_group('Other')
