@@ -32,19 +32,24 @@ const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
 const float mem_epsilon = 0.05;
 
-struct DeviceMemory
-{
+struct DeviceMemory {
 	thrust::device_vector<uint64_t> ref_sketches;	
 	thrust::device_vector<uint64_t> query_sketches;	
 	thrust::device_vector<float> ref_random;	
 	thrust::device_vector<float> query_random;	
 	thrust::device_vector<int> kmers;	
 	thrust::device_vector<float> dist_mat;	
+};
+
+struct SketchSlice {
+	size_t ref_offset;
+	size_t ref_size;
+	size_t query_offset;
+	size_t query_size;
 }
 
 // Structure of flattened vectors
-struct SketchStrides
-{
+struct SketchStrides {
 	size_t bin_stride;
 	size_t kmer_stride;
 	size_t sample_stride;
@@ -437,24 +442,46 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  SketchStrides& query_strides,
 					  const std::vector<Reference>& ref_sketches,
 					  const std::vector<Reference>& query_sketches,
+					  const SketchSlice& sample_slice,
+					  long long dist_rows,
 					  const bool self) {
 	DeviceMemory loaded;
 
+	// Need to (or easiest to) make temporary copies until we get
+	// std::span in C++20
+	std::vector<Reference> * ref_subsample;
+	if (sample_slice.ref_size < ref_sketches.size()) {
+		*ref_subsample = \
+			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
+								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size);
+	} else {
+		ref_subsample = &ref_sketches;
+	}
+
+	std::vector<Reference> * query_subsample;
+	if (!self && sample_slice.query_size < query_sketches.size()) {
+			*query_subsample = \
+				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
+									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size);
+	} else {
+		query_subsample = &query_sketches;
+	}
+
 	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
+	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(*ref_subsample, kmer_lengths, ref_strides);
 	loaded.ref_sketches = flat_ref;
 
 	// If ref v query mode, also flatten query vector and copy to device
 	if (!self)
 	{
-		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
+		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(*query_subsample, kmer_lengths, query_strides);
 		loaded.query_sketches = flat_query;
 	}
 
 	// Preload random match chances
-	loaded.ref_random = preloadRandom(ref_sketches, kmer_lengths);
+	loaded.ref_random = preloadRandom(*ref_subsample, kmer_lengths);
 	if (!self) {
-		thrust::host_vector<float> query_random = preloadRandom(query_sketches, kmer_lengths);
+		thrust::host_vector<float> query_random = preloadRandom(*query_subsample, kmer_lengths);
 		loaded.query_random = query_random;
 	}
 
@@ -490,6 +517,28 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 		}
 	}
 }
+
+// Get the blockSize and blockCount for CUDA call
+std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
+										const size_t query_samples) {
+	size_t blockSize, blockCount;
+	if (query_samples > 0) {
+		// Each block processes a single query. As max size is 512 threads
+		// per block, may need multiple blocks (non-exact multiples lead
+		// to some wasted computation in threads)
+		// We take the next multiple of 32 that is larger than the number of
+		// reference sketches, up to a maximum of 512
+		blockSize = std::min(512, (size_t)(32 * (ref_samples + 32 - 1) / 32));
+		size_t blocksPerQuery = (ref_samples + blockSize - 1) / blockSize;
+		blockCount = blocksPerQuery * query_samples;
+	} else {
+		// Empirically a blockSize (selfBlockSize global const) of 32 or 256 seemed best
+		blockSize = selfBlockSize;
+		blockCount = (dist_rows + blockSize - 1) / blockSize;
+	}
+	return(std::make_tuple(blockSize, blockCount));
+} 
+
 
 // Main function callable via API
 // Checks inputs
@@ -559,15 +608,30 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	DeviceMemory device_arrays
 	if (self)
 	{
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-		//TODO
-		int chunks = 1;
-		if (est_size > mem_free * (1 - mem_epsilon)) {
-			continue; // TODO
+		NumpyMatrix distSquare(n_samples);
+		int chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
+		size_t calc_per_chunk = n_samples / chunks;
+		unsigned int num_big_chunks = n_samples % chunks;
+
+		for (unsigned int chunk_i = 0; chunk_i < chunks; chunk_i++) {
+			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
+				if (i == j) {
+					// 'self' blocks
+					cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+					
+					device_arrays = loadDeviceMemory(
+						ref_strides,
+						query_strides,
+						ref_sketches,
+						query_sketches,
+						self);
+				} else {
+					// 'query' block
+				}
+			}
 		}
 		
-		// Empirically a blockSize of 32 or 256 seemed best
-		int blockCount = (dist_rows + selfBlockSize - 1) / selfBlockSize;
+
 		calculate_self_dists<<<blockCount, selfBlockSize>>>
 		(
 			d_ref_array,
@@ -582,31 +646,30 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 	else
 	{
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
-
 		// Sketch reads from __shared__ are 8 bytes/64 bit - 
 		// but this option didn't make much difference in practice
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
+
+		SketchSlice sketch_subsample;
+		sketch_subsample.ref_size = ref_sketches.size();
+		sketch_subsample.query_size = query_sketches.size();
 
 		device_arrays = loadDeviceMemory(
 			ref_strides,
 			query_strides,
 			ref_sketches,
 			query_sketches,
+			sketch_subsample,
+			dist_rows,
 			self);
 			
+		size_t blockSize, blockCount;
+		std::tie(blockSize, blockCount) = getBlockSize(ref_sketches.size(), query_sketches.size());
+		
 		// cudaDeviceSynchronize();	
 		// b = std::chrono::steady_clock::now()
-		
-		// Each block processes a single query. As max size is 512 threads
-		// per block, may need multiple blocks (non-exact multiples lead
-		// to some wasted computation in threads)
-		// We take the next multiple of 32 that is larger than the number of
-		// reference sketches, up to a maximum of 512
-		int blockSize = std::min(512, (int)(32 * (ref_sketches.size() + 32 - 1) / 32));
-		int blocksPerQuery = (ref_sketches.size() + blockSize - 1) / blockSize;
-		int blockCount = blocksPerQuery * query_sketches.size();
-		
+
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
 		calculate_query_dists<<<blockCount, blockSize, 
