@@ -118,12 +118,12 @@ double Reference::jaccard_dist(Reference &query, const int kmer_len)
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     double jaccard_obs = intersize/(double)unionsize;
     
-    double r1 = this->random_match(kmer_len);
-    double r2 = query.random_match(kmer_len);
-    double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
-    
-    double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
-    return(jaccard);
+    // double r1 = this->random_match(kmer_len);
+    // double r2 = query.random_match(kmer_len);
+    // double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+    // 
+    // double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
+    return(jaccard_obs);
 }
 
 std::tuple<float, float> Reference::core_acc_dist(Reference &query)
