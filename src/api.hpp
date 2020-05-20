@@ -57,6 +57,9 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
                             const Eigen::VectorXf& qqDists,
                             unsigned int num_threads = 1);
 
+Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists, 
+                               const unsigned int num_threads);
+
 sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
