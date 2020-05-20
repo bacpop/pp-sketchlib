@@ -1,5 +1,5 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
@@ -10,7 +10,7 @@ endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
-LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack
+LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lgomp
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -m64
 	ifdef PROFILE
@@ -35,7 +35,7 @@ PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 # python specific options
 python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.2.0\" $(shell python3 -m pybind11 --includes)
 
-PROGRAMS=sketch_test read_test
+PROGRAMS=sketch_test matrix_test read_test
 
 SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
 CUDA_OBJS=dist.cu.o
@@ -50,6 +50,9 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 sketch_test: $(SKETCH_OBJS) main.o
+	$(LINK.cpp) $^ -o $@ $(LDLIBS)
+
+matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
 read_test: $(SKETCH_OBJS) read_test.o

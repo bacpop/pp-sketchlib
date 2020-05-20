@@ -16,9 +16,10 @@ using Eigen::MatrixXf;
 
 #include "reference.hpp"
 
-typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> DistMatrix;
-typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> SquareMatrix;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
+typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<float>> sparse_coo;
 
+// api.cpp
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names, 
                    const std::vector<std::vector<std::string>>& files, 
@@ -29,14 +30,14 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const bool exact,
                    const size_t num_threads);
 
-DistMatrix query_db(std::vector<Reference>& ref_sketches,
+NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
                     const size_t num_threads);
 
 #ifdef GPU_AVAILABLE
-DistMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
+NumpyMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
     const int device_id = 0);
@@ -51,7 +52,18 @@ std::vector<Reference> load_sketches(const std::string& db_name,
                                      const bool messages = true);
 
 // matrix_ops.cpp
-SquareMatrix long_to_square(const Eigen::VectorXf& rrDists, 
+NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists, 
                             const Eigen::VectorXf& qrDists,
                             const Eigen::VectorXf& qqDists,
-                            unsigned int num_threads);
+                            unsigned int num_threads = 1);
+
+sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
+                          const float distCutoff,
+                          const unsigned long int kNN,
+                          const unsigned int num_threads = 1);
+
+Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
+                                 int slope,
+                                 float x_max,
+                                 float y_max,
+                                 unsigned int num_threads = 1);

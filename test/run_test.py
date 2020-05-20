@@ -30,6 +30,7 @@ subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db 
 sys.stderr.write("Testing distances via python\n")
 subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py", shell=True, check=True) # checks results match
+subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4 --sparse --threshold 0.01", shell=True, check=True) # checks if can be run
 # Joining
 sys.stderr.write("Testing join via python\n")
 subprocess.run("poppunk_sketch --sketch --rfile db1_refs.txt --ref-db db1 --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
