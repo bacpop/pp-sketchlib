@@ -539,6 +539,91 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 	return(std::make_tuple(blockSize, blockCount));
 } 
 
+// Run the distance calculations, reading/writing into device_arrays
+// Cache preferences:
+// Upper dist memory access is hard to predict, so try and cache as much
+// as possible
+// Query uses on-chip cache (__shared__) to store query sketch
+// std::chrono::steady_clock::time_point b;
+void dispatchDists(DeviceMemory& device_arrays,
+				   const std::vector<Reference>& ref_sketches,
+				   const std::vector<Reference>& query_sketches,
+				   SketchStrides& ref_strides,
+				   SketchStrides& query_strides,
+				   const SketchSlice& sketch_subsample,
+				   const bool self) {
+	if (self) {
+		// square 'self' block
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+		
+		long long chunk_dist_rows = static_cast<long long>(
+										0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
+		device_arrays = loadDeviceMemory(
+			ref_strides,
+			query_strides,
+			ref_sketches,
+			query_sketches,
+			sketch_subsample,
+			chunk_dist_rows,
+			true);
+
+		// cudaDeviceSynchronize();	
+		// b = std::chrono::steady_clock::now()
+
+		size_t blockSize, blockCount;
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, sketch_subsample.ref_size);
+		calculate_self_dists<<<blockCount, selfBlockSize>>>
+			(
+				thrust::raw_pointer_cast(&device_arrays.ref_array[0]),
+				sketch_subsample.ref_size,
+				thrust::raw_pointer_cast(&device_arrays.kmers_array[0]),
+				kmer_lengths.size(),
+				thrust::raw_pointer_cast(&device_arrays.dist_array[0]),
+				chunk_dist_rows,
+				thrust::raw_pointer_cast(&device_arrays.ref_random_array[0]),
+				ref_strides
+			);
+	} else {
+		// 'query' block
+		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
+
+		long long chunk_dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
+		device_arrays = loadDeviceMemory(
+			ref_strides,
+			query_strides,
+			ref_sketches,
+			query_sketches,
+			sketch_subsample,
+			dist_rows,
+			false);
+			
+		size_t blockSize, blockCount;
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size);
+		
+		// cudaDeviceSynchronize();	
+		// b = std::chrono::steady_clock::now()
+
+		// Third argument is the size of __shared__ memory needed by a thread block
+		// This is equal to the query sketch size in bytes (at a single k-mer length)
+		calculate_query_dists<<<blockCount, blockSize, 
+								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+		(
+			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
+			ref_sketches.size(),
+			thrust::raw_pointer_cast(&device_arrays.query_sketches[0]),
+			query_sketches.size(),
+			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
+			kmer_lengths.size(),
+			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
+			dist_rows,
+			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
+			ref_strides,
+			query_strides
+		);
+	}
+}
 
 // Main function callable via API
 // Checks inputs
@@ -599,95 +684,72 @@ std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 
 	// Ready to run dists on device
-
-	// Cache preferences:
-	// Upper dist memory access is hard to predict, so try and cache as much
-	// as possible
-	// Query uses on-chip cache (__shared__) to store query sketch
-	// std::chrono::steady_clock::time_point b;
 	DeviceMemory device_arrays
 	if (self)
 	{
+		// To prevent memory being exceeded, total distance matrix is split up into
+		// chunks which do fit in memory. These are iterated over in the same order
+		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
+		// as they contain only lower triangle values, i > j work as query vs ref
 		NumpyMatrix distSquare(n_samples);
 		int chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
 		size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
+		SketchSlice sketch_subsample;
+		sketch_subsample.ref_offset = 0; 
 		for (unsigned int chunk_i = 0; chunk_i < chunks; chunk_i++) {
+			sketch_subsample.ref_size = calc_per_chunk;
+			if (chunk_i < num_big_chunks) {
+				sketch_subsample.ref_size++;
+			}
+			
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
+
+				sketch_subsample.query_size = calc_per_chunk;
+				if (chunk_j < num_big_chunks) {
+					sketch_subsample.query_size++;
+				}
+				
 				if (i == j) {
 					// 'self' blocks
-					cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-					
-					device_arrays = loadDeviceMemory(
+					dispatchDists(device_arrays,
+						ref_sketches,
+						ref_sketches,
 						ref_strides,
 						query_strides,
-						ref_sketches,
-						query_sketches,
-						self);
+						sketch_subsample,
+						true);
+					
+					// TODO: read dists out
+					
 				} else {
 					// 'query' block
-				}
-			}
-		}
-		
+					dispatchDists(device_arrays,
+						ref_sketches,
+						query_sketches,
+						ref_strides,
+						query_strides,
+						sketch_subsample,
+						false);
 
-		calculate_self_dists<<<blockCount, selfBlockSize>>>
-		(
-			d_ref_array,
-			ref_sketches.size(),
-			d_kmers_array,
-			kmer_lengths.size(),
-			d_dist_array,
-			dist_rows,
-			d_ref_random_array,
-			ref_strides
-		);
+				    // TODO: read dists out
+				}
+				sketch_subsample.query_offset += sketch_subsample.query_size; 
+			}
+			sketch_subsample.ref_offset += sketch_subsample.ref_size; 
+		}
+
 	}
 	else
 	{
-		// Sketch reads from __shared__ are 8 bytes/64 bit - 
-		// but this option didn't make much difference in practice
-		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
-
-		SketchSlice sketch_subsample;
-		sketch_subsample.ref_size = ref_sketches.size();
-		sketch_subsample.query_size = query_sketches.size();
-
-		device_arrays = loadDeviceMemory(
-			ref_strides,
-			query_strides,
+		dispatchDists(device_arrays,
 			ref_sketches,
 			query_sketches,
-			sketch_subsample,
-			dist_rows,
-			self);
-			
-		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(ref_sketches.size(), query_sketches.size());
-		
-		// cudaDeviceSynchronize();	
-		// b = std::chrono::steady_clock::now()
-
-		// Third argument is the size of __shared__ memory needed by a thread block
-		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_query_dists<<<blockCount, blockSize, 
-								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
-		(
-			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
-			ref_sketches.size(),
-			thrust::raw_pointer_cast(&device_arrays.query_sketches[0]),
-			query_sketches.size(),
-			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
-			kmer_lengths.size(),
-			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-			dist_rows,
-			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
-			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
-			query_strides
-		);
+			query_strides,
+			sketch_subsample,
+			false);	
 	}
 	// cudaDeviceSynchronize();
 	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
