@@ -36,6 +36,11 @@ inline size_t rows_to_samples(const T& longMat) {
     return 0.5*(1 + sqrt(1 + 8*(longMat.rows())));
 }
 
+template<class T>
+inline T samples_to_rows(const T samples) {
+    return ((samples * (samples - 1)) >> 1);
+}
+
 // These are inlined partially to avoid conflicting with the cuda
 // versions which have the same prototype
 inline long calc_row_idx(const long long k, const long n) {
@@ -347,7 +352,7 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
 void longToSquareBlock(NumpyMatrix& coreSquare,
                        NumpyMatrix& accessorySquare,
                        const SketchSlice& sketch_subsample,
-                       const std::vector<float>& block_results,
+                       std::vector<float>& block_results,
                        const unsigned int num_threads) {
     NumpyMatrix blockMat = \
         Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(block_results.data(),block_results.size()/2,2);
@@ -378,11 +383,11 @@ void longToSquareBlock(NumpyMatrix& coreSquare,
 NumpyMatrix twoColumnSquareToLong(const NumpyMatrix& coreSquare,
                        const NumpyMatrix& accessorySquare,
                        const unsigned int num_threads) {
-        Eigen::VectorXf core_dists = square_to_long(coreSquare, num_cpu_threads);
-		Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_cpu_threads);
-		
-        NumpyMatrix dists_ret_matrix(dist_rows, 2)
-        dists_ret_matrix << core_dists, accessory_dists; // Join columns 
-        return(dists_ret_matrix);
+    Eigen::VectorXf core_dists = square_to_long(coreSquare, num_threads);
+    Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_threads);
+    
+    NumpyMatrix dists_ret_matrix(samples_to_rows(coreSquare.rows()), 2);
+    dists_ret_matrix << core_dists, accessory_dists; // Join columns 
+    return(dists_ret_matrix);
 }
 #endif

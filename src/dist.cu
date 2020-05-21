@@ -757,7 +757,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 				if (chunks > 1) {
 					try {
 						// Copy results from device into Nx2 matrix
-						thrust::host_vector<float> block_results;
+						std::vector<float> block_results;
 						thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), block_results.begin());
 						NumpyMatrix blockMat = \
 							Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(block_results.data(),block_results.size()/2,2);

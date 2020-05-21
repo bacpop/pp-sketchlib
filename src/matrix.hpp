@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <string>
 
-#define EIGEN_NO_CUDA
 #include <Eigen/Dense>
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
