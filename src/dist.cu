@@ -443,28 +443,29 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  const std::vector<Reference>& ref_sketches,
 					  const std::vector<Reference>& query_sketches,
 					  const SketchSlice& sample_slice,
+					  const std::vector<size_t>& kmer_lengths,
 					  long long dist_rows,
 					  const bool self) {
 	DeviceMemory loaded;
 
 	// Need to (or easiest to) make temporary copies until we get
 	// std::span in C++20
-	std::vector<Reference> * ref_subsample;
+	std::unique_ptr<std::vector<Reference>> ref_subsample;
 	if (sample_slice.ref_size < ref_sketches.size()) {
-		*ref_subsample = \
+		ref_subsample.reset(new \
 			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
-								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size);
+								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size));
 	} else {
-		ref_subsample = &ref_sketches;
+		ref_subsample.reset(&ref_sketches);
 	}
 
-	std::vector<Reference> * query_subsample;
+	std::unique_ptr<std::vector<Reference>> query_subsample;
 	if (!self && sample_slice.query_size < query_sketches.size()) {
-			*query_subsample = \
+			query_subsample.reset(new \
 				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
-									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size);
+									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
 	} else {
-		query_subsample = &query_sketches;
+		query_subsample.reset(&query_sketches);
 	}
 
 	// Set up reference sketches, flatten and copy to device
@@ -520,7 +521,8 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 
 // Get the blockSize and blockCount for CUDA call
 std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
-										const size_t query_samples) {
+										const size_t query_samples,
+									    const size_t dist_rows) {
 	size_t blockSize, blockCount;
 	if (query_samples > 0) {
 		// Each block processes a single query. As max size is 512 threads
@@ -528,7 +530,7 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 		// to some wasted computation in threads)
 		// We take the next multiple of 32 that is larger than the number of
 		// reference sketches, up to a maximum of 512
-		blockSize = std::min(512, (size_t)(32 * (ref_samples + 32 - 1) / 32));
+		blockSize = std::min(512, (int)(32 * (ref_samples + 32 - 1) / 32));
 		size_t blocksPerQuery = (ref_samples + blockSize - 1) / blockSize;
 		blockCount = blocksPerQuery * query_samples;
 	} else {
@@ -551,6 +553,7 @@ void dispatchDists(DeviceMemory& device_arrays,
 				   SketchStrides& ref_strides,
 				   SketchStrides& query_strides,
 				   const SketchSlice& sketch_subsample,
+				   const std::vector<size_t>& kmer_lengths,
 				   const bool self) {
 	if (self) {
 		// square 'self' block
@@ -564,6 +567,7 @@ void dispatchDists(DeviceMemory& device_arrays,
 			ref_sketches,
 			query_sketches,
 			sketch_subsample,
+			kmer_lengths,
 			chunk_dist_rows,
 			true);
 
@@ -571,16 +575,18 @@ void dispatchDists(DeviceMemory& device_arrays,
 		// b = std::chrono::steady_clock::now()
 
 		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, sketch_subsample.ref_size);
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
+													   sketch_subsample.ref_size,
+													   chunk_dist_rows);
 		calculate_self_dists<<<blockCount, selfBlockSize>>>
 			(
-				thrust::raw_pointer_cast(&device_arrays.ref_array[0]),
+				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 				sketch_subsample.ref_size,
-				thrust::raw_pointer_cast(&device_arrays.kmers_array[0]),
+				thrust::raw_pointer_cast(&device_arrays.kmers[0]),
 				kmer_lengths.size(),
-				thrust::raw_pointer_cast(&device_arrays.dist_array[0]),
+				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
 				chunk_dist_rows,
-				thrust::raw_pointer_cast(&device_arrays.ref_random_array[0]),
+				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 				ref_strides
 			);
 	} else {
@@ -595,11 +601,14 @@ void dispatchDists(DeviceMemory& device_arrays,
 			ref_sketches,
 			query_sketches,
 			sketch_subsample,
-			dist_rows,
+			kmer_lengths,
+			chunk_dist_rows,
 			false);
 			
 		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size);
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
+													   sketch_subsample.query_size,
+													   chunk_dist_rows);
 		
 		// cudaDeviceSynchronize();	
 		// b = std::chrono::steady_clock::now()
@@ -616,7 +625,7 @@ void dispatchDists(DeviceMemory& device_arrays,
 			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
 			kmer_lengths.size(),
 			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-			dist_rows,
+			chunk_dist_rows,
 			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
@@ -687,7 +696,9 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 
 	// Ready to run dists on device
-	DeviceMemory device_arrays
+	DeviceMemory device_arrays;
+	SketchSlice sketch_subsample;
+	unsigned int chunks = 1;
 	std::vector<float> dist_results(dist_rows * 2);
 	NumpyMatrix dists_ret_matrix(dist_rows, 2);
 	NumpyMatrix coreSquare, accessorySquare; 
@@ -697,7 +708,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		// chunks which do fit in memory. These are iterated over in the same order
 		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
-		unsigned int chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
+		chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
 		size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
@@ -709,7 +720,6 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		unsigned int total_chunks = (chunks * (chunks + 1)) >> 1;
 		unsigned int chunk_count = 0;
 
-		SketchSlice sketch_subsample;
 		sketch_subsample.ref_offset = 0; 
 		for (unsigned int chunk_i = 0; chunk_i < chunks; chunk_i++) {
 			sketch_subsample.ref_size = calc_per_chunk;
@@ -725,7 +735,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 					sketch_subsample.query_size++;
 				}
 				
-				if (i == j) {
+				if (chunk_i == chunk_j) {
 					// 'self' blocks
 					dispatchDists(device_arrays,
 						ref_sketches,
@@ -733,6 +743,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						ref_strides,
 						query_strides,
 						sketch_subsample,
+						kmer_lengths,
 						true);
 				} else {
 					// 'query' block
@@ -742,6 +753,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						ref_strides,
 						query_strides,
 						sketch_subsample,
+						kmer_lengths,
 						false);
 				}
 				sketch_subsample.query_offset += sketch_subsample.query_size; 
@@ -768,10 +780,10 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 										 sketch_subsample.ref_size, 
 										 sketch_subsample.query_size) = long_form; 
 
-						NumpyMatrix long_form = long_to_square(blockMat.col(1), 
-																dummy_query_ref, 
-																dummy_query_query,
-																num_cpu_threads);
+						long_form = long_to_square(blockMat.col(1), 
+													dummy_query_ref, 
+													dummy_query_query,
+													num_cpu_threads);
 						accessorySquare.block(sketch_subsample.ref_offset, 
 											sketch_subsample.query_offset,
 											sketch_subsample.ref_size, 
@@ -792,12 +804,15 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 	else
 	{
+		sketch_subsample.ref_size = ref_sketches.size();
+		sketch_subsample.query_size = query_sketches.size();
 		dispatchDists(device_arrays,
 			ref_sketches,
 			query_sketches,
 			ref_strides,
 			query_strides,
 			sketch_subsample,
+			kmer_lengths,
 			false);	
 	}
 	// cudaDeviceSynchronize();
@@ -818,7 +833,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 			// NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
 			thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
 			dists_ret_matrix = \
-				Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_vec.data(),dist_vec.size()/2,2);
+				Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_results.data(),dist_results.size()/2,2);
 		} catch (thrust::system_error &e) {
 			// output a non-threatening but likely inaccurate error message and exit
 			// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
