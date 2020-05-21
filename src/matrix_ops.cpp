@@ -341,3 +341,48 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
 
     return(longDists);
 }
+
+// Used by the code in dist.cu
+#ifdef GPU_AVAILABLE
+void longToSquareBlock(NumpyMatrix& coreSquare,
+                       NumpyMatrix& accessorySquare,
+                       const SketchSlice& sketch_subsample,
+                       const std::vector<float>& block_results,
+                       const unsigned int num_threads) {
+    NumpyMatrix blockMat = \
+        Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(block_results.data(),block_results.size()/2,2);
+    
+    // Convert each long form column of Nx2 matrix into square distance matrix
+    // Add this square matrix into the correct submatrix (block) of the final square matrix
+    Eigen::VectorXf dummy_query_ref;
+    Eigen::VectorXf dummy_query_query;
+    NumpyMatrix long_form = long_to_square(blockMat.col(0), 
+                                            dummy_query_ref, 
+                                            dummy_query_query,
+                                            num_threads);
+    coreSquare.block(sketch_subsample.ref_offset, 
+                        sketch_subsample.query_offset,
+                        sketch_subsample.ref_size, 
+                        sketch_subsample.query_size) = long_form; 
+
+    long_form = long_to_square(blockMat.col(1), 
+                                dummy_query_ref, 
+                                dummy_query_query,
+                                num_threads);
+    accessorySquare.block(sketch_subsample.ref_offset, 
+                        sketch_subsample.query_offset,
+                        sketch_subsample.ref_size, 
+                        sketch_subsample.query_size) = blockMat.col(0); 
+}
+
+NumpyMatrix twoColumnSquareToLong(const NumpyMatrix& coreSquare,
+                       const NumpyMatrix& accessorySquare,
+                       const unsigned int num_threads) {
+        Eigen::VectorXf core_dists = square_to_long(coreSquare, num_cpu_threads);
+		Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_cpu_threads);
+		
+        NumpyMatrix dists_ret_matrix(dist_rows, 2)
+        dists_ret_matrix << core_dists, accessory_dists; // Join columns 
+        return(dists_ret_matrix);
+}
+#endif

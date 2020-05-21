@@ -41,13 +41,6 @@ struct DeviceMemory {
 	thrust::device_vector<float> dist_mat;	
 };
 
-struct SketchSlice {
-	size_t ref_offset;
-	size_t ref_size;
-	size_t query_offset;
-	size_t query_size;
-};
-
 // Structure of flattened vectors
 struct SketchStrides {
 	size_t bin_stride;
@@ -440,8 +433,8 @@ thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches,
 
 DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  SketchStrides& query_strides,
-					  const std::vector<Reference>& ref_sketches,
-					  const std::vector<Reference>& query_sketches,
+					  std::vector<Reference>& ref_sketches,
+					  std::vector<Reference>& query_sketches,
 					  const SketchSlice& sample_slice,
 					  const std::vector<size_t>& kmer_lengths,
 					  long long dist_rows,
@@ -450,22 +443,25 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 
 	// Need to (or easiest to) make temporary copies until we get
 	// std::span in C++20
-	std::vector<Reference> * ref_subsample;
+
+	// I think this use of pointers is not leaking memory - but 
+	// should check whether new and unique_ptr is better
+	std::unique_ptr<std::vector<Reference>> ref_subsample;
 	if (sample_slice.ref_size < ref_sketches.size()) {
-		ref_subsample =
-			&std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
+		ref_subsample.reset(new \
+			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
 								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size));
 	} else {
-		ref_subsample = &ref_sketches;
+		ref_subsample.reset(&ref_sketches);
 	}
 
-	std::vector<Reference> * query_subsample;
+	std::unique_ptr<std::vector<Reference>> query_subsample;
 	if (!self && sample_slice.query_size < query_sketches.size()) {
-			query_subsample =
-				&std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
+			query_subsample.reset(new \
+				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
 									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
 	} else {
-		query_subsample = &query_sketches;
+		query_subsample.reset(&query_sketches);
 	}
 
 	// Set up reference sketches, flatten and copy to device
@@ -548,8 +544,8 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 // Query uses on-chip cache (__shared__) to store query sketch
 // std::chrono::steady_clock::time_point b;
 void dispatchDists(DeviceMemory& device_arrays,
-				   const std::vector<Reference>& ref_sketches,
-				   const std::vector<Reference>& query_sketches,
+				   std::vector<Reference>& ref_sketches,
+				   std::vector<Reference>& query_sketches,
 				   SketchStrides& ref_strides,
 				   SketchStrides& query_strides,
 				   const SketchSlice& sketch_subsample,
@@ -700,7 +696,6 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	SketchSlice sketch_subsample;
 	unsigned int chunks = 1;
 	std::vector<float> dist_results(dist_rows * 2);
-	NumpyMatrix dists_ret_matrix(dist_rows, 2);
 	NumpyMatrix coreSquare, accessorySquare; 
 	if (self)
 	{
@@ -769,25 +764,11 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						
 						// Convert each long form column of Nx2 matrix into square distance matrix
 						// Add this square matrix into the correct submatrix (block) of the final square matrix
-						Eigen::VectorXf dummy_query_ref;
-						Eigen::VectorXf dummy_query_query;
-						NumpyMatrix long_form = long_to_square(blockMat.col(0), 
-																dummy_query_ref, 
-																dummy_query_query,
-																num_cpu_threads);
-						coreSquare.block(sketch_subsample.ref_offset, 
-										 sketch_subsample.query_offset,
-										 sketch_subsample.ref_size, 
-										 sketch_subsample.query_size) = long_form; 
-
-						long_form = long_to_square(blockMat.col(1), 
-													dummy_query_ref, 
-													dummy_query_query,
-													num_cpu_threads);
-						accessorySquare.block(sketch_subsample.ref_offset, 
-											sketch_subsample.query_offset,
-											sketch_subsample.ref_size, 
-											sketch_subsample.query_size) = blockMat.col(0); 
+						longToSquareBlock(coreSquare,
+										  accessorySquare,
+										  sketch_subsample,
+										  block_results,
+										  num_cpu_threads);
 
 					} catch (thrust::system_error &e) {
 						std::cerr << "Error getting result: " << std::endl;
@@ -819,12 +800,14 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
 	
 	// copy results from device back to host
+	// try and keep Eigen code in .cpp files (http://eigen.tuxfamily.org/dox-devel///TopicCUDA.html)
+	NumpyMatrix dists_ret_matrix;
 	if (self && chunks > 1) {
-		// Chunked computation yields ssquare matrix, which needs to be converted back to long
+		// Chunked computation yields square matrix, which needs to be converted back to long
 		// form
-		Eigen::VectorXf core_dists = square_to_long(coreSquare, num_cpu_threads);
-		Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_cpu_threads);
-		dists_ret_matrix << core_dists, accessory_dists; // Join columns 
+		dists_ret_matrix = twoColumnSquareToLong(coreSquare,
+												 accessorySquare,
+												 num_cpu_threads);
 	} else {
 		try {
 			// Single chunks just need to be moved from the device into the return vector
