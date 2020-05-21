@@ -623,6 +623,8 @@ void dispatchDists(DeviceMemory& device_arrays,
 			query_strides
 		);
 	}
+	printf("%cProgress (GPU): 100.0%%", 13);
+	std::cout << std::endl << "" << std::endl;
 }
 
 // Main function callable via API
@@ -704,6 +706,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 			coreSquare.resize(n_samples, n_samples);
 			accessorySquare.resize(n_samples, n_samples);
 		}
+		unsigned int total_chunks = (chunks * (chunks + 1)) >> 1;
+		unsigned int chunk_count = 0;
 
 		SketchSlice sketch_subsample;
 		sketch_subsample.ref_offset = 0; 
@@ -715,7 +719,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 			
 			sketch_subsample.query_offset = sketch_subsample.ref_size; 
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
-
+				printf("Running chunk %ud of %ud\n", ++chunk_count, total_chunks);
 				sketch_subsample.query_size = calc_per_chunk;
 				if (chunk_j < num_big_chunks) {
 					sketch_subsample.query_size++;
@@ -798,8 +802,6 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 	// cudaDeviceSynchronize();
 	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
-	printf("%cProgress (GPU): 100.0%%", 13);
-	std::cout << std::endl << "" << std::endl;
 	
 	// copy results from device back to host
 	if (self && chunks > 1) {
