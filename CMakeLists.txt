@@ -54,6 +54,11 @@ if(CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, compiling both GPU and CPU code")
     enable_language(CUDA)
     
+    # PIC/relocatable-device-code needed as this is linked by gcc later
+    # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
+    # --expt-relaxed-constexpr needed to include Eigen
+    # --cudart static: static linking of the CUDA libraries
+    # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
     string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50")
     string(APPEND CUDA_OPTS " -gencode arch=compute_75,code=sm_75")

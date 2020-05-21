@@ -28,7 +28,7 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 

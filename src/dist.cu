@@ -450,22 +450,22 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 
 	// Need to (or easiest to) make temporary copies until we get
 	// std::span in C++20
-	std::unique_ptr<std::vector<Reference>> ref_subsample;
+	std::vector<Reference> * ref_subsample;
 	if (sample_slice.ref_size < ref_sketches.size()) {
-		ref_subsample.reset(new \
-			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
+		ref_subsample =
+			&std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
 								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size));
 	} else {
-		ref_subsample.reset(&ref_sketches);
+		ref_subsample = &ref_sketches;
 	}
 
-	std::unique_ptr<std::vector<Reference>> query_subsample;
+	std::vector<Reference> * query_subsample;
 	if (!self && sample_slice.query_size < query_sketches.size()) {
-			query_subsample.reset(new \
-				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
+			query_subsample =
+				&std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
 									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
 	} else {
-		query_subsample.reset(&query_sketches);
+		query_subsample = &query_sketches;
 	}
 
 	// Set up reference sketches, flatten and copy to device
