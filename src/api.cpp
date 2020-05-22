@@ -266,20 +266,6 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     return(distMat);
 }
 
-#ifdef GPU_AVAILABLE
-NumpyMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
-	std::vector<Reference>& query_sketches,
-	const std::vector<size_t>& kmer_lengths,
-    const int device_id,
-    const unsigned int num_cpu_threads)
-{
-    // Calculate dists on GPU
-    NumpyMatrix dists_ret = query_db_cuda(ref_sketches, query_sketches, 
-                                          kmer_lengths, device_id, num_cpu_threads);
-    return dists_ret;
-}
-#endif
-
 // Load sketches from a HDF5 file
 // Returns empty vector on failure
 std::vector<Reference> load_sketches(const std::string& db_name,

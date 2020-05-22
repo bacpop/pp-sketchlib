@@ -1,7 +1,8 @@
 /*
  *
- * dist.cpp
+ * dist.cu
  * PopPUNK dists using CUDA
+ * nvcc compiled part (try to avoid eigen)
  *
  */
 
@@ -16,9 +17,6 @@
 #include <tuple>
 #include <algorithm>
 #include <iomanip>
-#include <chrono>
-#include <ctime>
-#include <ratio>
 
 // cuda
 #include <thrust/device_vector.h>
@@ -30,8 +28,8 @@
 
 const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
-const float mem_epsilon = 0.05;
 
+// Memory on device for each operation
 struct DeviceMemory {
 	thrust::device_vector<uint64_t> ref_sketches;	
 	thrust::device_vector<uint64_t> query_sketches;	
@@ -39,15 +37,6 @@ struct DeviceMemory {
 	thrust::device_vector<float> query_random;	
 	thrust::device_vector<int> kmers;	
 	thrust::device_vector<float> dist_mat;	
-};
-
-// Structure of flattened vectors
-struct SketchStrides {
-	size_t bin_stride;
-	size_t kmer_stride;
-	size_t sample_stride;
-	size_t sketchsize64; 
-	size_t bbits;
 };
 
 /******************
@@ -316,7 +305,7 @@ void calculate_self_dists(const uint64_t * ref,
 			float r2 = random_match[kmer_idx * ref_n + j];
 			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			
+			// printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", i, j, kmer_idx, r1, r2, jaccard_obs, y);	
 			// Running totals for regression
 			xsum += kmers[kmer_idx]; 
 			ysum += y; 
@@ -350,6 +339,16 @@ void calculate_self_dists(const uint64_t * ref,
 *			   *	
 ***************/
 
+// Initialise device and return info on its memory
+std::tuple<size_t, size_t> initialise_device(const int device_id) {
+	cudaSetDevice(device_id);
+	cudaDeviceReset();
+
+	size_t mem_free = 0; size_t mem_total = 0;
+	cudaMemGetInfo(&mem_free, &mem_total);
+	return(std::make_tuple(mem_free, mem_total));
+}
+
 // Turn a vector of references into a flattened vector of
 // uint64 with strides bins * kmers * samples
 thrust::host_vector<uint64_t> flatten_by_bins(
@@ -359,7 +358,7 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 {
 	// Set strides structure
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
-	assert(num_bins == sketches[0].get_sketch[kmer_lengths[0]].size());
+	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
 	strides.bin_stride = 1;
 	strides.kmer_stride = strides.bin_stride * num_bins;
 	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
@@ -389,7 +388,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 {
 	// Set strides
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
-	assert(num_bins == sketches[0].get_sketch[kmer_lengths[0]].size());
+	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
 	strides.sample_stride = 1;
 	strides.bin_stride = sketches.size();
 	strides.kmer_stride = strides.bin_stride * num_bins;
@@ -431,6 +430,7 @@ thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches,
 	return random_sample_strided;
 }
 
+// Sets up data structures and loads them onto the device
 DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  SketchStrides& query_strides,
 					  std::vector<Reference>& ref_sketches,
@@ -484,32 +484,6 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 	return(loaded);
 }
 
-// Checks bbits, sketchsize and k-mer lengths are identical in
-// all sketches
-// throws runtime_error if mismatches (should be ensured in passing
-// code)
-void checkSketchParamsMatch(const std::vector<Reference>& sketches, 
-	const std::vector<size_t>& kmer_lengths, 
-	const size_t bbits, 
-	const size_t sketchsize64)
-{
-	for (auto sketch_it = sketches.cbegin(); sketch_it != sketches.cend(); sketch_it++)
-	{
-		if (sketch_it->bbits() != bbits)
-		{
-			throw std::runtime_error("Mismatching bbits in sketches");
-		}
-		if (sketch_it->sketchsize64() != sketchsize64)
-		{
-			throw std::runtime_error("Mismatching sketchsize64 in sketches");
-		}
-		if (sketch_it->kmer_lengths() != kmer_lengths)
-		{
-			throw std::runtime_error("Mismatching k-mer lengths in sketches");
-		}
-	}
-}
-
 // Get the blockSize and blockCount for CUDA call
 std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 										const size_t query_samples,
@@ -532,13 +506,13 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 	return(std::make_tuple(blockSize, blockCount));
 } 
 
-// Run the distance calculations, reading/writing into device_arrays
+// Main function to run the distance calculations, reading/writing into device_arrays
 // Cache preferences:
 // Upper dist memory access is hard to predict, so try and cache as much
 // as possible
 // Query uses on-chip cache (__shared__) to store query sketch
 // std::chrono::steady_clock::time_point b;
-void dispatchDists(DeviceMemory& device_arrays,
+std::vector<float> dispatchDists(
 				   std::vector<Reference>& ref_sketches,
 				   std::vector<Reference>& query_sketches,
 				   SketchStrides& ref_strides,
@@ -546,11 +520,13 @@ void dispatchDists(DeviceMemory& device_arrays,
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self) {
+	DeviceMemory device_arrays;
+	long long chunk_dist_rows;
 	if (self) {
 		// square 'self' block
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 		
-		long long chunk_dist_rows = static_cast<long long>(
+		chunk_dist_rows = static_cast<long long>(
 										0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
 		device_arrays = loadDeviceMemory(
 			ref_strides,
@@ -585,7 +561,7 @@ void dispatchDists(DeviceMemory& device_arrays,
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 
-		long long chunk_dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
+		chunk_dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
 		device_arrays = loadDeviceMemory(
 			ref_strides,
 			query_strides,
@@ -623,218 +599,26 @@ void dispatchDists(DeviceMemory& device_arrays,
 			query_strides
 		);
 	}
+
+	// Copy results back to host
+	std::vector<float> dist_results(dist_rows * 2);
+	try {
+		thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin())
+	} catch (thrust::system_error &e) {
+		// output a non-threatening but likely inaccurate error message and exit
+		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
+		// error will have occurred elsewhere as launch is async, but better to catch 
+		// and deal with it here
+		std::cerr << "Error getting result: " << std::endl;
+		std::cerr << e.what() << std::endl;
+		exit(1);
+	}
+
 	cudaDeviceSynchronize();
 	printf("%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
+
+	return(dist_results);
 }
 
-// Main function callable via API
-// Checks inputs
-// Flattens sketches
-// Copies flattened sketches to device
-// Runs kernel function across distance elements
-// Copies and returns results
-NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
-	std::vector<Reference>& query_sketches,
-	const std::vector<size_t>& kmer_lengths,
-	const int device_id,
-	const unsigned int num_cpu_threads)
-{
-	std::cerr << "Calculating distances on GPU device " << device_id << std::endl;
-	
-	// Initialise device
-	cudaSetDevice(device_id);
-	cudaDeviceReset();
 
-	// Check sketches are compatible
-	bool self = false;
-	size_t bbits = ref_sketches[0].bbits();
-	size_t sketchsize64 = ref_sketches[0].sketchsize64();
-	checkSketchParamsMatch(ref_sketches, kmer_lengths, bbits, sketchsize64);
-	
-	// Set up sketch information and sizes
-	SketchStrides ref_strides;
-	ref_strides.bbits = bbits;
-	ref_strides.sketchsize64 = sketchsize64;
-	SketchStrides query_strides = ref_strides;
-
-	long long dist_rows; long n_samples = 0;
-	if (ref_sketches == query_sketches)
-    {
-		self = true;
-		dist_rows = static_cast<long long>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
-		n_samples = ref_sketches.size(); 
-	}
-	else
-	{
-		// Also check query sketches are compatible
-		checkSketchParamsMatch(query_sketches, kmer_lengths, bbits, sketchsize64);
-		dist_rows = ref_sketches.size() * query_sketches.size();
-		n_samples = ref_sketches.size() + query_sketches.size(); 
-	}
-	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + \ // Size of sketches
-						kmer_lengths.size() * n_samples * sizeof(float) + \                           // Size of random matches
-						dist_rows * 2 * sizeof(float));												  // Size of distance matrix
-	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size/(1048576) << "Mb" << std::endl;
-
-	size_t mem_free = 0; size_t mem_total = 0;
-	cudaMemGetInfo(&mem_free, &mem_total);
-	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
-	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
-
-	if (est_size > mem_free * (1 - mem_epsilon) && !self) {
-		throw std::runtime_error("Using greater than device memory is unsupported for query mode. "
-							     "Split your input into smaller chunks");	
-	}
-
-	// Ready to run dists on device
-	DeviceMemory device_arrays;
-	SketchSlice sketch_subsample;
-	unsigned int chunks = 1;
-	std::vector<float> dist_results(dist_rows * 2);
-	NumpyMatrix coreSquare, accessorySquare; 
-	if (self)
-	{
-		// To prevent memory being exceeded, total distance matrix is split up into
-		// chunks which do fit in memory. These are iterated over in the same order
-		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
-		// as they contain only lower triangle values, i > j work as query vs ref
-		chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
-		size_t calc_per_chunk = n_samples / chunks;
-		unsigned int num_big_chunks = n_samples % chunks;
-
-		// Only allocate these square matrices if they are needed
-		if (chunks > 1) {
-			coreSquare.resize(n_samples, n_samples);
-			accessorySquare.resize(n_samples, n_samples);
-		}
-		unsigned int total_chunks = (chunks * (chunks + 1)) >> 1;
-		unsigned int chunk_count = 0;
-
-		sketch_subsample.ref_offset = 0; 
-		for (unsigned int chunk_i = 0; chunk_i < chunks; chunk_i++) {
-			sketch_subsample.ref_size = calc_per_chunk;
-			if (chunk_i < num_big_chunks) {
-				sketch_subsample.ref_size++;
-			}
-			
-			sketch_subsample.query_offset = sketch_subsample.ref_size; 
-			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
-				printf("Running chunk %u of %u\n", ++chunk_count, total_chunks);
-				sketch_subsample.query_size = calc_per_chunk;
-				if (chunk_j < num_big_chunks) {
-					sketch_subsample.query_size++;
-				}
-				
-				if (chunk_i == chunk_j) {
-					// 'self' blocks
-					dispatchDists(device_arrays,
-						ref_sketches,
-						ref_sketches,
-						ref_strides,
-						query_strides,
-						sketch_subsample,
-						kmer_lengths,
-						true);
-				} else {
-					// 'query' block
-					dispatchDists(device_arrays,
-						ref_sketches,
-						query_sketches,
-						ref_strides,
-						query_strides,
-						sketch_subsample,
-						kmer_lengths,
-						false);
-				}
-				sketch_subsample.query_offset += sketch_subsample.query_size; 
-
-				// Read intermediate dists out
-				if (chunks > 1) {
-					try {
-						// Copy results from device into Nx2 matrix
-						std::vector<float> block_results;
-						thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), block_results.begin());
-						NumpyMatrix blockMat = \
-							Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(block_results.data(),block_results.size()/2,2);
-						
-						// Convert each long form column of Nx2 matrix into square distance matrix
-						// Add this square matrix into the correct submatrix (block) of the final square matrix
-						longToSquareBlock(coreSquare,
-										  accessorySquare,
-										  sketch_subsample,
-										  block_results,
-										  num_cpu_threads);
-
-					} catch (thrust::system_error &e) {
-						std::cerr << "Error getting result: " << std::endl;
-						std::cerr << e.what() << std::endl;
-						exit(1);
-					}
-					
-				}
-
-			}
-			sketch_subsample.ref_offset += sketch_subsample.ref_size; 
-		}
-
-	}
-	else
-	{
-		sketch_subsample.ref_size = ref_sketches.size();
-		sketch_subsample.query_size = query_sketches.size();
-		dispatchDists(device_arrays,
-			ref_sketches,
-			query_sketches,
-			ref_strides,
-			query_strides,
-			sketch_subsample,
-			kmer_lengths,
-			false);	
-	}
-	// cudaDeviceSynchronize();
-	// std::chrono::steady_clock::time_point c = std::chrono::steady_clock::now();
-	
-	// copy results from device back to host
-	// try and keep Eigen code in .cpp files (http://eigen.tuxfamily.org/dox-devel///TopicCUDA.html)
-	NumpyMatrix dists_ret_matrix;
-	if (self && chunks > 1) {
-		// Chunked computation yields square matrix, which needs to be converted back to long
-		// form
-		dists_ret_matrix = twoColumnSquareToLong(coreSquare,
-												 accessorySquare,
-												 num_cpu_threads);
-	} else {
-		try {
-			// Single chunks just need to be moved from the device into the return vector
-			// CUDA code now returns column major data (i.e. all core dists, then all accessory dists)
-			// to try and coalesce writes.
-			// NB: almost all other code is row major (i.e. sample core then accessory, then next sample)
-			thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
-			dists_ret_matrix = \
-				Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::RowMajor> >(dist_results.data(),dist_results.size()/2,2);
-		} catch (thrust::system_error &e) {
-			// output a non-threatening but likely inaccurate error message and exit
-			// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
-			// error will have occurred elsewhere as launch is async, but better to catch 
-			// and deal with it here
-			std::cerr << "Error getting result: " << std::endl;
-			std::cerr << e.what() << std::endl;
-			exit(1);
-		}
-	}
-
-	/* Code used to time in development:
-	// Report timings of each step
-	std::chrono::steady_clock::time_point d = std::chrono::steady_clock::now();
-	std::chrono::duration<double> load_time = std::chrono::duration_cast<std::chrono::duration<double> >(b-a);
-	std::chrono::duration<double> calc_time = std::chrono::duration_cast<std::chrono::duration<double> >(c-b);
-	std::chrono::duration<double> save_time = std::chrono::duration_cast<std::chrono::duration<double> >(d-c);
-
-	std::cout << "Loading: " << load_time.count()<< "s" << std::endl;
-	std::cout << "Distances: " << calc_time.count()<< "s" << std::endl;
-	std::cout << "Saving: " << save_time.count()<< "s" << std::endl;
-	*/
-
-	return dists_ret_matrix;
-}

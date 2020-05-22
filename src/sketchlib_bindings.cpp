@@ -90,7 +90,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             device_id,
@@ -138,7 +138,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             device_id,
@@ -201,7 +201,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
                              device_id,

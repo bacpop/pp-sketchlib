@@ -41,7 +41,7 @@ int main (int argc, char* argv[])
                                false,
                                2);
 
-    MatrixXf dists = query_db(ref_sketches,
+    NumpyMatrix dists = query_db(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
                               false,
@@ -50,12 +50,11 @@ int main (int argc, char* argv[])
     std::cout << dists << std::endl;
 
 #ifdef GPU_AVAILABLE
-    MatrixXf gpu_dists = query_db_gpu(ref_sketches,
+    NumpyMatrix gpu_dists = query_db_gpu(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
-                              128,
-                              128,
-                              0);
+                              0,
+                              2);
 
     std::cout << gpu_dists << std::endl;
 #endif
@@ -88,7 +87,7 @@ int main (int argc, char* argv[])
     {
         listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
     }
-    MatrixXf listeria_dists = query_db(listeria_sketches,
+    NumpyMatrix listeria_dists = query_db(listeria_sketches,
                             listeria_sketches,
                             kmer_lengths,
                             false,

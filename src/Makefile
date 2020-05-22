@@ -16,7 +16,7 @@ ifeq ($(UNAME_S),Linux)
 	ifdef PROFILE
 		CXXFLAGS+= -Wl,--compress-debug-sections=none
 	endif
-	LDLIBS+= -lpthread -lgfortran -lm -ldl
+	LDLIBS+= -lpthread -lgfortran -lm -ldl -lrt
 	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
@@ -28,7 +28,7 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_75,code=sm_75
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
@@ -38,7 +38,7 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 PROGRAMS=sketch_test matrix_test read_test
 
 SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
-CUDA_OBJS=dist.cu.o
+CUDA_OBJS=dist.cu.o gpu_api.o
 
 all: $(PROGRAMS)
 
@@ -50,7 +50,7 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 sketch_test: $(SKETCH_OBJS) main.o
-	$(LINK.cpp) $^ -o $@ $(LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS) $(CUDA_LDLIBS)
 
 matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)

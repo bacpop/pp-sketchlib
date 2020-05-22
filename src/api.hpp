@@ -31,11 +31,12 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     const size_t num_threads);
 
 #ifdef GPU_AVAILABLE
-NumpyMatrix query_db_gpu(std::vector<Reference>& ref_sketches,
+// defined in gpu_api.cpp
+NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
-    const int device_id = 0,
-    const unsigned int num_cpu_threads = 1);
+	const int device_id = 0,
+  const unsigned int num_cpu_threads = 1);
 #endif
 
 bool same_db_version(const std::string& db1_name,

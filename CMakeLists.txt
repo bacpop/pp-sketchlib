@@ -56,7 +56,6 @@ if(CMAKE_CUDA_COMPILER)
     
     # PIC/relocatable-device-code needed as this is linked by gcc later
     # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
-    # --expt-relaxed-constexpr needed to include Eigen
     # --cudart static: static linking of the CUDA libraries
     # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
@@ -66,7 +65,7 @@ if(CMAKE_CUDA_COMPILER)
     
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
-    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
+    # target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
