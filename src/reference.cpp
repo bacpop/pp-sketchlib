@@ -105,7 +105,7 @@ double Reference::random_match(const int kmer_len)
                        std::pow(_bases.t, 2); 
     }
     int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-    double r1 = _seq_size / (_seq_size + rc_factor * std::pow(_match_probs, -kmer_len));
+    double r1 = 1 - std::pow(1 - rc_factor * std::pow(_match_probs, -kmer_len), (double)_seq_size);
     return r1;
 }
 
@@ -118,11 +118,11 @@ double Reference::jaccard_dist(Reference &query, const int kmer_len)
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     double jaccard_obs = intersize/(double)unionsize;
     
-    // double r1 = this->random_match(kmer_len);
-    // double r2 = query.random_match(kmer_len);
-    // double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
-    // 
-    // double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
+    double r1 = this->random_match(kmer_len);
+    double r2 = query.random_match(kmer_len);
+    double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+
+    double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
     return(jaccard_obs);
 }
 
