@@ -448,10 +448,16 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 		// std::span in C++20
 		std::vector<Reference> ref_subsample = \
 			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
-								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size));
+								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size);
 		flat_ref = flatten_by_samples(ref_subsample, kmer_lengths, ref_strides);
+		
+		// Preload random match chances
+		loaded.ref_random = preloadRandom(ref_subsample, kmer_lengths);
 	} else {
 		flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
+		
+		// Preload random match chances
+		loaded.ref_random = preloadRandom(ref_sketches, kmer_lengths);
 	}
 	loaded.ref_sketches = flat_ref;
 
@@ -461,19 +467,14 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 		if (sample_slice.query_size < query_sketches.size()) {	
 			std::vector<Reference> query_subsample = \
 				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
-									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
+									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size);
 			flat_query = flatten_by_bins(query_subsample, kmer_lengths, query_strides);
+			loaded.query_random = preloadRandom(query_subsample, kmer_lengths);
 		} else {
 			flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
+			loaded.query_random = preloadRandom(query_sketches, kmer_lengths);
 		}
 		loaded.query_sketches = flat_query;
-	}
-
-	// Preload random match chances
-	loaded.ref_random = preloadRandom(*ref_subsample, kmer_lengths);
-	if (!self) {
-		thrust::host_vector<float> query_random = preloadRandom(*query_subsample, kmer_lengths);
-		loaded.query_random = query_random;
 	}
 
 	// Copy other arrays needed on device (kmers and distance output)
@@ -622,6 +623,7 @@ void dispatchDists(DeviceMemory& device_arrays,
 			query_strides
 		);
 	}
+	cudaDeviceSynchronize();
 	printf("%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
 }
