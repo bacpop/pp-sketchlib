@@ -441,37 +441,31 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  const bool self) {
 	DeviceMemory loaded;
 
-	// Need to (or easiest to) make temporary copies until we get
-	// std::span in C++20
-
-	// I think this use of pointers is not leaking memory - but 
-	// should check whether new and unique_ptr is better
-	std::unique_ptr<std::vector<Reference>> ref_subsample;
+	// Set up reference sketches, flatten and copy to device
+	thrust::host_vector<uint64_t> flat_ref;
 	if (sample_slice.ref_size < ref_sketches.size()) {
-		ref_subsample.reset(new \
+		// Need to (or easiest to) make temporary copies until we get
+		// std::span in C++20
+		std::vector<Reference> ref_subsample = \
 			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
 								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size));
+		flat_ref = flatten_by_samples(ref_subsample, kmer_lengths, ref_strides);
 	} else {
-		ref_subsample.reset(&ref_sketches);
+		flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
 	}
-
-	std::unique_ptr<std::vector<Reference>> query_subsample;
-	if (!self && sample_slice.query_size < query_sketches.size()) {
-			query_subsample.reset(new \
-				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
-									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
-	} else {
-		query_subsample.reset(&query_sketches);
-	}
-
-	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(*ref_subsample, kmer_lengths, ref_strides);
 	loaded.ref_sketches = flat_ref;
 
 	// If ref v query mode, also flatten query vector and copy to device
-	if (!self)
-	{
-		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(*query_subsample, kmer_lengths, query_strides);
+	if (!self) {
+		thrust::host_vector<uint64_t> flat_query;
+		if (sample_slice.query_size < query_sketches.size()) {	
+			std::vector<Reference> query_subsample = \
+				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
+									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size));
+			flat_query = flatten_by_bins(query_subsample, kmer_lengths, query_strides);
+		} else {
+			flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
+		}
 		loaded.query_sketches = flat_query;
 	}
 
@@ -724,7 +718,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 			
 			sketch_subsample.query_offset = sketch_subsample.ref_size; 
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
-				printf("Running chunk %ud of %ud\n", ++chunk_count, total_chunks);
+				printf("Running chunk %u of %u\n", ++chunk_count, total_chunks);
 				sketch_subsample.query_size = calc_per_chunk;
 				if (chunk_j < num_big_chunks) {
 					sketch_subsample.query_size++;
