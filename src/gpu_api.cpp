@@ -25,15 +25,6 @@
 
 const float mem_epsilon = 0.05;
 
-// Structure of flattened vectors
-struct SketchStrides {
-	size_t bin_stride;
-	size_t kmer_stride;
-	size_t sample_stride;
-	size_t sketchsize64; 
-	size_t bbits;
-};
-
 // Checks bbits, sketchsize and k-mer lengths are identical in
 // all sketches
 // throws runtime_error if mismatches (should be ensured in passing
@@ -102,9 +93,9 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		dist_rows = ref_sketches.size() * query_sketches.size();
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
-	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + \ // Size of sketches
-						kmer_lengths.size() * n_samples * sizeof(float) + \                           // Size of random matches
-						dist_rows * 2 * sizeof(float));												  // Size of distance matrix
+	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + // Size of sketches
+						kmer_lengths.size() * n_samples * sizeof(float) +                           // Size of random matches
+						dist_rows * 2 * sizeof(float));							    				// Size of distance matrix
 	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size/(1048576) << "Mb" << std::endl;
 	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
 	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
@@ -178,26 +169,18 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 
 				// Read intermediate dists out
 				if (chunks > 1) {
-					try {
-						// Copy results from device into Nx2 matrix
-						NumpyMatrix blockMat = \
-							Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> > \
-                                (block_results.data(),block_results.size()/2,2);
-						
-						// Convert each long form column of Nx2 matrix into square distance matrix
-						// Add this square matrix into the correct submatrix (block) of the final square matrix
-						longToSquareBlock(coreSquare,
-										  accessorySquare,
-										  sketch_subsample,
-										  block_results,
-										  num_cpu_threads);
-
-					} catch (thrust::system_error &e) {
-						std::cerr << "Error getting result: " << std::endl;
-						std::cerr << e.what() << std::endl;
-						exit(1);
-					}
-					
+                    // Copy results from device into Nx2 matrix
+                    NumpyMatrix blockMat = \
+                        Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> > \
+                            (block_results.data(),block_results.size()/2,2);
+                    
+                    // Convert each long form column of Nx2 matrix into square distance matrix
+                    // Add this square matrix into the correct submatrix (block) of the final square matrix
+                    longToSquareBlock(coreSquare,
+                                        accessorySquare,
+                                        sketch_subsample,
+                                        block_results,
+                                        num_cpu_threads);
 				} else {
                     dists_ret_matrix = \
                         Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> > \
@@ -213,7 +196,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	{
 		sketch_subsample.ref_size = ref_sketches.size();
 		sketch_subsample.query_size = query_sketches.size();
-		std::vector<float> dist_results = dispatchDists(,
+		std::vector<float> dist_results = dispatchDists(
                                             ref_sketches,
                                             query_sketches,
                                             ref_strides,

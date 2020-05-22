@@ -521,12 +521,12 @@ std::vector<float> dispatchDists(
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self) {
 	DeviceMemory device_arrays;
-	long long chunk_dist_rows;
+	long long dist_rows;
 	if (self) {
 		// square 'self' block
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 		
-		chunk_dist_rows = static_cast<long long>(
+		dist_rows = static_cast<long long>(
 										0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
 		device_arrays = loadDeviceMemory(
 			ref_strides,
@@ -535,7 +535,7 @@ std::vector<float> dispatchDists(
 			query_sketches,
 			sketch_subsample,
 			kmer_lengths,
-			chunk_dist_rows,
+			dist_rows,
 			true);
 
 		// cudaDeviceSynchronize();	
@@ -544,7 +544,7 @@ std::vector<float> dispatchDists(
 		size_t blockSize, blockCount;
 		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
 													   sketch_subsample.ref_size,
-													   chunk_dist_rows);
+													   dist_rows);
 		calculate_self_dists<<<blockCount, selfBlockSize>>>
 			(
 				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
@@ -552,7 +552,7 @@ std::vector<float> dispatchDists(
 				thrust::raw_pointer_cast(&device_arrays.kmers[0]),
 				kmer_lengths.size(),
 				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-				chunk_dist_rows,
+				dist_rows,
 				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 				ref_strides
 			);
@@ -561,7 +561,7 @@ std::vector<float> dispatchDists(
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 
-		chunk_dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
+		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
 		device_arrays = loadDeviceMemory(
 			ref_strides,
 			query_strides,
@@ -569,13 +569,13 @@ std::vector<float> dispatchDists(
 			query_sketches,
 			sketch_subsample,
 			kmer_lengths,
-			chunk_dist_rows,
+			dist_rows,
 			false);
 			
 		size_t blockSize, blockCount;
 		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
 													   sketch_subsample.query_size,
-													   chunk_dist_rows);
+													   dist_rows);
 		
 		// cudaDeviceSynchronize();	
 		// b = std::chrono::steady_clock::now()
@@ -592,7 +592,7 @@ std::vector<float> dispatchDists(
 			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
 			kmer_lengths.size(),
 			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-			chunk_dist_rows,
+			dist_rows,
 			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
@@ -603,7 +603,7 @@ std::vector<float> dispatchDists(
 	// Copy results back to host
 	std::vector<float> dist_results(dist_rows * 2);
 	try {
-		thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin())
+		thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
 	} catch (thrust::system_error &e) {
 		// output a non-threatening but likely inaccurate error message and exit
 		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'

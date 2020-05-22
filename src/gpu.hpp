@@ -22,6 +22,13 @@ struct SketchStrides {
 	size_t bbits;
 };
 
+struct SketchSlice {
+	size_t ref_offset;
+	size_t ref_size;
+	size_t query_offset;
+	size_t query_size;
+};
+
 // defined in dist.cu
 std::tuple<size_t, size_t> initialise_device(const int device_id);
 

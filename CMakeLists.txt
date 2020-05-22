@@ -47,6 +47,9 @@ if(DEFINED ENV{CONDA_PREFIX})
     link_directories($ENV{CONDA_PREFIX}/lib/intel64)
 endif()
 
+# Define python library target
+add_library("${TARGET_NAME}" MODULE)
+
 # Check for CUDA and compiles GPU library
 include(CheckLanguage)
 check_language(CUDA)
@@ -65,18 +68,20 @@ if(CMAKE_CUDA_COMPILER)
     
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
-    # target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
+    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden")
+    # CPU code/gcc compiled code needed by cuda lib
+    target_sources("${TARGET_NAME}" PRIVATE src/gpu_api.cpp)
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
 endif()
 
 # Compile CPU library
-add_library("${TARGET_NAME}" MODULE src/sketchlib_bindings.cpp
+target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/dist.cpp
                                     src/matrix_ops.cpp
                                     src/reference.cpp
