@@ -105,7 +105,7 @@ double Reference::random_match(const int kmer_len)
                        std::pow(_bases.t, 2); 
     }
     int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-    double r1 = 1 - std::pow(1 - rc_factor * std::pow(_match_probs, -kmer_len), (double)_seq_size);
+    double r1 = 1 - std::pow(1 - rc_factor * std::pow(_match_probs, kmer_len), (double)_seq_size);
     return r1;
 }
 
