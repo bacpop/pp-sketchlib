@@ -170,8 +170,8 @@ long calc_col_idx(const long long k, const long i, const long n) {
 
 __device__
 long long square_to_condensed(long i, long j, long n) {
-    assert(i > j);
-	return (n*j - ((j*(j+1)) >> 1) + i - 1 - j);
+    assert(j > i);
+	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
 }
 
 /******************

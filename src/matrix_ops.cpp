@@ -52,8 +52,8 @@ inline long calc_col_idx(const long long k, const long i, const long n) {
 }
 
 inline long long square_to_condensed(long i, long j, long n) {
-    assert(i > j);
-	return (n*j - ((j*(j+1)) >> 1) + i - 1 - j);
+    assert(j > i);
+	return (n*i - ((i*(i+1)) << 1) + j - 1 - i);
 }
 
 std::tuple<size_t, unsigned int, unsigned int> 
@@ -338,7 +338,7 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
     // due to reverse direction
     // guided schedules inversely proportional to outer index
     #pragma omp parallel for simd schedule(guided, 1)
-    for (long i = n - 1; i >= 0; i--) {
+    for (long i = n - 2; i >= 0; i--) {
         for (long j = i + 1; j < n; j++) {
             longDists(square_to_condensed(i, j, n)) = squareDists(i, j); 
         }

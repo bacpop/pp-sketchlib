@@ -47,7 +47,7 @@ struct SketchSlice {
 void longToSquareBlock(NumpyMatrix& coreSquare,
                        NumpyMatrix& accessorySquare,
                        const SketchSlice& sketch_subsample,
-                       const std::vector<float>& block_results,
+                       std::vector<float>& block_results,
                        const unsigned int num_threads);
 
 NumpyMatrix twoColumnSquareToLong(const NumpyMatrix& coreSquare,
