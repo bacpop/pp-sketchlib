@@ -362,7 +362,9 @@ std::tuple<size_t, size_t> initialise_device(const int device_id) {
 thrust::host_vector<uint64_t> flatten_by_bins(
 	const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
-	SketchStrides& strides)
+	SketchStrides& strides,
+	const size_t start_sample_idx,
+	const size_t end_sample_idx)
 {
 	// Set strides structure
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
@@ -374,7 +376,9 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	// Iterate over each dimension to flatten
 	thrust::host_vector<uint64_t> flat_ref(strides.sample_stride * sketches.size());
 	auto flat_ref_it = flat_ref.begin();
-	for (auto sample_it = sketches.cbegin(); sample_it != sketches.cend(); sample_it++)
+	for (auto sample_it = sketches.cbegin() + start_sample_idx; 
+		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx); 
+		 sample_it++)
 	{
 		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
 		{
@@ -392,7 +396,9 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 thrust::host_vector<uint64_t> flatten_by_samples(
 	const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
-	SketchStrides& strides)
+	SketchStrides& strides,
+	const size_t start_sample_idx,
+	const size_t end_sample_idx)
 {
 	// Set strides
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
@@ -405,14 +411,18 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	// This is 4x faster than striding by samples by looping over References vector, 
 	// presumably because many fewer dereferences are being used
 	SketchStrides old_strides = strides;
-	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches, kmer_lengths, old_strides);
+	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches, 
+															  kmer_lengths, 
+															  old_strides, 
+															  start_sample_idx, 
+															  end_sample_idx);
 	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
 	auto flat_ref_it = flat_ref.begin();
 	for (size_t kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++)
 	{
 		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++)
 		{
-			for (size_t sample_idx = 0; sample_idx < sketches.size(); sample_idx++)
+			for (size_t sample_idx = start_sample_idx; sample_idx < end_sample_idx; sample_idx++)
 			{
 				*flat_ref_it = flat_bins[sample_idx * old_strides.sample_stride + \
 										 bin_idx * old_strides.bin_stride + \
@@ -427,11 +437,14 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 
 // Calculates the random match probability for all sketches at all k-mer lengths
 thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches, 
-								 		 const std::vector<size_t>& kmer_lengths) {
-	thrust::host_vector<float> random_sample_strided(sketches.size() * kmer_lengths.size());
-	for (unsigned int sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
+										  const std::vector<size_t>& kmer_lengths,
+										  const size_t start_sample_idx,
+										  const size_t end_sample_idx) {
+	size_t sketch_size = end_sample_idx - start_sample_idx; 
+	thrust::host_vector<float> random_sample_strided(sketch_size * kmer_lengths.size());
+	for (unsigned int sketch_idx = start_sample_idx; sketch_idx < end_sample_idx; sketch_idx++) {
 		for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-			random_sample_strided[kmer_idx * sketches.size() + sketch_idx] = 
+			random_sample_strided[kmer_idx * sketch_size + sketch_idx] = 
 				(float)sketches[sketch_idx].random_match(kmer_lengths[kmer_idx]);
 		}
 	}
@@ -450,39 +463,32 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 	DeviceMemory loaded;
 
 	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref;
-	if (sample_slice.ref_size < ref_sketches.size()) {
-		// Need to (or easiest to) make temporary copies until we get
-		// std::span in C++20
-		std::vector<Reference> ref_subsample = \
-			std::vector<Reference>(ref_sketches.begin() + sample_slice.ref_offset,
-								   ref_sketches.begin() + sample_slice.ref_offset + sample_slice.ref_size);
-		flat_ref = flatten_by_samples(ref_subsample, kmer_lengths, ref_strides);
-		
-		// Preload random match chances
-		loaded.ref_random = preloadRandom(ref_subsample, kmer_lengths);
-	} else {
-		flat_ref = flatten_by_samples(ref_sketches, kmer_lengths, ref_strides);
-		
-		// Preload random match chances
-		loaded.ref_random = preloadRandom(ref_sketches, kmer_lengths);
-	}
-	loaded.ref_sketches = flat_ref;
+	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, 
+																kmer_lengths, 
+																ref_strides,
+																sample_slice.ref_offset,
+																sample_slice.ref_offset + sample_slice.ref_size);
+	loaded.ref_sketches = flat_ref; // copies to device
+
+	// Preload random match chances
+	loaded.ref_random = preloadRandom(ref_sketches, 
+									  kmer_lengths, 
+									  sample_slice.ref_offset, 
+									  sample_slice.ref_offset + sample_slice.ref_size);
 
 	// If ref v query mode, also flatten query vector and copy to device
 	if (!self) {
-		thrust::host_vector<uint64_t> flat_query;
-		if (sample_slice.query_size < query_sketches.size()) {	
-			std::vector<Reference> query_subsample = \
-				std::vector<Reference>(query_sketches.begin() + sample_slice.query_offset,
-									   query_sketches.begin() + sample_slice.query_offset + sample_slice.query_size);
-			flat_query = flatten_by_bins(query_subsample, kmer_lengths, query_strides);
-			loaded.query_random = preloadRandom(query_subsample, kmer_lengths);
-		} else {
-			flat_query = flatten_by_bins(query_sketches, kmer_lengths, query_strides);
-			loaded.query_random = preloadRandom(query_sketches, kmer_lengths);
-		}
-		loaded.query_sketches = flat_query;
+		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches, 
+																   kmer_lengths, 
+																   query_strides, 
+																   sample_slice.query_offset, 
+																   sample_slice.query_offset + sample_slice.query_size);
+        loaded.query_sketches = flat_query;
+		
+		loaded.query_random = preloadRandom(query_sketches, 
+											kmer_lengths, 
+											sample_slice.query_offset, 
+											sample_slice.query_offset + sample_slice.query_size);
 	}
 
 	// Copy other arrays needed on device (kmers and distance output)
@@ -553,7 +559,9 @@ std::vector<float> dispatchDists(
 	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
+		printf("In self block\n");
 		// square 'self' block
+		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeDefault);
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 		
 		dist_rows = static_cast<long long>(
@@ -590,6 +598,7 @@ std::vector<float> dispatchDists(
 		reportProgress(blocks_complete, dist_rows);	
 	} else {
 		// 'query' block
+		printf("In query block\n");
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 

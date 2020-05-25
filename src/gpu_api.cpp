@@ -51,6 +51,13 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 	}
 }
 
+void printSlice(const SketchSlice& s) {
+	std::cerr << s.ref_offset << std::endl;
+	std::cerr << s.ref_size << std::endl;
+	std::cerr << s.query_offset << std::endl;
+	std::cerr << s.query_size << std::endl;
+}
+
 // Main function callable via API
 // Checks inputs
 // Flattens sketches
@@ -117,7 +124,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
 		chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
-		size_t calc_per_chunk = n_samples / chunks;
+		// chunks = 2;
+        size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
 		// Only allocate these square matrices if they are needed
@@ -128,20 +136,21 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		unsigned int total_chunks = (chunks * (chunks + 1)) >> 1;
 		unsigned int chunk_count = 0;
 
-		sketch_subsample.ref_offset = 0; 
+		sketch_subsample.query_offset = 0;
 		for (unsigned int chunk_i = 0; chunk_i < chunks; chunk_i++) {
-			sketch_subsample.ref_size = calc_per_chunk;
+			sketch_subsample.query_size = calc_per_chunk;
 			if (chunk_i < num_big_chunks) {
-				sketch_subsample.ref_size++;
+				sketch_subsample.query_size++;
 			}
 			
-			sketch_subsample.query_offset = sketch_subsample.ref_size; 
+			sketch_subsample.ref_offset = sketch_subsample.query_offset; 
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
 				std::cerr << "Running chunk " << ++chunk_count << " of " << total_chunks << std::endl;
-				sketch_subsample.query_size = calc_per_chunk;
+                sketch_subsample.ref_size = calc_per_chunk;
 				if (chunk_j < num_big_chunks) {
-					sketch_subsample.query_size++;
+					sketch_subsample.ref_size++;
 				}
+				printSlice(sketch_subsample);
 				
 				std::vector<float> block_results;
                 if (chunk_i == chunk_j) {
@@ -165,7 +174,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						kmer_lengths,
 						false);
 				}
-				sketch_subsample.query_offset += sketch_subsample.query_size; 
+				sketch_subsample.ref_offset += sketch_subsample.ref_size; 
+                printf("Returned\n");
 
 				// Read intermediate dists out
 				if (chunks > 1) {
@@ -188,7 +198,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
                 }
 
 			}
-			sketch_subsample.ref_offset += sketch_subsample.ref_size; 
+			sketch_subsample.query_offset += sketch_subsample.query_size; 
 		}
 
 	}
