@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
@@ -26,8 +27,8 @@
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 
-const int WARP_SIZE = 32;
 const int selfBlockSize = 32;
+const int progressBitshift = 10; // Update every 1024 dists
 
 // Memory on device for each operation
 struct DeviceMemory {
@@ -48,7 +49,7 @@ struct DeviceMemory {
 // Error checking of dynamic memory allocation on device
 // https://stackoverflow.com/a/14038590
 #define cdpErrchk(ans) { cdpAssert((ans), __FILE__, __LINE__); }
-__device__ void cdpAssert(cudaError_t code, const char *file, int line, bool abort=true)
+__host__ __device__ void cdpAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
    if (code != cudaSuccess)
    {
@@ -163,6 +164,21 @@ long long square_to_condensed(long i, long j, long n) {
 	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
 }
 
+// Use atomic add to update a counter, so progress works regardless of
+// dispatch order
+__device__
+void update_progress(long long dist_idx, 
+					 long long dist_n, 
+					 volatile int * blocks_complete) {
+	// Progress indicator
+	// The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
+	if (dist_idx % (dist_n >> progressBitshift) == 0) 
+	{
+		atomicAdd((int *)blocks_complete, 1);
+		__threadfence_system();
+	}
+}
+
 /******************
 *			      *
 *	Global code   *
@@ -186,7 +202,8 @@ void calculate_query_dists(const uint64_t * ref,
 					 const float * random_match_ref,
 					 const float * random_match_query,
 					 const SketchStrides ref_strides,
-					 const SketchStrides query_strides) {
+					 const SketchStrides query_strides,
+					 volatile int * blocks_complete) {
 	// Calculate indices for query, ref and results
 	long blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
 	long query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
@@ -207,8 +224,8 @@ void calculate_query_dists(const uint64_t * ref,
 		// NB there is no disadvantage vs using multiple warps, as they would have to wait
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
 		extern __shared__ uint64_t query_shared[];
-		if (threadIdx.x < WARP_SIZE) {
-			for (long lidx = threadIdx.x; lidx < query_strides.bbits * query_strides.sketchsize64; lidx += WARP_SIZE) {
+		if (threadIdx.x < warpSize) {
+			for (long lidx = threadIdx.x; lidx < query_strides.bbits * query_strides.sketchsize64; lidx += warpSize) {
 				query_shared[lidx] = query_start[lidx * query_strides.bin_stride];
 			}
 		}
@@ -252,12 +269,7 @@ void calculate_query_dists(const uint64_t * ref,
 								 ysquaresum,
 								 kmer_n);
 
-		// Progress indicator
-		// The >> 10 is a divide by 1024 - update roughly every 0.1%
-		if (dist_idx % (dist_n >> 10) == 0) 
-		{
-			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
-		}
+		update_progress(dist_idx, dist_n, blocks_complete);
 	}
 
 }
@@ -272,7 +284,8 @@ void calculate_self_dists(const uint64_t * ref,
 					      float * dists,
 						  const long long dist_n,
 						  const float * random_match,
-					      const SketchStrides ref_strides)
+						  const SketchStrides ref_strides,
+						  volatile int * blocks_complete)
 {
 	// Grid-stride loop
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -324,12 +337,7 @@ void calculate_self_dists(const uint64_t * ref,
 								 ysquaresum,
 								 kmer_n);
 
-		// Progress indicator
-		// The >> 10 is a divide by 1024 - update roughly every 0.1%
-		if (dist_idx % (dist_n >> 10) == 0) 
-		{
-			printf("%cProgress (GPU): %.1lf%%", 13, (float)dist_idx/dist_n * 100);
-		}
+		update_progress(dist_idx, dist_n, blocks_complete);
 	}
 }
 
@@ -506,6 +514,23 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 	return(std::make_tuple(blockSize, blockCount));
 } 
 
+// Writes a progress meter using the device int which keeps
+// track of completed jobs
+void reportProgress(volatile int * blocks_complete, 
+					long long dist_rows) {
+	long long progress_blocks = 1 << progressBitshift;
+	int now_completed = 0; float kern_progress = 0;
+	while (now_completed < progress_blocks) {
+		if (*blocks_complete > now_completed) {
+			now_completed = *blocks_complete;
+			kern_progress = now_completed / (float)progress_blocks;
+			fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, kern_progress * 100);
+		} else {
+			usleep(10);
+		}
+	}
+}
+
 // Main function to run the distance calculations, reading/writing into device_arrays
 // Cache preferences:
 // Upper dist memory access is hard to predict, so try and cache as much
@@ -520,6 +545,11 @@ std::vector<float> dispatchDists(
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self) {
+	// Progress meter
+	volatile int *blocks_complete;
+	cdpErrchk( cudaMallocManaged(&blocks_complete, sizeof(int)) );
+	*blocks_complete = 0;
+	
 	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
@@ -554,8 +584,10 @@ std::vector<float> dispatchDists(
 				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
 				dist_rows,
 				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
-				ref_strides
+				ref_strides,
+				blocks_complete
 			);
+		reportProgress(blocks_complete, dist_rows);	
 	} else {
 		// 'query' block
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
@@ -577,9 +609,6 @@ std::vector<float> dispatchDists(
 													   sketch_subsample.query_size,
 													   dist_rows);
 		
-		// cudaDeviceSynchronize();	
-		// b = std::chrono::steady_clock::now()
-
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
 		calculate_query_dists<<<blockCount, blockSize, 
@@ -596,8 +625,10 @@ std::vector<float> dispatchDists(
 			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
-			query_strides
+			query_strides,
+			blocks_complete
 		);
+		reportProgress(blocks_complete, dist_rows);
 	}
 
 	// Copy results back to host
@@ -611,11 +642,13 @@ std::vector<float> dispatchDists(
 		// and deal with it here
 		std::cerr << "Error getting result: " << std::endl;
 		std::cerr << e.what() << std::endl;
+		// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
 		exit(1);
 	}
 
 	cudaDeviceSynchronize();
-	printf("%cProgress (GPU): 100.0%%", 13);
+	// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
+	fprintf(stderr, "%cProgress (GPU): 100.0%%", 13);
 	std::cout << std::endl << "" << std::endl;
 
 	return(dist_results);
