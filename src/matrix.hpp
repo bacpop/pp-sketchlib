@@ -11,10 +11,6 @@
 #include <cstddef>
 #include <string>
 
-#ifdef GPU_AVAILABLE
-#include "gpu.hpp"
-#endif
-
 #include <Eigen/Dense>
 
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
@@ -38,16 +34,3 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
                                  float x_max,
                                  float y_max,
                                  unsigned int num_threads = 1);
-
-// GPU functions for gpu_api.cpp
-#ifdef GPU_AVAILABLE
-void longToSquareBlock(NumpyMatrix& coreSquare,
-                       NumpyMatrix& accessorySquare,
-                       const SketchSlice& sketch_subsample,
-                       std::vector<float>& block_results,
-                       const unsigned int num_threads);
-
-NumpyMatrix twoColumnSquareToLong(const NumpyMatrix& coreSquare,
-                       const NumpyMatrix& accessorySquare,
-                       const unsigned int num_threads);
-#endif
