@@ -48,7 +48,7 @@ inline long calc_col_idx(const long long k, const long i, const long n) {
 
 inline long long square_to_condensed(long i, long j, long n) {
     assert(j > i);
-	return (n*i - ((i*(i+1)) << 1) + j - 1 - i);
+	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
 }
 
 std::tuple<size_t, unsigned int, unsigned int> 

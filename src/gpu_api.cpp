@@ -56,13 +56,6 @@ void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 	}
 }
 
-void printSlice(const SketchSlice& s) {
-	std::cerr << s.ref_offset << std::endl;
-	std::cerr << s.ref_size << std::endl;
-	std::cerr << s.query_offset << std::endl;
-	std::cerr << s.query_size << std::endl;
-}
-
 // Functions to join matrices when doing computation in chunks
 void longToSquareBlock(NumpyMatrix& coreSquare,
                        NumpyMatrix& accessorySquare,
@@ -82,14 +75,16 @@ void longToSquareBlock(NumpyMatrix& coreSquare,
                                     dummy_query_query,
                                     num_threads);
     } else {
-        square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(blockMat.data(), 
-                                    sketch_subsample.ref_size, 
-                                    sketch_subsample.query_size);
+		square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(
+            blockMat.data(), 
+            sketch_subsample.ref_size, 
+            sketch_subsample.query_size);
     }
-    coreSquare.block(sketch_subsample.ref_offset, 
-                        sketch_subsample.query_offset,
-                        sketch_subsample.ref_size, 
-                        sketch_subsample.query_size) = square_form; 
+ 	// Only update the upper triangle   
+	coreSquare.block(sketch_subsample.query_offset, 
+                        sketch_subsample.ref_offset,
+                        sketch_subsample.query_size, 
+                        sketch_subsample.ref_size) = square_form;
 
     if (self) {
         square_form = long_to_square(blockMat.col(1), 
@@ -97,26 +92,16 @@ void longToSquareBlock(NumpyMatrix& coreSquare,
                                     dummy_query_query,
                                     num_threads);
     } else {
-        square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(blockMat.data()+1, 
-                                            sketch_subsample.ref_size, 
-                                            sketch_subsample.query_size);
+        square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(
+                blockMat.data()+1, 
+                sketch_subsample.ref_size, 
+                sketch_subsample.query_size);
 
     }
-    accessorySquare.block(sketch_subsample.ref_offset, 
-                        sketch_subsample.query_offset,
-                        sketch_subsample.ref_size, 
-                        sketch_subsample.query_size) = square_form; 
-}
-
-NumpyMatrix twoColumnSquareToLong(const NumpyMatrix& coreSquare,
-                       const NumpyMatrix& accessorySquare,
-                       const unsigned int num_threads) {
-    Eigen::VectorXf core_dists = square_to_long(coreSquare, num_threads);
-    Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_threads);
-    
-    NumpyMatrix dists_ret_matrix(samples_to_rows(coreSquare.rows()), 2);
-    dists_ret_matrix << core_dists, accessory_dists; // Join columns 
-    return(dists_ret_matrix);
+	accessorySquare.block(sketch_subsample.query_offset, 
+                        sketch_subsample.ref_offset,
+                        sketch_subsample.query_size, 
+                        sketch_subsample.ref_size) = square_form;
 }
 
 // Main function callable via API
@@ -185,7 +170,6 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
 		chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
-		chunks = 2;
         size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
@@ -206,58 +190,40 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 			
 			sketch_subsample.ref_offset = sketch_subsample.query_offset; 
 			for (unsigned int chunk_j = chunk_i; chunk_j < chunks; chunk_j++) {
-				std::cerr << "Running chunk " << ++chunk_count << " of " << total_chunks << std::endl;
-                sketch_subsample.ref_size = calc_per_chunk;
+				if (total_chunks > 1) {
+					std::cerr << "Running chunk " << ++chunk_count << " of " << total_chunks << std::endl;
+				}
+    
+	            sketch_subsample.ref_size = calc_per_chunk;
 				if (chunk_j < num_big_chunks) {
 					sketch_subsample.ref_size++;
 				}
-				printSlice(sketch_subsample);
 				
-                if (chunk_i == chunk_j) {
-					// 'self' blocks
-					dist_results = dispatchDists(
+				dist_results = dispatchDists(
 						ref_sketches,
 						ref_sketches,
 						ref_strides,
 						query_strides,
 						sketch_subsample,
 						kmer_lengths,
-						true);
-				} else {
-					// 'query' block
-					dist_results = dispatchDists(
-						ref_sketches,
-						query_sketches,
-						ref_strides,
-						query_strides,
-						sketch_subsample,
-						kmer_lengths,
-						false);
-				}
-				sketch_subsample.ref_offset += sketch_subsample.ref_size; 
-                printf("Returned\n");
+						chunk_i == chunk_j);            
 
 				// Read intermediate dists out
 				if (chunks > 1) {
-                    // Copy results from device into Nx2 matrix
-                    NumpyMatrix blockMat = \
+					NumpyMatrix blockMat = \
                         Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> > \
                             (dist_results.data(),dist_results.size()/2,2);
-                    printf("Mapped\n");
                     
                     // Convert each long form column of Nx2 matrix into square distance matrix
                     // Add this square matrix into the correct submatrix (block) of the final square matrix
-                    if (self) {
-
-                    }
                     longToSquareBlock(coreSquare,
                                         accessorySquare,
                                         sketch_subsample,
                                         blockMat,
                                         chunk_i == chunk_j,
                                         num_cpu_threads);
-                    printf("To square\n");
 				} 
+				sketch_subsample.ref_offset += sketch_subsample.ref_size; 
 			}
 			sketch_subsample.query_offset += sketch_subsample.query_size; 
 		}
@@ -283,9 +249,11 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
     if (self && chunks > 1) {
 		// Chunked computation yields square matrix, which needs to be converted back to long
 		// form
-		dists_ret_matrix = twoColumnSquareToLong(coreSquare,
-												 accessorySquare,
-												 num_cpu_threads);
+		Eigen::VectorXf core_dists = square_to_long(coreSquare, num_cpu_threads);
+		Eigen::VectorXf accessory_dists = square_to_long(accessorySquare, num_cpu_threads);
+		
+		dists_ret_matrix.resize(samples_to_rows(coreSquare.rows()), 2);
+		dists_ret_matrix << core_dists, accessory_dists; // Join columns 
 	} else {
         dists_ret_matrix = \
             Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,2,Eigen::ColMajor> >(dist_results.data(),dist_results.size()/2,2);
