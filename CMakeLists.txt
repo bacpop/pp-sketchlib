@@ -47,6 +47,9 @@ if(DEFINED ENV{CONDA_PREFIX})
     link_directories($ENV{CONDA_PREFIX}/lib/intel64)
 endif()
 
+# Define python library target
+add_library("${TARGET_NAME}" MODULE)
+
 # Check for CUDA and compiles GPU library
 include(CheckLanguage)
 check_language(CUDA)
@@ -54,25 +57,31 @@ if(CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, compiling both GPU and CPU code")
     enable_language(CUDA)
     
-    set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true")
+    # PIC/relocatable-device-code needed as this is linked by gcc later
+    # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
+    # --cudart static: static linking of the CUDA libraries
+    # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
+    set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
     string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50")
     string(APPEND CUDA_OPTS " -gencode arch=compute_75,code=sm_75")
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
     
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
-    # target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
+    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA" 
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden")
+    # CPU code/gcc compiled code needed by cuda lib
+    target_sources("${TARGET_NAME}" PRIVATE src/gpu_api.cpp)
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
 endif()
 
 # Compile CPU library
-add_library("${TARGET_NAME}" MODULE src/sketchlib_bindings.cpp
+target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/dist.cpp
                                     src/matrix_ops.cpp
                                     src/reference.cpp

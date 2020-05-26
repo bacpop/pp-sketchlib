@@ -69,6 +69,8 @@ square2_res = np.array([[0, 1, 2, 3, 10, 20],
 check_res(square1_res, square1)
 check_res(square2_res, square2)
 
+check_res(pp_sketchlib.squareToLong(square1_res, 2), rr_mat)
+
 # assigning
 x = np.arange(0, 1, 0.1, dtype=np.float32)
 y = np.arange(0, 1, 0.1, dtype=np.float32)

@@ -16,7 +16,7 @@ ifeq ($(UNAME_S),Linux)
 	ifdef PROFILE
 		CXXFLAGS+= -Wl,--compress-debug-sections=none
 	endif
-	LDLIBS+= -lpthread -lgfortran -lm -ldl
+	LDLIBS+= -lpthread -lgfortran -lm -ldl -lrt
 	LDFLAGS=-Wl,-as-needed
 endif
 ifeq ($(UNAME_S),Darwin)
@@ -38,7 +38,7 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 PROGRAMS=sketch_test matrix_test read_test
 
 SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o
-CUDA_OBJS=dist.cu.o
+CUDA_OBJS=dist.cu.o gpu_api.o
 
 all: $(PROGRAMS)
 
@@ -50,7 +50,7 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 sketch_test: $(SKETCH_OBJS) main.o
-	$(LINK.cpp) $^ -o $@ $(LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS) $(CUDA_LDLIBS)
 
 matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)

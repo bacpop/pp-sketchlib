@@ -83,7 +83,7 @@ you can calculate distances on your graphics device even more quickly. Add the `
    python pp_sketch-runner.py --query --ref-db listeria --query-db listeria --use-gpu
 
 You can set the ``--gpu-id`` if you have more than one device, which may be necessary on
-cluster systems.
+cluster systems. This mode can also benefit from having multiple CPU cores available too.
 
 Benchmarks
 ^^^^^^^^^^
@@ -193,6 +193,10 @@ See ``main.cpp`` for examples::
         listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
     }
 
+Notes
+=====
+
+- All matrix/array structures are row-major, for compatibility with numpy.
 
 Citations
 =========

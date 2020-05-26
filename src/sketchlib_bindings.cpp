@@ -15,12 +15,6 @@ namespace py = pybind11;
 
 #include "api.hpp"
 
-/*
- * Gives the same functions as mash.py 
- * Create reference - check for existing DB (move existing code), creates sketches if none, runs query_db
- * Query db - creates query sketches, loads ref sketches, runs query_db
- */
-
 NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf>& distVec,
                           const unsigned int num_threads) {
     Eigen::VectorXf dummy_query_ref;
@@ -40,6 +34,12 @@ NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf>& distVec,
                                             query_ref_distVec, 
                                             query_query_distVec,
                                             num_threads);
+    return(converted);
+}
+
+Eigen::VectorXf squareToLong(const Eigen::Ref<NumpyMatrix>& distMat,
+                             const unsigned int num_threads) {
+    Eigen::VectorXf converted = square_to_long(distMat, num_threads); 
     return(converted);
 }
 
@@ -90,10 +90,11 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
-                            device_id);
+                            device_id,
+                            num_threads);
     }
     else
     {
@@ -137,10 +138,11 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
-                            device_id);
+                            device_id,
+                            num_threads);
     }
     else
     {
@@ -199,10 +201,11 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
-        dists = query_db_gpu(ref_sketches,
+        dists = query_db_cuda(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
-                             device_id);
+                             device_id,
+                             num_threads);
     }
     else
     {
@@ -309,6 +312,10 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("ref_name"),
         py::arg("query_name"),
         py::arg("kmer_length"));
+
+  m.def("squareToLong", &squareToLong, py::return_value_policy::reference_internal, "Convert dense square matrices to long form",
+        py::arg("distMat").noconvert(),
+        py::arg("num_threads") = 1);
 
   m.def("longToSquare", &longToSquare, py::return_value_policy::reference_internal, "Convert dense long form distance matrices to square form",
         py::arg("distVec").noconvert(),

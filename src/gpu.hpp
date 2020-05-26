@@ -1,7 +1,7 @@
 /*
  *
- * api.hpp
- * main functions for interacting with sketches
+ * gpu.hpp
+ * functions using CUDA
  *
  */
 #pragma once
@@ -10,55 +10,35 @@
 #include <cstdint>
 #include <cstddef>
 
-#ifdef __CUDACC__
-#include <thrust/device_malloc_allocator.h>
-#include <thrust/system_error.h>
-#include <thrust/system/cuda/error.h>
-#endif
-
 #include "reference.hpp"
 
 #ifdef GPU_AVAILABLE
-// defined in dist.cu
-std::vector<float> query_db_cuda(std::vector<Reference>& ref_sketches,
-	std::vector<Reference>& query_sketches,
-	const std::vector<size_t>& kmer_lengths,
-	const int device_id = 0);
-#endif
-
-#ifdef __CUDACC__
-// thrust vector using mallocManaged (supports device page faults)
-// from https://tinyurl.com/whykq6o
-template<class T>
-class managed_allocator : public thrust::device_malloc_allocator<T>
-{
-  public:
-    using value_type = T;
-
-    typedef thrust::device_ptr<T>  pointer;
-    inline pointer allocate(size_t n)
-    {
-      value_type* result = nullptr;
-  
-      cudaError_t error = cudaMallocManaged(&result, n*sizeof(T), cudaMemAttachGlobal);
-  
-      if(error != cudaSuccess)
-      {
-        throw thrust::system_error(error, thrust::cuda_category(), "managed_allocator::allocate(): cudaMallocManaged");
-      }
-  
-      return thrust::device_pointer_cast(result);
-    }
-  
-    inline void deallocate(pointer ptr, size_t)
-    {
-      cudaError_t error = cudaFree(thrust::raw_pointer_cast(ptr));
-  
-      if(error != cudaSuccess)
-      {
-        throw thrust::system_error(error, thrust::cuda_category(), "managed_allocator::deallocate(): cudaFree");
-      }
-    }
+// Structure of flattened vectors
+struct SketchStrides {
+	size_t bin_stride;
+	size_t kmer_stride;
+	size_t sample_stride;
+	size_t sketchsize64; 
+	size_t bbits;
 };
+
+struct SketchSlice {
+	size_t ref_offset;
+	size_t ref_size;
+	size_t query_offset;
+	size_t query_size;
+};
+
+// defined in dist.cu
+std::tuple<size_t, size_t> initialise_device(const int device_id);
+
+std::vector<float> dispatchDists(
+				   std::vector<Reference>& ref_sketches,
+				   std::vector<Reference>& query_sketches,
+				   SketchStrides& ref_strides,
+				   SketchStrides& query_strides,
+				   const SketchSlice& sketch_subsample,
+				   const std::vector<size_t>& kmer_lengths,
+				   const bool self);
 #endif
 
