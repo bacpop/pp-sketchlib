@@ -166,10 +166,13 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	if (self)
 	{
 		// To prevent memory being exceeded, total distance matrix is split up into
-		// chunks which do fit in memory. These are iterated over in the same order
-		// as a square distance matrix. The i = j chunks are 'self', i < j can be skipped
+		// chunks which do fit in memory. The most is needed in the 'corners' where
+		// two separate lots of sketches are loaded, hence the factor of two below
+		
+		// These are iterated over in the same order as a square distance matrix.
+		// The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
-		chunks = floor(est_size / (mem_free * (1 - mem_epsilon))) + 1;
+		chunks = floor((est_size * 2) / (mem_free * (1 - mem_epsilon))) + 1;
         size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
