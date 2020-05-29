@@ -50,6 +50,7 @@ class Reference
         size_t sketchsize64() const { return _sketchsize64; }
         size_t seq_length() const { return _seq_size; }
         bool densified() const { return _densified; }
+        bool rc() const { return _use_rc; }
         std::vector<double> base_composition() const { return {_bases.a, _bases.c, _bases.g, _bases.t}; }
         unsigned long int missing_bases() const { return _missing_bases; }
 
