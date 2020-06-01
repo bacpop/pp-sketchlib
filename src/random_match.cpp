@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "asa058.hpp"
-#include "reference.hpp"
+#include "api.hpp"
 
 // A, C, G, T
 // Just in case we ever add N (or U, heaven forbid)
@@ -26,40 +26,15 @@ const int max_tries = 5;
 
 // Functions used in construction
 std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples);
-robin_hood::unordered_node_map<std::string, uint16_t> cluster_frequencies(
+std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
+			NumpyMatrix> cluster_frequencies cluster_frequencies(
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters);
 std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc);
 
-class RandomMC {
-	public:
-		RandomMC(const bool use_rc); // no MC
-		RandomMC(const std::vector<Reference>& sketches, 
-				   const std::vector<size_t>& kmer_lengths,
-				   const unsigned int n_clusters,
-				   const unsigned int n_MC,
-				   const size_t sketchsize64,
-				   const bool use_rc,
-				   const int num_threads);
+RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _use_rc(false), _no_MC(false);
 
-		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
-		// TODO add flatten functions here too
-		// will need a lookup table (array) from sample_idx -> random_match_idx
-
-	private:
-		unsigned int _n_clusters;
-		bool _no_MC;
-		bool _use_rc;
-		
-		// TODO may be easier to get rid of hashes and use sketch index instead? (considering GPU)
-		// name index -> cluster ID
-		robin_hood::unordered_node_map<std::string, uint16_t> _cluster_table;
-		std::vector<std::string> _representatives;
-		// k-mer idx -> cluster ID (vector position) -> square matrix of matches, idx = cluster
-		robin_hood::unordered_node_map<size_t, std::vector<NumpyMatrix matches>> _matches; 
-};
-
-RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _use_rc(use_rc), _no_MC(true);
+RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _use_rc(use_rc), _no_MC(true);
 
 // Constructor - generates random match chances by Monte Carlo, sampling probabilities
 // from the input sketches
@@ -67,18 +42,22 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				   const std::vector<size_t>& kmer_lengths,
 				   const unsigned int n_clusters,
 				   const unsigned int n_MC,
-				   const size_t sketchsize64,
-				   const bool use_rc,
-				   const int num_threads) : _n_clusters(n_clusters), _use_rc(use_rc), _no_MC(false) {
+				   const int num_threads) : _n_clusters(n_clusters), _no_adjustment(false), _use_rc(use_rc), _no_MC(false) {
+	size_t sketchsize64 = sketches[0].sketchsize64();
+	_use_rc = sketches[0].rc();
+ 
     // Run k-means on the base frequencies, save the results in a hash table   
-	_cluster_table = cluster_frequencies(sketches, _n_clusters);
+	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters);
 	
 	// Pick representative sequences, generate random sequence from them
-	unsigned int found = 0;
+	unsigned int found = 0; 
 	_representatives.reserve(n_clusters);
 	std::fill(_representatives.begin(), _representatives.end(), "")
 	const std::vector<std::vector<Reference>::iterator representatives_it;
 	for (auto sketch_it = sketches.begin(); sketch_it) {
+		if (sketch_it->sketchsize64 != sketchsize64 || sketch_it->rc != _use_rc) {
+			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
+		}
 		if (_representatives[_cluster_table[sketch_it->name()]].empty()) {
 			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name(); 
 			representatives_it.push_back(sketch_it);	
@@ -128,17 +107,25 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 // Get the random match chance between two samples at a given k-mer length
 // Will use Bernoulli estimate if MC was not run
 float RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
-	float random_chance;
+	float random_chance = 0;
 	if (_no_MC) {
 		int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
 		float avg_length = (r1.seq_length() + r2.seq_length()) / 2;
 		random_chance = avg_length / (avg_length + rc_factor * std::pow(0.25, -kmer_len));
-	} else {
+	} else if (!_no_adjustment) {
 		uint16_t cluster1 = _cluster_table[r1.name()]; 
 		uint16_t cluster2 = _cluster_table[r2.name()];
 		random_chance = _matches[kmer_len](cluster1, cluster2) 
 	}
 	return(random_chance);
+}
+
+// find nearest neighbour
+size_t RandomMC::closest_cluster(const Reference& ref) const {
+	MatrixXf::Index index;
+	Eigen::VectorXf v = ref.base_composition;
+  	(_cluster_centroids.rowwise() - v).colwise().squaredNorm().minCoeff(&index);
+	return(index);
 }
 
 /*
@@ -158,7 +145,8 @@ std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples) {
 }
 
 // k-means
-robin_hood::unordered_node_map<std::string, uint16_t> cluster_frequencies(
+std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
+			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters) {
 	
@@ -214,7 +202,9 @@ robin_hood::unordered_node_map<std::string, uint16_t> cluster_frequencies(
 		cluster_map[sketches[sketch_idx].name()] = assignment[sketch_idx]; 
 	}
 
-	return cluster_map;	
+	Eigen::Map<NumpyMatrix> centroids_matrix(centroids, n_clusters, N_BASES);
+
+	return std::make_tuple(cluster_map, centroids_matrix);	
 }
 
 // Bernoulli random draws - each base independent

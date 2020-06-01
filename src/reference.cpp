@@ -92,33 +92,16 @@ Reference::Reference(const std::string& name,
     _bases.t = bases[3];
 }
 
-double Reference::random_match(const int kmer_len)
-{
-    if (_match_probs == 0)
-    {
-        _match_probs = std::pow(_bases.a, 2) +
-                       std::pow(_bases.c, 2) + 
-                       std::pow(_bases.g, 2) + 
-                       std::pow(_bases.t, 2); 
-    }
-    int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-    double r1 = _seq_size / (_seq_size + rc_factor * std::pow(_match_probs, -kmer_len));
-    return r1;
-}
-
-double Reference::jaccard_dist(Reference &query, const int kmer_len)
+double Reference::jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random)
 {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
                                       _sketchsize64, 
                                       _bbits);
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
+    
     double jaccard_obs = intersize/(double)unionsize;
-    
-    double r1 = this->random_match(kmer_len);
-    double r2 = query.random_match(kmer_len);
-    double jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
-    
+    double jaccard_expected = random.random_match(*this, query, kmer_len);
     double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
     return(jaccard);
 }

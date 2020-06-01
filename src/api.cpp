@@ -28,6 +28,7 @@ inline bool file_exists (const std::string& name) {
 void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const RandomMC& random_chance,
                      const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs);
@@ -158,11 +159,10 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    const RandomMC& random_chance,
                     const bool jaccard,
-                    const size_t num_threads) 
-{
-    if (ref_sketches.size() < 1 or query_sketches.size() < 1)
-    {
+                    const size_t num_threads) {
+    if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
         throw std::runtime_error("Query with empty ref or query list!");
     }
     
@@ -180,8 +180,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     std::sort(ref_sketches.begin(), ref_sketches.end());
     std::sort(query_sketches.begin(), query_sketches.end());
 
-    if (ref_sketches == query_sketches)
-    {
+    if (ref_sketches == query_sketches) {
         // calculate dists
         size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
         distMat.resize(dist_rows, dist_cols);
@@ -210,6 +209,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                                             std::ref(distMat),
                                             std::cref(kmer_lengths),
                                             std::ref(ref_sketches),
+                                            std::cref(random_chance),
                                             jaccard,
                                             start,
                                             thread_jobs));
@@ -389,6 +389,7 @@ void sketch_block(std::vector<Reference>& sketches,
 void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const RandomMC& random_chance,
                      const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs)
