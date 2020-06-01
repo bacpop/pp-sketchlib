@@ -99,6 +99,25 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     this->reset();
 }
 
+SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in, 
+               const std::vector<double>& bases,
+               const unsigned long int N_count,
+               const size_t kmer_len)
+ :_N_count(N_count), _reads(false) {
+    for (const auto& contig : sequence_in) {
+        if (contig.length() >= kmer_len) {
+            sequence.push_back(contig);
+        }
+    }
+    _bases.a = bases[0];
+    _bases.c = bases[1];
+    _bases.g = bases[2];
+    _bases.t = bases[3];
+
+    this->reset();
+}
+
+
 void SeqBuf::reset()
 {
     /* 

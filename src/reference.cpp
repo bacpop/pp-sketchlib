@@ -33,7 +33,7 @@ Reference::Reference()
 }
 
 Reference::Reference(const std::string& name, 
-                     const std::vector<std::string>& filenames, 
+                     const SeqBuf& sequence, 
                      const std::vector<size_t>& kmer_lengths,
                      const size_t sketchsize64,
                      const bool use_rc,
@@ -47,10 +47,7 @@ Reference::Reference(const std::string& name,
     _densified(false),
     _match_probs(0)
 {
-    // Read in sequence
-    SeqBuf sequence(filenames, kmer_lengths.back());
-    if (sequence.nseqs() == 0)
-    {
+    if (sequence.nseqs() == 0) {
         throw std::runtime_error(filenames.at(0) + " contains no sequence");
     }
     _bases = sequence.get_composition();

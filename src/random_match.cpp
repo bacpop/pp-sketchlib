@@ -19,65 +19,141 @@
 // Just in case we ever add N (or U, heaven forbid)
 #define N_BASES = 4
 const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
+const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
 const int max_iter = 300;
 const int max_tries = 5;
 
+// Functions used in construction
+std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples);
+robin_hood::unordered_node_map<std::string, uint16_t> cluster_frequencies(
+	const std::vector<Reference>& sketches,
+	const unsigned int n_clusters);
+std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc);
+
 class RandomMC {
 	public:
-		RandomMC(const std::vector<Reference>& sketches, const unsigned int n_clusters);
+		RandomMC(const bool use_rc); // no MC
+		RandomMC(const std::vector<Reference>& sketches, 
+				   const std::vector<size_t>& kmer_lengths,
+				   const unsigned int n_clusters,
+				   const unsigned int n_MC,
+				   const size_t sketchsize64,
+				   const bool use_rc,
+				   const int num_threads);
 
-		double random_match(const std::string& name1, const std::string& name2) const;
+		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
 		// TODO add flatten functions here too
-		// will need a lookup table from sample_idx -> random_match_idx
+		// will need a lookup table (array) from sample_idx -> random_match_idx
 
 	private:
-		unsigned int _n_clusters;	
+		unsigned int _n_clusters;
+		bool _no_MC;
+		bool _use_rc;
 		
 		// TODO may be easier to get rid of hashes and use sketch index instead? (considering GPU)
 		// name index -> cluster ID
 		robin_hood::unordered_node_map<std::string, uint16_t> _cluster_table;
 		std::vector<std::string> _representatives;
 		// k-mer idx -> cluster ID (vector position) -> square matrix of matches, idx = cluster
-		robin_hood::unordered_node_map<size_t, std::vector<Eigen::EigenXd matches>> _matches; 
+		robin_hood::unordered_node_map<size_t, std::vector<NumpyMatrix matches>> _matches; 
 };
 
+RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _use_rc(use_rc), _no_MC(true);
+
+// Constructor - generates random match chances by Monte Carlo, sampling probabilities
+// from the input sketches
 RandomMC::RandomMC(const std::vector<Reference>& sketches, 
+				   const std::vector<size_t>& kmer_lengths,
 				   const unsigned int n_clusters,
-				   const unsigned int n_MC) : _n_clusters(n_clusters) {
-    _cluster_table = cluster_frequencies(sketches, _n_clusters);
+				   const unsigned int n_MC,
+				   const size_t sketchsize64,
+				   const bool use_rc,
+				   const int num_threads) : _n_clusters(n_clusters), _use_rc(use_rc), _no_MC(false) {
+    // Run k-means on the base frequencies, save the results in a hash table   
+	_cluster_table = cluster_frequencies(sketches, _n_clusters);
 	
 	// Pick representative sequences, generate random sequence from them
 	unsigned int found = 0;
 	_representatives.reserve(n_clusters);
 	std::fill(_representatives.begin(), _representatives.end(), "")
+	const std::vector<std::vector<Reference>::iterator representatives_it;
 	for (auto sketch_it = sketches.begin(); sketch_it) {
 		if (_representatives[_cluster_table[sketch_it->name()]].empty()) {
 			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name(); 
-			SeqBuf random_seq(generate_random_sequence(*sketch_it)); // TODO need to make a SeqBuf constructor from string
-			if (++found >= n_clusters) {							// TODO ?? generate how many random seqs? ?? //
+			representatives_it.push_back(sketch_it);	
+			if (++found >= n_clusters) {
 				break;
 			}
 		}
 	}
 
-	// sketch random sequences at each k-mer length (use api.hpp)
+	// Generate random sequences and sketch them (in parallel)
+	// TODO need to ensure these matches are not adjusted!
+	std::vector<Reference> random_seqs(representatives.size() * n_MC);
+	omp_set_num_threads(num_threads);
+	#pragma omp parallel for simd collapse(2) schedule(static)
+	for (unsigned int r_idx = 0; r_idx < _representatives.size(); r_idx++) {
+		for (unsigned int copies = 0; copies < n_MC; copies++) {
+				SeqBuf random_seq(generate_random_sequence(*(representatives_it + r_idx), use_rc), 
+						*(representatives_it + r_idx)->base_composition(),
+						0, kmer_lengths.back());
+				random_seqs[r_idx * n_MC + copies] = \
+					Reference("random" + std::to_string(r_idx * n_MC + copies), 
+							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false);
+		}
+	}
 
 	// calculate jaccard distances at each k-mer length (use api.hpp)
+	NumpyMatrix random = query_db(random_seqs, random_seqs, kmer_lengths, true, num_threads);
 
 	// store these dists in an eigen matrix
+	Eigen::VectorXf dummy_query_ref;
+    Eigen::VectorXf dummy_query_query;
+	for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size()l kmer_idx++) {
+		NumpyMatrix random_full = long_to_square(random.col(kmer_idx), dummy_query_ref, dummy_query_query, num_threads);
+		NumpyMatrix random_mean;
+		random_mean.resize(n_clusters, n_clusters);
+		unsigned int blockSize = n_MC * (n_MC - 1); // upper and lower triangle
+		#pragma omp parallel for simd collapse(2) schedule(static)
+		for (unsigned int i = 0; i < n_MC; i++) {
+			for (unsigned int j = 0; j < n_MC; j++) {
+				random_mean(i, j) = random_full.block(i*n_MC, j*n_MC, n_MC, n_MC).sum()/blockSize;
+			}
+		}
+		_matches[kmer_lengths[kmer_idx]] = random_mean; 
+	}
 }
 
-RandomMC::random_match(const std::string& name1, const std::string& name2) const {
-
+// Get the random match chance between two samples at a given k-mer length
+// Will use Bernoulli estimate if MC was not run
+float RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+	float random_chance;
+	if (_no_MC) {
+		int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
+		float avg_length = (r1.seq_length() + r2.seq_length()) / 2;
+		random_chance = avg_length / (avg_length + rc_factor * std::pow(0.25, -kmer_len));
+	} else {
+		uint16_t cluster1 = _cluster_table[r1.name()]; 
+		uint16_t cluster2 = _cluster_table[r2.name()];
+		random_chance = _matches[kmer_len](cluster1, cluster2) 
+	}
+	return(random_chance);
 }
 
-std::vector<size_t> random_ints(const size_t n_samples) {
+/*
+*
+* Internal functions
+*
+*/
+
+// Draw k samples from [0, n]
+std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples) {
 	std::vector<size_t> random_idx(sketches.size());
 	std::iota(random_idx.begin(), random_idx.end(), 0);
     std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()});
 	std::sort(random_idx.begin(), random_idx.begin() + n_samples);
-	random_idx.erase(random_idx.begin() + n_clusters + 1, random_idx.end());
+	random_idx.erase(random_idx.begin() + k_draws + 1, random_idx.end());
 	return(random_idx);
 }
 
@@ -141,14 +217,19 @@ robin_hood::unordered_node_map<std::string, uint16_t> cluster_frequencies(
 	return cluster_map;	
 }
 
-std::string generate_random_sequence(const Reference& ref_seq) {
+// Bernoulli random draws - each base independent
+std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc) {
 	std::vector<double> base_f = ref_seq.base_composition()
 	std::default_random_engine generator;
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};   
 	
 	std::ostringstream random_seq_buffer;
 	for (size_t i = 0; size_t < ref_seq.seq_length(); size_t++) {
-		random_seq_buffer << BASEMAP[base_dist(generator)];
+		if (use_rc && i > (ref_seq.seq_length()/2)) {
+			random_seq_buffer << RCMAP[base_dist(generator)];
+		} else {
+			random_seq_buffer << BASEMAP[base_dist(generator)];
+		}
 	}
 
 	return(std::string(random_seq_buffer.str()));
