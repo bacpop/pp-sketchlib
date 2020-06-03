@@ -26,7 +26,7 @@ class Reference
     public:
         Reference();
         Reference(const std::string& name, 
-                  const SeqBuf& sequence, 
+                  SeqBuf& sequence, 
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64, 
                   const bool use_rc,

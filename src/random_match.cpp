@@ -12,12 +12,12 @@
 #include <random>
 #include <memory>
 
-#include "asa058.hpp"
+#include "asa136.hpp"
 #include "api.hpp"
 
 // A, C, G, T
 // Just in case we ever add N (or U, heaven forbid)
-#define N_BASES = 4
+#define N_BASES 4
 const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
@@ -27,14 +27,14 @@ const int max_tries = 5;
 // Functions used in construction
 std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples);
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
-			NumpyMatrix> cluster_frequencies cluster_frequencies(
+			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters);
 std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc);
 
-RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _use_rc(false), _no_MC(false);
+RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
 
-RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _use_rc(use_rc), _no_MC(true);
+RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _no_MC(true), _use_rc(use_rc) {}
 
 // Constructor - generates random match chances by Monte Carlo, sampling probabilities
 // from the input sketches
@@ -42,7 +42,8 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				   const std::vector<size_t>& kmer_lengths,
 				   const unsigned int n_clusters,
 				   const unsigned int n_MC,
-				   const int num_threads) : _n_clusters(n_clusters), _no_adjustment(false), _use_rc(use_rc), _no_MC(false) {
+				   const bool use_rc,
+				   const int num_threads) : _n_clusters(n_clusters), _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
 	size_t sketchsize64 = sketches[0].sketchsize64();
 	_use_rc = sketches[0].rc();
  
@@ -52,10 +53,10 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	// Pick representative sequences, generate random sequence from them
 	unsigned int found = 0; 
 	_representatives.reserve(n_clusters);
-	std::fill(_representatives.begin(), _representatives.end(), "")
+	std::fill(_representatives.begin(), _representatives.end(), "");
 	const std::vector<std::vector<Reference>::iterator representatives_it;
-	for (auto sketch_it = sketches.begin(); sketch_it) {
-		if (sketch_it->sketchsize64 != sketchsize64 || sketch_it->rc != _use_rc) {
+	for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++) {
+		if (sketch_it->sketchsize64() != sketchsize64 || sketch_it->rc() != _use_rc) {
 			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
 		}
 		if (_representatives[_cluster_table[sketch_it->name()]].empty()) {
@@ -85,7 +86,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
 	RandomMC no_adjust();
 	for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++) {
-		_matches[*kmer_it] = NumpyMatrix::Zero(n_clusters, n_clusters);
+		NumpyMatrix matches = NumpyMatrix::Zero(n_clusters, n_clusters)
 		for (unsigned int i = 0; i < n_clusters; i++) {
 			for (unsigned int j = i; j < n_clusters; j++) {
 				double dist_sum = 0;
@@ -98,10 +99,11 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				if (i == j) {
 					dist_count -= n_MC; // diagonal is zero
 				}
-				_matches[*kmer_it](i, j) = dist_sum/dist_count;
-				_matches[*kmer_it](j, i) = _matches[*kmer_it](i, j);
+				matches(i, j) = dist_sum/dist_count;
+				matches(j, i) = matches(i, j);
 			}
 		}
+		_matches[*kmer_it] = matches;	
 	}
 
 }
@@ -125,10 +127,10 @@ float RandomMC::random_match(const Reference& r1, const Reference& r2, const siz
 
 // find nearest neighbour
 size_t RandomMC::closest_cluster(const Reference& ref) const {
-	MatrixXf::Index index;
-	Eigen::VectorXf v = ref.base_composition;
+	Eigen::MatrixXf::Index index;
+	Eigen::VectorXf v = ref.base_composition();
   	(_cluster_centroids.rowwise() - v).colwise().squaredNorm().minCoeff(&index);
-	return(index);
+	return((size_t)index);
 }
 
 void RandomMC::add_query(const Reference& query) {
@@ -143,10 +145,10 @@ void RandomMC::add_query(const Reference& query) {
 
 // Draw k samples from [0, n]
 std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples) {
-	std::vector<size_t> random_idx(sketches.size());
+	std::vector<size_t> random_idx(n_samples);
 	std::iota(random_idx.begin(), random_idx.end(), 0);
     std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()});
-	std::sort(random_idx.begin(), random_idx.begin() + n_samples);
+	std::sort(random_idx.begin(), random_idx.begin() + k_draws);
 	random_idx.erase(random_idx.begin() + k_draws + 1, random_idx.end());
 	return(random_idx);
 }

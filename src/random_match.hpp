@@ -25,9 +25,10 @@ class RandomMC {
 				   const std::vector<size_t>& kmer_lengths,
 				   const unsigned int n_clusters,
 				   const unsigned int n_MC,
+				   const bool use_rc,
 				   const int num_threads);
 
-		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
+		float random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
         size_t closest_cluster(const Reference& ref) const;
 		void add_query(const Reference& query);
 		// TODO add flatten functions here too

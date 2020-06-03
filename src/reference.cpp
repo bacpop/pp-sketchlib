@@ -12,6 +12,7 @@
 
 #include "sketch.hpp"
 #include "dist.hpp"
+#include "random_match.hpp"
 
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
@@ -27,13 +28,12 @@ Reference::Reference()
     _sketchsize64(def_sketchsize64),
     _use_rc(true),
     _seq_size(0),
-    _densified(false),
-    _match_probs(0)
+    _densified(false)
 {
 }
 
 Reference::Reference(const std::string& name, 
-                     const SeqBuf& sequence, 
+                     SeqBuf& sequence, 
                      const std::vector<size_t>& kmer_lengths,
                      const size_t sketchsize64,
                      const bool use_rc,
@@ -44,11 +44,10 @@ Reference::Reference(const std::string& name,
     _sketchsize64(sketchsize64),
     _use_rc(use_rc),
     _seq_size(0),
-    _densified(false),
-    _match_probs(0)
+    _densified(false)
 {
     if (sequence.nseqs() == 0) {
-        throw std::runtime_error(filenames.at(0) + " contains no sequence");
+        throw std::runtime_error(name + " contains no sequence");
     }
     _bases = sequence.get_composition();
     _missing_bases = sequence.missing_bases();
@@ -83,8 +82,7 @@ Reference::Reference(const std::string& name,
                      const std::vector<double> bases,
                      const unsigned long int missing_bases)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
-   _seq_size(seq_size), _missing_bases(missing_bases), _densified(false), 
-   _match_probs(0)
+   _seq_size(seq_size), _missing_bases(missing_bases), _densified(false)
 {
     _bases.a = bases[0];
     _bases.c = bases[1];

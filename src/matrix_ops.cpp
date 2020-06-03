@@ -332,7 +332,7 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
     // Each inner loop increases in size linearly with outer index
     // due to reverse direction
     // guided schedules inversely proportional to outer index
-    #pragma omp parallel for simd schedule(guided, 1)
+    #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
     for (long i = n - 2; i >= 0; i--) {
         for (long j = i + 1; j < n; j++) {
             longDists(square_to_condensed(i, j, n)) = squareDists(i, j); 

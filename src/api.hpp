@@ -12,6 +12,7 @@
 #include <string>
 
 #include "matrix.hpp"
+#include "random_match.hpp"
 #include "reference.hpp"
 
 std::vector<Reference> create_sketches(const std::string& db_name,
