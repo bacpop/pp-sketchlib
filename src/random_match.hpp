@@ -43,8 +43,8 @@ class RandomMC {
 		// name index -> cluster ID
 		robin_hood::unordered_node_map<std::string, uint16_t> _cluster_table;
 		std::vector<std::string> _representatives;
-		// k-mer idx -> cluster ID (vector position) -> square matrix of matches, idx = cluster
-		robin_hood::unordered_node_map<size_t, std::vector<NumpyMatrix>> _matches; 
+		// k-mer idx -> square matrix of matches, idx = cluster
+		robin_hood::unordered_node_map<size_t, NumpyMatrix> _matches; 
 
         NumpyMatrix _cluster_centroids;
 };

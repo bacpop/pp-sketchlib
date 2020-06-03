@@ -30,7 +30,7 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters);
-std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc);
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq, const bool use_rc);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
 
@@ -54,14 +54,14 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	unsigned int found = 0; 
 	_representatives.reserve(n_clusters);
 	std::fill(_representatives.begin(), _representatives.end(), "");
-	const std::vector<std::vector<Reference>::iterator representatives_it;
+	std::vector<size_t> representatives_idx;
 	for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++) {
 		if (sketch_it->sketchsize64() != sketchsize64 || sketch_it->rc() != _use_rc) {
 			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
 		}
 		if (_representatives[_cluster_table[sketch_it->name()]].empty()) {
 			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name(); 
-			representatives_it.push_back(sketch_it);	
+			representatives_idx.push_back(sketch_it - sketches.begin());	
 			if (++found >= n_clusters) {
 				break;
 			}
@@ -71,12 +71,12 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	// Generate random sequences and sketch them (in parallel)
 	// TODO need to ensure these matches are not adjusted!
 	omp_set_num_threads(num_threads);
-	std::vector<std::vector<<Reference>> random_seqs(n_clusters);
+	std::vector<std::vector<Reference>> random_seqs(n_clusters);
 	#pragma omp parallel for simd collapse(2) schedule(static)
 	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
-				SeqBuf random_seq(generate_random_sequence(*(representatives_it + r_idx), use_rc), 
-						*(representatives_it + r_idx)->base_composition(),
+				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc), 
+						sketches[representatives_idx[r_idx]].base_composition(),
 						0, kmer_lengths.back());
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies), 
@@ -84,9 +84,9 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		}
 	}
 
-	RandomMC no_adjust();
+	RandomMC no_adjust;
 	for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++) {
-		NumpyMatrix matches = NumpyMatrix::Zero(n_clusters, n_clusters)
+		NumpyMatrix matches = NumpyMatrix::Zero(n_clusters, n_clusters);
 		for (unsigned int i = 0; i < n_clusters; i++) {
 			for (unsigned int j = i; j < n_clusters; j++) {
 				double dist_sum = 0;
@@ -114,13 +114,13 @@ float RandomMC::random_match(const Reference& r1, const Reference& r2, const siz
 	float random_chance = 0;
 	if (_no_MC) {
 		int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-		float r1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
-		float r2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
-		random_chance = (r1 * r2) / (r1 + r2 - r1 * r2);
+		float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
+		float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
+		random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
 	} else if (!_no_adjustment) {
-		uint16_t cluster1 = _cluster_table[r1.name()]; 
-		uint16_t cluster2 = _cluster_table[r2.name()];
-		random_chance = _matches[kmer_len](cluster1, cluster2) 
+		const uint16_t cluster1 = _cluster_table.at(r1.name()); 
+		const uint16_t cluster2 = _cluster_table.at(r2.name());
+		random_chance = _matches.at(kmer_len)(cluster1, cluster2);
 	}
 	return(random_chance);
 }
@@ -128,8 +128,10 @@ float RandomMC::random_match(const Reference& r1, const Reference& r2, const siz
 // find nearest neighbour
 size_t RandomMC::closest_cluster(const Reference& ref) const {
 	Eigen::MatrixXf::Index index;
-	Eigen::VectorXf v = ref.base_composition();
-  	(_cluster_centroids.rowwise() - v).colwise().squaredNorm().minCoeff(&index);
+	double* ptr = &ref.base_composition()[0];
+	Eigen::Map<Eigen::VectorXd> vd(ptr, ref.base_composition().size());
+	Eigen::RowVectorXf vf = vd.cast<float>();
+  	(_cluster_centroids.rowwise() - vf).colwise().squaredNorm().minCoeff(&index);
 	return((size_t)index);
 }
 
@@ -164,7 +166,7 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	for (size_t idx = 0; idx < sketches.size(); idx++) {
 		std::vector<double> base_ref = sketches[idx].base_composition();
 		// Cannot distinguish A/T G/C if strand unknown
-		if (ref.rc()) {
+		if (sketches[idx].rc()) {
 			base_ref[0] = 0.5*(base_ref[0] + base_ref[3]);
 			base_ref[1] = 0.5*(base_ref[1] + base_ref[2]);
 			base_ref[2] = base_ref[1];
@@ -188,16 +190,16 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 		tries++;
 		
 		// Pick random centroids for each attempt
-		std::vector<size_t> centroid_samples = random_ints(n_clusters);
+		std::vector<size_t> centroid_samples = random_ints(n_clusters, sketches.size());
 		for (size_t centroid_idx = 0; centroid_idx < n_clusters; centroid_idx++) {
-			for (size_t base = 0; base < base_ref.size(); base++) {
+			for (size_t base = 0; base < N_BASES; base++) {
 				centroids[centroid_idx + base * n_clusters] = data[centroid_samples[centroid_idx] + base * n_clusters];
 			}	
 		}
 		
 		// Run k-means
-		kmns(data, sketches.size(), N_BASES, centroids, n_clusters, 
-		     assignment, cluster_counts, max_iter, wss, success);
+		kmns(data.get(), sketches.size(), N_BASES, centroids.get(), n_clusters, 
+		     assignment.get(), cluster_counts.get(), max_iter, wss.get(), success);
 		if (*success == 3) {
 			throw std::runtime_error("Error with k-means input");
 		}
@@ -206,24 +208,33 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 		throw std::runtime_error("Could not cluster base frequencies");
 	}
 
+	// Build the return types
 	robin_hood::unordered_node_map<std::string, uint16_t> cluster_map;
 	for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
 		cluster_map[sketches[sketch_idx].name()] = assignment[sketch_idx]; 
 	}
 
-	Eigen::Map<NumpyMatrix> centroids_matrix(centroids, n_clusters, N_BASES);
-
+	// doubles returned need to be cast to float in numpy matrix
+	Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+		 centroids_matrix_d(centroids.get(), n_clusters, N_BASES);
+	NumpyMatrix centroids_matrix = centroids_matrix_d.cast<float>();
+	/*{
+		double* centroids_ptr = centroids.get();
+		float* centroids_f = static_cast<float*>(centroids_ptr);
+		new (&centroids_matrix) Eigen::Map<NumpyMatrix>(centroids_f);
+	} */
+	
 	return std::make_tuple(cluster_map, centroids_matrix);	
 }
 
 // Bernoulli random draws - each base independent
-std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc) {
-	std::vector<double> base_f = ref_seq.base_composition()
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq, const bool use_rc) {
+	std::vector<double> base_f = ref_seq.base_composition();
 	std::default_random_engine generator;
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};   
 	
 	std::ostringstream random_seq_buffer;
-	for (size_t i = 0; size_t < ref_seq.seq_length(); size_t++) {
+	for (size_t i = 0; i < ref_seq.seq_length(); i++) {
 		if (use_rc && i > (ref_seq.seq_length()/2)) {
 			random_seq_buffer << RCMAP[base_dist(generator)];
 		} else {
@@ -231,5 +242,6 @@ std::string generate_random_sequence(const Reference& ref_seq, const bool use_rc
 		}
 	}
 
-	return(std::string(random_seq_buffer.str()));
+	std::vector<std::string> random = {std::string(random_seq_buffer.str())};
+	return(random);
 }
