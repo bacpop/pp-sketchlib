@@ -44,8 +44,8 @@ class Reference
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random);
-        std::tuple<float, float> core_acc_dist(Reference &query);
-        std::tuple<float, float> core_acc_dist(Reference &query, const arma::mat& kmers);
+        std::tuple<float, float> core_acc_dist(Reference &query, const RandomMC& random);
+        std::tuple<float, float> core_acc_dist(Reference &query, const arma::mat& kmers, const RandomMC& random);
         std::vector<size_t> kmer_lengths() const;
 
         std::string name() const { return _name; }
@@ -88,4 +88,5 @@ arma::mat kmer2mat(const T& kmers);
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(Reference * r1, 
                                        Reference * r2, 
-                                       const arma::mat& kmers);
+                                       const arma::mat& kmers,
+                                       const RandomMC& random);

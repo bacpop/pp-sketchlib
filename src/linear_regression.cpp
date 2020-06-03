@@ -14,13 +14,14 @@ const float accessory_upper = 0;
 
 std::tuple<float, float> regress_kmers(Reference * r1, 
                                        Reference * r2, 
-                                       const arma::mat& kmers)
+                                       const arma::mat& kmers,
+                                       const RandomMC& random)
 {
     // Vector of points 
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i)
     {
-        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers.at(i, 1)));
+        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers.at(i, 1), random));
     }
 
     try

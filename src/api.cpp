@@ -36,6 +36,7 @@ void self_dist_block(NumpyMatrix& distMat,
 void query_dist_row(NumpyMatrix& distMat,
                     Reference * ref_sketch_ptr,
                     std::vector<Reference>& query_sketches,
+                    const RandomMC& random_chance,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
                     const size_t row_start);
@@ -159,7 +160,6 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
-                    const RandomMC& random_chance,
                     const bool jaccard,
                     const size_t num_threads) {
     if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
@@ -180,7 +180,10 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     std::sort(ref_sketches.begin(), ref_sketches.end());
     std::sort(query_sketches.begin(), query_sketches.end());
 
+    RandomMC random_chance(ref_sketches, kmer_lengths, 5, 5, num_threads);
+
     if (ref_sketches == query_sketches) {
+        
         // calculate dists
         size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
         distMat.resize(dist_rows, dist_cols);
@@ -250,6 +253,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                               std::ref(distMat),
                               &(*query_it),
                               std::ref(ref_sketches),
+                              std::cref(random_chance),
                               std::cref(kmer_lengths),
                               jaccard,
                               row_start));
@@ -406,10 +410,10 @@ void self_dist_block(NumpyMatrix& distMat,
             {
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                        distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx]);
+                        distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx], random_chance);
                     }
                 } else {
-                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat);
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat, random_chance);
                 }
                 done_calcs++;
                 if (done_calcs >= calcs)
@@ -431,6 +435,7 @@ void self_dist_block(NumpyMatrix& distMat,
 void query_dist_row(NumpyMatrix& distMat,
                     Reference * query_sketch_ptr,
                     std::vector<Reference>& ref_sketches,
+                    const RandomMC& random_chance,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
                     const size_t row_start)
@@ -441,11 +446,11 @@ void query_dist_row(NumpyMatrix& distMat,
     {
         if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx]);
+                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx], random_chance);
             }
         } else {
             std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                     query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);
+                     query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat, random_chance);
         }
         current_row++;
     }

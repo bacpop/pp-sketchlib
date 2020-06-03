@@ -106,7 +106,7 @@ double Reference::jaccard_dist(Reference &query, const int kmer_len, const Rando
     return(jaccard);
 }
 
-std::tuple<float, float> Reference::core_acc_dist(Reference &query)
+std::tuple<float, float> Reference::core_acc_dist(Reference &query, const RandomMC& random)
 {
     std::vector<size_t> kmers = this->kmer_lengths();
     if (kmers != query.kmer_lengths())
@@ -116,17 +116,20 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query)
 
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      kmer2mat(kmers)); 
+                                                      kmer2mat(kmers),
+                                                      random); 
     return(core_acc);
 }
 
 // Without k-mer sizes check
 std::tuple<float, float> Reference::core_acc_dist(Reference &query, 
-                                                  const arma::mat &kmers)
+                                                  const arma::mat &kmers,
+                                                  const RandomMC& random)
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 
-                                                      kmers); 
+                                                      kmers,
+                                                      random); 
     return(core_acc);
 }
 

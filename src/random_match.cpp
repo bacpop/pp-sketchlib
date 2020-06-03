@@ -69,39 +69,41 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
 	// Generate random sequences and sketch them (in parallel)
 	// TODO need to ensure these matches are not adjusted!
-	std::vector<Reference> random_seqs(representatives.size() * n_MC);
 	omp_set_num_threads(num_threads);
+	std::vector<std::vector<<Reference>> random_seqs(n_clusters);
 	#pragma omp parallel for simd collapse(2) schedule(static)
-	for (unsigned int r_idx = 0; r_idx < _representatives.size(); r_idx++) {
+	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
 				SeqBuf random_seq(generate_random_sequence(*(representatives_it + r_idx), use_rc), 
 						*(representatives_it + r_idx)->base_composition(),
 						0, kmer_lengths.back());
-				random_seqs[r_idx * n_MC + copies] = \
+				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies), 
-							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false);
+							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false));
 		}
 	}
 
-	// calculate jaccard distances at each k-mer length (use api.hpp)
-	NumpyMatrix random = query_db(random_seqs, random_seqs, kmer_lengths, true, num_threads);
-
-	// store these dists in an eigen matrix
-	Eigen::VectorXf dummy_query_ref;
-    Eigen::VectorXf dummy_query_query;
-	for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size()l kmer_idx++) {
-		NumpyMatrix random_full = long_to_square(random.col(kmer_idx), dummy_query_ref, dummy_query_query, num_threads);
-		NumpyMatrix random_mean;
-		random_mean.resize(n_clusters, n_clusters);
-		unsigned int blockSize = n_MC * (n_MC - 1); // upper and lower triangle
-		#pragma omp parallel for simd collapse(2) schedule(static)
-		for (unsigned int i = 0; i < n_MC; i++) {
-			for (unsigned int j = 0; j < n_MC; j++) {
-				random_mean(i, j) = random_full.block(i*n_MC, j*n_MC, n_MC, n_MC).sum()/blockSize;
+	RandomMC no_adjust();
+	for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++) {
+		_matches[*kmer_it] = NumpyMatrix::Zero(n_clusters, n_clusters);
+		for (unsigned int i = 0; i < n_clusters; i++) {
+			for (unsigned int j = i; j < n_clusters; j++) {
+				double dist_sum = 0;
+				#pragma omp parallel for simd collapse(2) schedule(static) reduction(+:dist_sum)
+				for (unsigned int copy_i = 0; copy_i < n_MC; copy_i++) {
+					for (unsigned int copy_j = 0; copy_j < n_MC; copy_j++)
+						dist_sum += random_seqs[i][copy_i].jaccard_dist(random_seqs[j][copy_j], *kmer_it, no_adjust);
+				}
+				int dist_count = n_MC * n_MC;
+				if (i == j) {
+					dist_count -= n_MC; // diagonal is zero
+				}
+				_matches[*kmer_it](i, j) = dist_sum/dist_count;
+				_matches[*kmer_it](j, i) = _matches[*kmer_it](i, j);
 			}
 		}
-		_matches[kmer_lengths[kmer_idx]] = random_mean; 
 	}
+
 }
 
 // Get the random match chance between two samples at a given k-mer length
@@ -110,8 +112,9 @@ float RandomMC::random_match(const Reference& r1, const Reference& r2, const siz
 	float random_chance = 0;
 	if (_no_MC) {
 		int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-		float avg_length = (r1.seq_length() + r2.seq_length()) / 2;
-		random_chance = avg_length / (avg_length + rc_factor * std::pow(0.25, -kmer_len));
+		float r1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
+		float r2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
+		random_chance = (r1 * r2) / (r1 + r2 - r1 * r2);
 	} else if (!_no_adjustment) {
 		uint16_t cluster1 = _cluster_table[r1.name()]; 
 		uint16_t cluster2 = _cluster_table[r2.name()];
@@ -126,6 +129,10 @@ size_t RandomMC::closest_cluster(const Reference& ref) const {
 	Eigen::VectorXf v = ref.base_composition;
   	(_cluster_centroids.rowwise() - v).colwise().squaredNorm().minCoeff(&index);
 	return(index);
+}
+
+void RandomMC::add_query(const Reference& query) {
+	_cluster_table[query.name()] = closest_cluster(query);
 }
 
 /*

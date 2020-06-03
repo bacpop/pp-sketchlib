@@ -15,12 +15,14 @@ int main (int argc, char* argv[])
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
     Reference query(argv[3], {argv[4]}, kmer_lengths, 156, true, 0, false);
 
-    std::cout << ref.jaccard_dist(ref, 15) << std::endl;      // Should be 1
-    std::cout << ref.jaccard_dist(query, 15) << std::endl;
-    std::cout << ref.jaccard_dist(query, 29) << std::endl;
-    std::cout << query.jaccard_dist(ref, 29) << std::endl;
+    RandomMC random_match(true);
 
-    auto core_acc = ref.core_acc_dist(query); 
+    std::cout << ref.jaccard_dist(ref, 15, random_match) << std::endl;      // Should be 1
+    std::cout << ref.jaccard_dist(query, 15, random_match) << std::endl;
+    std::cout << ref.jaccard_dist(query, 29, random_match) << std::endl;
+    std::cout << query.jaccard_dist(ref, 29, random_match) << std::endl;
+
+    auto core_acc = ref.core_acc_dist(query, random_match); 
     std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
 
     Database sketch_db("sketch.h5");
@@ -29,7 +31,7 @@ int main (int argc, char* argv[])
 
     Reference ref_read = sketch_db.load_sketch(argv[1]);
     Reference query_read = sketch_db.load_sketch(argv[3]);
-    std::cout << ref_read.jaccard_dist(query_read, 15) << std::endl;
+    std::cout << ref_read.jaccard_dist(query_read, 15, random_match) << std::endl;
 
     std::vector<Reference> ref_sketches = create_sketches("full",
                                {argv[1], argv[3]}, 
