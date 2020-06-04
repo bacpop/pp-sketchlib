@@ -37,7 +37,7 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 
 PROGRAMS=sketch_test matrix_test read_test
 
-SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o asa136.o random_match.o
+SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o random_match.o
 GPU_SKETCH_OBJS=gpu_api.o
 CUDA_OBJS=dist.cu.o
 

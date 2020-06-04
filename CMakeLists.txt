@@ -91,7 +91,6 @@ target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/database.cpp
                                     src/api.cpp
                                     src/linear_regression.cpp
-                                    src/asa136.cpp
                                     src/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES 
     CXX_VISIBILITY_PRESET "hidden"
