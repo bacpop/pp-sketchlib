@@ -28,8 +28,9 @@ const int max_tries = 5;
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
-	const unsigned int n_clusters);
-size_t closest_cluster(const double* vec, const NumpyMatrix& cluster_centroids) const;
+	const unsigned int n_clusters,
+	const unsigned int num_threads);
+size_t nearest_neighbour(double* vec, const size_t vec_N, const NumpyMatrix& cluster_centroids);
 std::vector<std::string> generate_random_sequence(const Reference& ref_seq, const bool use_rc);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
@@ -57,7 +58,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	_use_rc = sketches[0].rc();
  
     // Run k-means on the base frequencies, save the results in a hash table   
-	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters);
+	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
 	
 	// Pick representative sequences, generate random sequence from them
 	unsigned int found = 0; 
@@ -144,14 +145,15 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 
 size_t RandomMC::closest_cluster(const Reference& ref) const {
 	double* ptr = &ref.base_composition()[0];
-	return(closest_cluster(ptr, _cluster_centroids));
+	return(nearest_neighbour(ptr, ref.base_composition().size(), _cluster_centroids));
 }
 
+/*
 size_t RandomMC::closest_cluster(const arma::vec& bases) const {
 	double* ptr = bases.memptr(); 
 	return(closest_cluster(ptr, _cluster_centroids));
 }
-
+*/
 
 void RandomMC::add_query(const Reference& query) {
 	_cluster_table[query.name()] = closest_cluster(query);
@@ -164,19 +166,29 @@ void RandomMC::add_query(const Reference& query) {
 */
 
 // find nearest neighbour
-size_t closest_cluster(const double* vec, const NumpyMatrix& cluster_centroids) const {
+size_t nearest_neighbour(double* vec, const size_t vec_N, const NumpyMatrix& cluster_centroids) {
 	Eigen::MatrixXf::Index index;
-	Eigen::Map<Eigen::VectorXd> vd(vec, ref.base_composition().size());
+	Eigen::Map<Eigen::VectorXd> vd(vec, vec_N);
 	Eigen::RowVectorXf vf = vd.cast<float>();
   	(cluster_centroids.rowwise() - vf).colwise().squaredNorm().minCoeff(&index);
 	return((size_t)index);
+}
+
+arma::uvec random_ints(const size_t k_draws, const size_t max_n) {
+	std::vector<arma::uword> random_idx(max_n);
+	std::iota(random_idx.begin(), random_idx.end(), 0);
+    std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()});
+	std::sort(random_idx.begin(), random_idx.begin() + k_draws);
+	random_idx.erase(random_idx.begin() + k_draws + 1, random_idx.end());
+	return(arma::uvec(random_idx));
 }
 
 // k-means
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
-	const unsigned int n_clusters) {
+	const unsigned int n_clusters,
+	const unsigned int num_threads) {
 	
 	// Build the input matrix in the right form
 	arma::mat data(sketches.size(), N_BASES, arma::fill::zeros);
@@ -195,16 +207,19 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 		}
 	}
     
+	
 	arma::mat means;
-	bool status = false;
+	bool success = false;
 	int tries = 0;
+	omp_set_num_threads(num_threads);
 	while(success && tries < max_tries) {
 		tries++;
-		status = arma::kmeans(means, data, n_clusters, arma::random_subset, max_iter, true);
+		// Also uses openmp
+		success = arma::kmeans(means, data, n_clusters, arma::random_subset, max_iter, true);
 	}
 	if (!success) {
 		std::cerr << "Could not cluster base frequencies; using randomly chosen samples" << std::endl;
-		means = data.rows(randperm(sketches.size(), n_clusters));
+		means = data.rows(random_ints(n_clusters, sketches.size()));
 	}
 
 	// Build the return types
@@ -214,8 +229,10 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	NumpyMatrix centroids_matrix = centroids_matrix_d.cast<float>();
 
 	robin_hood::unordered_node_map<std::string, uint16_t> cluster_map;
+	#pragma omp parallel for simd schedule(static)
 	for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
-		cluster_map[sketches[sketch_idx].name()] = closest_cluster(&ref.base_composition()[0], centroids_matrix); 
+		cluster_map[sketches[sketch_idx].name()] = \
+			nearest_neighbour(&sketches[sketch_idx].base_composition()[0], N_BASES, centroids_matrix); 
 	}
 
 	return std::make_tuple(cluster_map, centroids_matrix);	
