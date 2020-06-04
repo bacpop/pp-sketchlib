@@ -1,11 +1,11 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
 else ifdef PROFILE
-  CXXFLAGS+= -O2 -g
+  CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 else
-  CXXFLAGS+= -O3
+  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 endif
 
 UNAME_S := $(shell uname -s)
@@ -37,7 +37,8 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 
 PROGRAMS=sketch_test matrix_test read_test
 
-SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o asa136.o random_match.o gpu_api.o
+SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o asa136.o random_match.o
+GPU_SKETCH_OBJS=gpu_api.o
 CUDA_OBJS=dist.cu.o
 
 all: $(PROGRAMS)
@@ -50,7 +51,7 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 sketch_test: $(SKETCH_OBJS) main.o
-	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS) $(CUDA_LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
@@ -59,13 +60,13 @@ read_test: $(SKETCH_OBJS) read_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
 version.h:
-	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $2 "\""}' > version.h
+	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
 database.o: version.h
 
 python: $(PYTHON_LIB)
 
-$(PYTHON_LIB): $(SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
+$(PYTHON_LIB): $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) sketchlib_bindings.o
 	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(CUDA_LDLIBS)
 

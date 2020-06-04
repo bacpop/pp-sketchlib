@@ -11,9 +11,11 @@ int main (int argc, char* argv[])
     // Runs a test of functionality
     
     std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
-    Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, true, 0, false);
+    SeqBuf ref_seq({argv[2]}, kmer_lengths.back());
+    Reference ref(argv[1], ref_seq, kmer_lengths, 156, true, 0, false);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
-    Reference query(argv[3], {argv[4]}, kmer_lengths, 156, true, 0, false);
+    SeqBuf query_seq({argv[4]}, kmer_lengths.back());
+    Reference query(argv[3], query_seq, kmer_lengths, 156, true, 0, false);
 
     RandomMC random_match(true);
 

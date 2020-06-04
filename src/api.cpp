@@ -180,7 +180,12 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     std::sort(ref_sketches.begin(), ref_sketches.end());
     std::sort(query_sketches.begin(), query_sketches.end());
 
-    RandomMC random_chance(ref_sketches, kmer_lengths, 5, 5, true, num_threads);
+    RandomMC random_chance;
+    if (ref_sketches.size() > 5) {
+        random_chance = RandomMC(ref_sketches, kmer_lengths, 2, 5, true, num_threads);
+    } else {
+        random_chance = RandomMC();
+    }
 
     if (ref_sketches == query_sketches) {
         

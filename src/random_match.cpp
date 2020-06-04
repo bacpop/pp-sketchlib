@@ -11,6 +11,7 @@
 #include <sstream>
 #include <random>
 #include <memory>
+#include <algorithm>
 
 #include "asa136.hpp"
 #include "api.hpp"
@@ -40,10 +41,19 @@ RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _
 // from the input sketches
 RandomMC::RandomMC(const std::vector<Reference>& sketches, 
 				   const std::vector<size_t>& kmer_lengths,
-				   const unsigned int n_clusters,
+				   unsigned int n_clusters,
 				   const unsigned int n_MC,
 				   const bool use_rc,
-				   const int num_threads) : _n_clusters(n_clusters), _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
+				   const int num_threads) : _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
+	if (n_clusters >= sketches.size()) {
+		std::cerr << "Cannot make more base frequency clusters than sketches" << std::endl;
+		n_clusters = sketches.size() - 1;
+	}
+	if (n_clusters < 2) {
+		throw std::runtime_error("Cannot make this few base frequency clusters");
+	}
+	_n_clusters = n_clusters;
+	
 	size_t sketchsize64 = sketches[0].sketchsize64();
 	_use_rc = sketches[0].rc();
  
@@ -110,13 +120,21 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
 // Get the random match chance between two samples at a given k-mer length
 // Will use Bernoulli estimate if MC was not run
-float RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
-	float random_chance = 0;
+double RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+	double random_chance = 0;
 	if (_no_MC) {
-		int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-		float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
-		float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(0.25, -kmer_len));
-		random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
+		// This is what we're doing, written more clearly
+		// int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
+		// size_t match_chance = rc_factor * std::pow(N_BASES, (double)-kmer_len)
+		//float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
+		//float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
+		// use bitshift to calculate 4^k
+		size_t match_chance = (size_t)1 << (kmer_len * 2 + (_use_rc ? 1 : 0));
+		double j1 = 1 - std::pow(1 - (double)1/match_chance, (double)r1.seq_length());
+		double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)r2.seq_length());
+		if (j1 > 0 && j2 > 0) {
+			random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
+		}
 	} else if (!_no_adjustment) {
 		const uint16_t cluster1 = _cluster_table.at(r1.name()); 
 		const uint16_t cluster2 = _cluster_table.at(r2.name());
@@ -152,6 +170,9 @@ std::vector<size_t> random_ints(const size_t k_draws, const size_t n_samples) {
     std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()});
 	std::sort(random_idx.begin(), random_idx.begin() + k_draws);
 	random_idx.erase(random_idx.begin() + k_draws + 1, random_idx.end());
+	for (auto it : random_idx) {
+		std::cout << it << std::endl;
+	}
 	return(random_idx);
 }
 
@@ -184,9 +205,9 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	auto wss = std::make_unique<double[]>(n_clusters);
 
 	auto centroids = std::make_unique<double[]>(n_clusters * N_BASES);
-	int* success; *success = -1;
+	int success = -1;
 	int tries = 0;
-	while(*success && tries < max_tries) {
+	while(success && tries < max_tries) {
 		tries++;
 		
 		// Pick random centroids for each attempt
@@ -199,13 +220,13 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 		
 		// Run k-means
 		kmns(data.get(), sketches.size(), N_BASES, centroids.get(), n_clusters, 
-		     assignment.get(), cluster_counts.get(), max_iter, wss.get(), success);
-		if (*success == 3) {
+		     assignment.get(), cluster_counts.get(), max_iter, wss.get(), &success);
+		if (success == 3) {
 			throw std::runtime_error("Error with k-means input");
 		}
 	}
 	if (tries == max_tries) {
-		throw std::runtime_error("Could not cluster base frequencies");
+		std::cerr << "Could not cluster base frequencies; using randomly chosen samples" << std::endl;
 	}
 
 	// Build the return types
