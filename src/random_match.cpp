@@ -13,6 +13,7 @@
 #include <memory>
 #include <algorithm>
 
+#include "random_match.hpp"
 #include "api.hpp"
 
 // A, C, G, T
@@ -21,6 +22,12 @@
 const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
+// k-mer length parameters
+const double min_random = 0.0001;
+const size_t min_kmer = 6;
+const size_t max_kmer = 31;
+
+// k-means parameters
 const int max_iter = 300;
 const int max_tries = 5;
 
@@ -30,8 +37,11 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters,
 	const unsigned int num_threads);
-size_t nearest_neighbour(double* vec, const size_t vec_N, const NumpyMatrix& cluster_centroids);
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq, const bool use_rc);
+std::vector<double> apply_rc(const Reference& ref);
+size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
+											      const bool use_rc, 
+												  const unsigned long seed);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
 
@@ -40,11 +50,13 @@ RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _
 // Constructor - generates random match chances by Monte Carlo, sampling probabilities
 // from the input sketches
 RandomMC::RandomMC(const std::vector<Reference>& sketches, 
-				   const std::vector<size_t>& kmer_lengths,
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
 				   const bool use_rc,
-				   const int num_threads) : _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
+				   const int num_threads) 
+	: _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
+	std::cerr << "Calculating random match chances using Monte Carlo" << std::endl;
+	
 	if (n_clusters >= sketches.size()) {
 		std::cerr << "Cannot make more base frequency clusters than sketches" << std::endl;
 		n_clusters = sketches.size() - 1;
@@ -62,14 +74,13 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	
 	// Pick representative sequences, generate random sequence from them
 	unsigned int found = 0; 
-	_representatives.reserve(n_clusters);
-	std::fill(_representatives.begin(), _representatives.end(), "");
 	std::vector<size_t> representatives_idx;
+	_representatives.resize(n_clusters, "");
 	for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++) {
 		if (sketch_it->sketchsize64() != sketchsize64 || sketch_it->rc() != _use_rc) {
 			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
 		}
-		if (_representatives[_cluster_table[sketch_it->name()]].empty()) {
+		if (_representatives[_cluster_table[sketch_it->name()]].length() == 0) {
 			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name(); 
 			representatives_idx.push_back(sketch_it - sketches.begin());	
 			if (++found >= n_clusters) {
@@ -78,15 +89,30 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		}
 	}
 
+	// Decide which k-mer lengths to use
+	RandomMC default_adjustment(use_rc);
+	std::vector<size_t> kmer_lengths = {min_kmer};
+	size_t kmer_size = min_kmer;
+	while (kmer_size <= max_kmer) {
+		size_t match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
+																sketches[representatives_idx[1]], 
+																kmer_size);
+		if (match_chance > min_random) {
+			kmer_lengths.push_back(kmer_size);
+		} else {
+			break;
+		}
+		kmer_size++;
+	}
+
 	// Generate random sequences and sketch them (in parallel)
-	// TODO need to ensure these matches are not adjusted!
-	omp_set_num_threads(num_threads);
 	std::vector<std::vector<Reference>> random_seqs(n_clusters);
-	#pragma omp parallel for simd collapse(2) schedule(static)
+	#pragma omp parallel for simd collapse(2) schedule(static) num_threads(num_threads)
 	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
-				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc), 
+				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, r_idx * n_MC + copies), 
 						sketches[representatives_idx[r_idx]].base_composition(),
+						sketches[representatives_idx[r_idx]].seq_length(), 
 						0, kmer_lengths.back());
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies), 
@@ -100,17 +126,23 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		for (unsigned int i = 0; i < n_clusters; i++) {
 			for (unsigned int j = i; j < n_clusters; j++) {
 				double dist_sum = 0;
-				#pragma omp parallel for simd collapse(2) schedule(static) reduction(+:dist_sum)
+				//#pragma omp parallel for simd collapse(2) schedule(static) reduction(+:dist_sum)
 				for (unsigned int copy_i = 0; copy_i < n_MC; copy_i++) {
-					for (unsigned int copy_j = 0; copy_j < n_MC; copy_j++)
+					for (unsigned int copy_j = 0; copy_j < n_MC; copy_j++) {
 						dist_sum += random_seqs[i][copy_i].jaccard_dist(random_seqs[j][copy_j], *kmer_it, no_adjust);
+						printf("i:%u j:%u copy_i:%u copy_j:%u sum:%f\n", i, j, copy_i, copy_j, dist_sum);
+					}
 				}
 				int dist_count = n_MC * n_MC;
 				if (i == j) {
+					dist_sum -= n_MC;
 					dist_count -= n_MC; // diagonal is zero
 				}
 				matches(i, j) = dist_sum/dist_count;
 				matches(j, i) = matches(i, j);
+				printf("match:%f formula:%f", matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
+																random_seqs[j][0], 
+																*kmer_it));
 			}
 		}
 		_matches[*kmer_it] = matches;	
@@ -144,8 +176,7 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 }
 
 size_t RandomMC::closest_cluster(const Reference& ref) const {
-	double* ptr = &ref.base_composition()[0];
-	return(nearest_neighbour(ptr, ref.base_composition().size(), _cluster_centroids));
+	return(nearest_neighbour(ref, _cluster_centroids));
 }
 
 /*
@@ -165,10 +196,23 @@ void RandomMC::add_query(const Reference& query) {
 *
 */
 
+std::vector<double> apply_rc(const Reference& ref) {
+	std::vector<double> base_ref = ref.base_composition();
+	// Cannot distinguish A/T G/C if strand unknown
+	if (ref.rc()) {
+			base_ref[0] = 0.5*(base_ref[0] + base_ref[3]);
+			base_ref[1] = 0.5*(base_ref[1] + base_ref[2]);
+			base_ref[2] = base_ref[1];
+			base_ref[3] = base_ref[0];
+	}
+	return base_ref;
+}
+
 // find nearest neighbour
-size_t nearest_neighbour(double* vec, const size_t vec_N, const NumpyMatrix& cluster_centroids) {
+size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids) {
+	std::vector<double> bases = apply_rc(ref);
 	Eigen::MatrixXf::Index index;
-	Eigen::Map<Eigen::VectorXd> vd(vec, vec_N);
+	Eigen::Map<Eigen::VectorXd> vd(bases.data(), bases.size());
 	Eigen::RowVectorXf vf = vd.cast<float>();
   	(cluster_centroids.rowwise() - vf).colwise().squaredNorm().minCoeff(&index);
 	return((size_t)index);
@@ -177,9 +221,9 @@ size_t nearest_neighbour(double* vec, const size_t vec_N, const NumpyMatrix& clu
 arma::uvec random_ints(const size_t k_draws, const size_t max_n) {
 	std::vector<arma::uword> random_idx(max_n);
 	std::iota(random_idx.begin(), random_idx.end(), 0);
-    std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()});
+    std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()}); // non-deterministic
 	std::sort(random_idx.begin(), random_idx.begin() + k_draws);
-	random_idx.erase(random_idx.begin() + k_draws + 1, random_idx.end());
+	random_idx.erase(random_idx.begin() + k_draws, random_idx.end());
 	return(arma::uvec(random_idx));
 }
 
@@ -191,35 +235,26 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const unsigned int num_threads) {
 	
 	// Build the input matrix in the right form
-	arma::mat data(sketches.size(), N_BASES, arma::fill::zeros);
+	arma::mat data(N_BASES, sketches.size(), arma::fill::zeros);
 	for (size_t idx = 0; idx < sketches.size(); idx++) {
-		std::vector<double> base_ref = sketches[idx].base_composition();
-		// Cannot distinguish A/T G/C if strand unknown
-		if (sketches[idx].rc()) {
-			base_ref[0] = 0.5*(base_ref[0] + base_ref[3]);
-			base_ref[1] = 0.5*(base_ref[1] + base_ref[2]);
-			base_ref[2] = base_ref[1];
-			base_ref[3] = base_ref[0];
-		}
-		
+		std::vector<double> base_ref = apply_rc(sketches[idx]);
 		for (size_t base = 0; base < base_ref.size(); base++) {
-			data(idx, base) = base_ref[base];
+			data(base, idx) = base_ref[base];
 		}
 	}
     
-	
 	arma::mat means;
 	bool success = false;
 	int tries = 0;
 	omp_set_num_threads(num_threads);
-	while(success && tries < max_tries) {
+	while(!success && tries < max_tries) {
 		tries++;
 		// Also uses openmp
-		success = arma::kmeans(means, data, n_clusters, arma::random_subset, max_iter, true);
+		success = arma::kmeans(means, data, n_clusters, arma::random_subset, max_iter, false);
 	}
 	if (!success) {
 		std::cerr << "Could not cluster base frequencies; using randomly chosen samples" << std::endl;
-		means = data.rows(random_ints(n_clusters, sketches.size()));
+		means = data.cols(random_ints(n_clusters, sketches.size()));
 	}
 
 	// Build the return types
@@ -229,19 +264,21 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	NumpyMatrix centroids_matrix = centroids_matrix_d.cast<float>();
 
 	robin_hood::unordered_node_map<std::string, uint16_t> cluster_map;
-	#pragma omp parallel for simd schedule(static)
+	// #pragma omp parallel for schedule(static)
 	for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
 		cluster_map[sketches[sketch_idx].name()] = \
-			nearest_neighbour(&sketches[sketch_idx].base_composition()[0], N_BASES, centroids_matrix); 
+			nearest_neighbour(sketches[sketch_idx], centroids_matrix); 
 	}
 
 	return std::make_tuple(cluster_map, centroids_matrix);	
 }
 
 // Bernoulli random draws - each base independent
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq, const bool use_rc) {
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
+												  const bool use_rc,
+												  const unsigned long seed) {
 	std::vector<double> base_f = ref_seq.base_composition();
-	std::default_random_engine generator;
+	std::default_random_engine generator(seed);
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};   
 	
 	std::ostringstream random_seq_buffer;

@@ -182,7 +182,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 
     RandomMC random_chance;
     if (ref_sketches.size() > 5) {
-        random_chance = RandomMC(ref_sketches, kmer_lengths, 2, 5, true, num_threads);
+        random_chance = RandomMC(ref_sketches, 2, 5, true, num_threads);
     } else {
         random_chance = RandomMC();
     }

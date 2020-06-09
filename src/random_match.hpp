@@ -22,7 +22,6 @@ class RandomMC {
 		RandomMC(); // no adjustment
         RandomMC(const bool use_rc); // no MC - use simple Bernoulli prob
 		RandomMC(const std::vector<Reference>& sketches, 
-				   const std::vector<size_t>& kmer_lengths,
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
 				   const bool use_rc,

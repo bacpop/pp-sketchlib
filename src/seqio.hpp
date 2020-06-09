@@ -33,7 +33,7 @@ class SeqBuf
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
         // Load from sequence (for randomly generated sequence)
         SeqBuf(const std::vector<std::string>& sequence_in, const std::vector<double>& bases, 
-               const unsigned long int N_count, const size_t kmer_len);
+               const size_t length, const unsigned long int N_count, const size_t kmer_len);
 
 	    unsigned char getnext() const { return *next_base; }
 	    unsigned char getout() const { return *out_base; }

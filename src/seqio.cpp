@@ -101,6 +101,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
 
 SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in, 
                const std::vector<double>& bases,
+               const size_t length,
                const unsigned long int N_count,
                const size_t kmer_len)
  :_N_count(N_count), _reads(false) {
@@ -113,6 +114,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in,
     _bases.c = bases[1];
     _bases.g = bases[2];
     _bases.t = bases[3];
+    _bases.total = length;
 
     this->reset();
 }
