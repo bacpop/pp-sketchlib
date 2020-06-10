@@ -19,13 +19,26 @@ class Reference;
 
 class RandomMC {
 	public:
-		RandomMC(); // no adjustment
-        RandomMC(const bool use_rc); // no MC - use simple Bernoulli prob
+		// no adjustment
+		RandomMC(); 
+		// no MC - use simple Bernoulli prob      
+		RandomMC(const bool use_rc); 
+		// set up MC from sketches
 		RandomMC(const std::vector<Reference>& sketches, 
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
 				   const bool use_rc,
-				   const int num_threads);
+				   const int num_threads); 
+		// load MC from database (see database.cpp)
+		RandomMC(const bool use_rc,
+		         const unsigned int min_k,
+				 const unsigned int max_k,
+				 const robin_hood::unordered_node_map<std::string, uint16_t>& cluster_table,
+				 const robin_hood::unordered_node_map<size_t, NumpyMatrix>& matches,
+				 const NumpyMatrix& cluster_centroids)
+			: _no_adjustment(false), _no_MC(false), _use_rc(use_rc), _min_k(min_k), _max_k(max_k),
+              _cluster_table(cluster_table), _matches(matches), _cluster_centroids(cluster_centroids)
+		{}
 
 		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
         size_t closest_cluster(const Reference& ref) const;
@@ -33,11 +46,21 @@ class RandomMC {
 		// TODO add flatten functions here too
 		// will need a lookup table (array) from sample_idx -> random_match_idx
 
+		// functions for saving
+		robin_hood::unordered_node_map<std::string, uint16_t> cluster_table() const { return _cluster_table; }
+		robin_hood::unordered_node_map<size_t, NumpyMatrix> matches() const { return _matches; }
+		NumpyMatrix cluster_centroids() const { return _cluster_centroids; }
+		std::tuple<unsigned int, unsigned int> k_range() const { return std::make_tuple(_min_k, _max_k); }
+		bool use_rc() const { return _use_rc; }
+
 	private:
 		unsigned int _n_clusters;
 		bool _no_adjustment;
         bool _no_MC;
 		bool _use_rc;
+
+		unsigned int _min_k;
+		unsigned int _max_k;
 		
 		// name index -> cluster ID
 		robin_hood::unordered_node_map<std::string, uint16_t> _cluster_table;

@@ -24,8 +24,8 @@ const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
 // k-mer length parameters
-const double min_random = 0.0001;
-const size_t min_kmer = 15;
+const double min_random = 0.00001;
+const size_t min_kmer = 6;
 const size_t max_kmer = 31;
 
 // k-means parameters
@@ -93,7 +93,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
 	std::vector<size_t> kmer_lengths = {min_kmer};
-	size_t kmer_size = min_kmer;
+	size_t kmer_size = min_kmer + 1;
 	while (kmer_size <= max_kmer) {
 		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
 																sketches[representatives_idx[1]], 
@@ -105,20 +105,25 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		}
 		kmer_size++;
 	}
+	_min_k = min_kmer;
+	_max_k = kmer_size - 1;
 
 	// Generate random sequences and sketch them (in parallel)
 	std::vector<std::vector<Reference>> random_seqs(n_clusters);
-	Xoshiro generator(seed=1);
+	Xoshiro generator(1);
 	#pragma omp parallel for collapse(2) firstprivate(generator) schedule(static) num_threads(num_threads)
 	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
-				for (size_t rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++) {
+				// Ensure generated sequence uses uncorrelated streams of RNG
+				for (int rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++) {
 					generator.jump();
 				}
+				// Make the sequence
 				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, generator), 
 						sketches[representatives_idx[r_idx]].base_composition(),
 						sketches[representatives_idx[r_idx]].seq_length(), 
 						0, kmer_lengths.back());
+				// Sketch it
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies), 
 							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false));
@@ -126,28 +131,29 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	}
 
 	RandomMC no_adjust;
+	// printf("kmer\tMC\tformula\n");
 	for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++) {
 		NumpyMatrix matches = NumpyMatrix::Zero(n_clusters, n_clusters);
 		for (unsigned int i = 0; i < n_clusters; i++) {
 			for (unsigned int j = i; j < n_clusters; j++) {
 				double dist_sum = 0;
-				//#pragma omp parallel for simd collapse(2) schedule(static) reduction(+:dist_sum)
+				#pragma omp parallel for simd collapse(2) schedule(static) reduction(+:dist_sum)
 				for (unsigned int copy_i = 0; copy_i < n_MC; copy_i++) {
 					for (unsigned int copy_j = 0; copy_j < n_MC; copy_j++) {
 						dist_sum += random_seqs[i][copy_i].jaccard_dist(random_seqs[j][copy_j], *kmer_it, no_adjust);
-						printf("i:%u j:%u copy_i:%u copy_j:%u sum:%f\n", i, j, copy_i, copy_j, dist_sum);
 					}
 				}
 				int dist_count = n_MC * n_MC;
+				// Diagonal contains n_MC self comparisons (== 1) which need to be removed
 				if (i == j) {
 					dist_sum -= n_MC;
-					dist_count -= n_MC; // diagonal is zero
+					dist_count -= n_MC;
 				}
 				matches(i, j) = dist_sum/dist_count;
 				matches(j, i) = matches(i, j);
-				printf("match:%f formula:%f\n", matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
-																random_seqs[j][0], 
-																*kmer_it));
+				//printf("%lu\t%f\t%f\n", *kmer_it, matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
+				//												random_seqs[j][0], 
+				//												*kmer_it));
 			}
 		}
 		_matches[*kmer_it] = matches;	
@@ -172,7 +178,8 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 		if (j1 > 0 && j2 > 0) {
 			random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
 		}
-	} else if (!_no_adjustment) {
+	} else if (!_no_adjustment && kmer_len < _max_k) {
+		// Longer k-mer lengths here are set to zero
 		const uint16_t cluster1 = _cluster_table.at(r1.name()); 
 		const uint16_t cluster2 = _cluster_table.at(r2.name());
 		random_chance = _matches.at(kmer_len)(cluster1, cluster2);

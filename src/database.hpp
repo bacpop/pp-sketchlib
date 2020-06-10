@@ -30,6 +30,9 @@ class Database
         
         void add_sketch(const Reference& ref); // Write a new sketch to the HDF5
         Reference load_sketch(const std::string& name); // Retrieve a sketch
+        void save_random(const RandomMC& random);
+        RandomMC load_random();
+
         std::string version() const { return _version_hash; }
         bool check_version(const Database& db2) const { return _version_hash == db2.version(); }
 

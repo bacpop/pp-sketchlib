@@ -15,6 +15,15 @@
 
 const int deflate_level = 9;
 
+// Helper function prototypes
+template <typedef T, typedef U>
+void save_hash(robin_hood::unordered_node_map<T, U> hash&,
+               HighFive::Group& group,
+               const std::string& dataset_name);
+template <typedef T, typedef U>
+robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group& group,
+                                               const std::string& dataset_name);
+
 // Initialisation
 // Create new file
 Database::Database(const std::string& filename)
@@ -135,6 +144,90 @@ Reference Database::load_sketch(const std::string& name)
     }
 
     return(new_ref);
+}
+
+// Save a RandomMC object to the database
+void Database::save_random(const RandomMC& random) {
+    // Open or create the random group
+    HighFive::Group random_group = _h5_file.createGroup("random");
+    
+    // Save the cluster table
+    save_hash(random.cluster_table(), random_group, "table");
+    // Save the match matrices
+    save_hash(random.matches(), random_group, "matches");
+    
+    // Save the cluster centroid matrix
+    NumpyMatrix cluster_centroids = random.cluster_centroids();
+    HighFive::DataSet centroid_dataset = random_group.createDataSet<float>("centroids", HighFive::DataSpace::From(cluster_centroids));
+    centroid_dataset.write(cluster_centroids);
+
+    // Save attributes
+    unsigned int k_min, k_max; bool use_rc;
+    std::tie(k_min, k_max) = random.k_range();
+    HighFive::Attribute k_min_a = random_group.createAttribute<unsigned int>("k_min", HighFive::DataSpace::From(k_min));
+    k_min_a.write(k_min);
+    HighFive::Attribute k_max_a = random_group.createAttribute<unsigned int>("k_max", HighFive::DataSpace::From(k_max));
+    k_max_a.write(k_max);
+    HighFive::Attribute rc_a = random_group.createAttribute<bool>("use_rc", HighFive::DataSpace::From(random.use_rc()));
+    rc_a.write(random.use_rc());
+}
+
+// Retrive a RandomMC object from the database
+RandomMC Database::load_random(const bool use_rc_default) {
+    RandomMC random(use_rc_default); // Will use formula version if not in DB
+    if (_h5_file.exist("random")) {
+        HighFive::Group random_group = _h5_file.getGroup("/random");
+        
+        // Flattened hashes
+        robin_hood::unordered_node_map<std::string, uint16_t> cluster_table = load_hash(random_group, "table");
+        robin_hood::unordered_node_map<size_t, NumpyMatrix> matches = load_hash(random_group, "matches");
+        
+        // Centroid matrix
+        NumpyMatrix centroids;
+        random_group.getDataSet("centroids").read(centroids); 
+
+        // Read attributes
+        unsigned int k_min, k_max; bool use_rc;
+        random_group.getAttribute("k_min").read(k_min);
+        random_group.getAttribute("k_max").read(k_max);
+        random_group.getAttribute("use_rc").read(use_rc);
+        
+        // Constructor for reading database
+        random = RandomMC(use_rc, k_min, k_max, cluster_table, matches, centroids);
+    }
+    return(random);
+}
+
+template <typedef T, typedef U>
+void save_hash(robin_hood::unordered_node_map<T, U> hash&,
+               HighFive::Group& group,
+               const std::string& dataset_name) {
+    std::vector<T> hash_keys;
+    std::vector<U> hash_values;
+    for (auto hash_it = hash.begin(); hash_it != hash.end(); hash_it++) {
+        hash_keys.push_back(hash_it->first);
+        hash_values.push_back(hash_it->second);
+    }
+    
+    HighFive::DataSet key_dataset = group.createDataSet<T>(dataset_name + "_keys", DataSpace::From(hash_keys));
+    key_dataset.write(hash_keys);
+    HighFive::DataSet value_dataset = group.createDataSet<U>(dataset_name + "_values", DataSpace::From(hash_values));
+    value_dataset.write(hash_values); 
+}
+
+template <typedef T, typedef U>
+robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group& group,
+                                               const std::string& dataset_name) {
+    std::vector<T> hash_keys;
+    std::vector<U> hash_values;
+    group.getDataSet(dataset_name + "_keys").read(hash_keys); 
+    group.getDataSet(dataset_name + "_values").read(hash_values); 
+    
+    robin_hood::unordered_node_map<T, U> hash;
+    for (size_t i = 0; i < hash_keys.size(); i++) {
+        hash[hash_keys[i]] = hash_values[i];
+    }
+    return(hash)
 }
 
 HighFive::File open_h5(const std::string& filename)
