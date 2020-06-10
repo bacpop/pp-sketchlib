@@ -14,6 +14,7 @@
 #include <algorithm>
 
 #include "random_match.hpp"
+#include "rng.hpp"
 #include "api.hpp"
 
 // A, C, G, T
@@ -24,7 +25,7 @@ const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
 // k-mer length parameters
 const double min_random = 0.0001;
-const size_t min_kmer = 6;
+const size_t min_kmer = 15;
 const size_t max_kmer = 31;
 
 // k-means parameters
@@ -41,7 +42,7 @@ std::vector<double> apply_rc(const Reference& ref);
 size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
 std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
 											      const bool use_rc, 
-												  const unsigned long seed);
+												  Xoshiro& generator);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
 
@@ -89,12 +90,12 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		}
 	}
 
-	// Decide which k-mer lengths to use
+	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
 	std::vector<size_t> kmer_lengths = {min_kmer};
 	size_t kmer_size = min_kmer;
 	while (kmer_size <= max_kmer) {
-		size_t match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
+		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
 																sketches[representatives_idx[1]], 
 																kmer_size);
 		if (match_chance > min_random) {
@@ -107,10 +108,14 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
 	// Generate random sequences and sketch them (in parallel)
 	std::vector<std::vector<Reference>> random_seqs(n_clusters);
-	#pragma omp parallel for simd collapse(2) schedule(static) num_threads(num_threads)
+	Xoshiro generator(seed=1);
+	#pragma omp parallel for collapse(2) firstprivate(generator) schedule(static) num_threads(num_threads)
 	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
-				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, r_idx * n_MC + copies), 
+				for (size_t rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++) {
+					generator.jump();
+				}
+				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, generator), 
 						sketches[representatives_idx[r_idx]].base_composition(),
 						sketches[representatives_idx[r_idx]].seq_length(), 
 						0, kmer_lengths.back());
@@ -140,7 +145,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				}
 				matches(i, j) = dist_sum/dist_count;
 				matches(j, i) = matches(i, j);
-				printf("match:%f formula:%f", matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
+				printf("match:%f formula:%f\n", matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
 																random_seqs[j][0], 
 																*kmer_it));
 			}
@@ -276,9 +281,8 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 // Bernoulli random draws - each base independent
 std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
 												  const bool use_rc,
-												  const unsigned long seed) {
+												  Xoshiro& generator) {
 	std::vector<double> base_f = ref_seq.base_composition();
-	std::default_random_engine generator(seed);
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};   
 	
 	std::ostringstream random_seq_buffer;
