@@ -63,6 +63,12 @@ void constructDatabase(const std::string& db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
+    RandomMC random = calculate_random(ref_sketches,
+                                       db_name,
+                                       default_n_clusters,
+                                       default_n_MC,
+                                       use_rc,
+                                       num_threads);
 }
 
 NumpyMatrix queryDatabase(const std::string& ref_db_name,
@@ -86,6 +92,8 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
+    RandomMC random = get_random(ref_db_name, ref_sketches[0].rc());
+
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
@@ -101,6 +109,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
+                random,
                 jaccard,
                 num_threads);
     }
@@ -108,6 +117,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
     dists = query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
+                    random,
                     jaccard,
                     num_threads);
 #endif
@@ -134,6 +144,8 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
+    RandomMC random = get_random(ref_db_name, ref_sketches[0].rc());
+
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
@@ -149,6 +161,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
+                random,
                 false,
                 num_threads);
     }
@@ -156,6 +169,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     dists = query_db(ref_sketches,
                     query_sketches,
                     kmer_lengths,
+                    random,
                     false,
                     num_threads);
 #endif
@@ -197,6 +211,12 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
+    RandomMC random = calculate_random(ref_sketches,
+                                       db_name,
+                                       default_n_clusters,
+                                       default_n_MC,
+                                       use_rc,
+                                       num_threads);
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
@@ -212,6 +232,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
         dists = query_db(ref_sketches,
                 ref_sketches,
                 kmer_lengths,
+                random,
                 jaccard,
                 num_threads);
     }
@@ -219,6 +240,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
     dists = query_db(ref_sketches,
                      ref_sketches,
                      kmer_lengths,
+                     random,
                      jaccard,
                      num_threads);
 #endif

@@ -160,6 +160,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    RandomMC& random_chance,
                     const bool jaccard,
                     const size_t num_threads) {
     if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
@@ -179,13 +180,6 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere 
     std::sort(ref_sketches.begin(), ref_sketches.end());
     std::sort(query_sketches.begin(), query_sketches.end());
-
-    RandomMC random_chance;
-    if (ref_sketches.size() > 5) {
-        random_chance = RandomMC(ref_sketches, 2, 5, true, num_threads);
-    } else {
-        random_chance = RandomMC();
-    }
 
     if (ref_sketches == query_sketches) {
         
@@ -365,6 +359,30 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     H5::Exception::setAutoPrint(errorPrinter, clientData);
 #endif
     return(sketches);
+}
+
+RandomMC calculate_random(const std::vector<Reference>& sketches,
+                      const std::string& db_name,
+                      const unsigned int n_clusters,
+                      const unsigned int n_MC,
+                      const bool use_rc,
+                      const int num_threads) {
+	RandomMC random(sketches, n_clusters, n_MC, use_rc, num_threads);
+    
+    // Save to the database provided
+    HighFive::File h5_db(db_name + ".h5");
+    Database db(h5_db);
+    db.save_random(random);
+
+    return(random);
+}
+
+RandomMC get_random(const std::string& db_name,
+                    const bool use_rc_default) {
+    HighFive::File h5_db(db_name + ".h5");
+    Database db(h5_db); 
+    RandomMC random = db.load_random(use_rc_default);
+    return(random);
 }
 
 /* 

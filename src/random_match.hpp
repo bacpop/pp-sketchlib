@@ -15,6 +15,9 @@
 #include "robin_hood.h"
 #include "matrix.hpp"
 
+const unsigned int default_n_clusters = 3;
+const unsigned int default_n_MC = 5;
+
 class Reference;
 
 class RandomMC {

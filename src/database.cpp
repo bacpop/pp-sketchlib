@@ -13,7 +13,7 @@
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
 
-const int deflate_level = 9;
+// const int deflate_level = 9;
 
 // Helper function prototypes
 template <typedef T, typedef U>
@@ -194,6 +194,9 @@ RandomMC Database::load_random(const bool use_rc_default) {
         
         // Constructor for reading database
         random = RandomMC(use_rc, k_min, k_max, cluster_table, matches, centroids);
+    } else {
+        std::cerr << "Could not find random match chances in database, "
+        "calculating assuming equal base frequencies" << std::endl;
     }
     return(random);
 }
