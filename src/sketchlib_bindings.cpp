@@ -247,6 +247,20 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
     return(dists);
 }
 
+void addRandomToDb(const std::string& db_name,
+                      const std::vector<std::string>& sample_names,
+                      const std::vector<size_t> kmer_lengths,
+                      const bool use_rc = true,
+                      const size_t num_threads = 1) {
+    std::vector<Reference> ref_sketches = load_sketches(db_name, sample_names, kmer_lengths, false);
+    RandomMC random = calculate_random(ref_sketches,
+                                       db_name,
+                                       default_n_clusters,
+                                       default_n_MC,
+                                       ref_sketches[0].rc(),
+                                       num_threads);
+}
+
 double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
@@ -328,6 +342,13 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
+
+  m.def("addRandom", &addRandomToDb, "Add random match chances into older databases",
+        py::arg("db_name"),
+        py::arg("samples"),
+        py::arg("klist"),
+        py::arg("use_rc") = true,
+        py::arg("num_threads") = 1);
 
   m.def("jaccardDist", &jaccardDist, "Calculate a raw Jaccard distance",
         py::arg("db_name"),

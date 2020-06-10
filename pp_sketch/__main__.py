@@ -46,6 +46,13 @@ def iterDistRows(refSeqs, querySeqs, self=True):
             for ref in refSeqs:
                 yield(ref, query)
 
+def getSampleNames(db_prefix):
+    rList = []
+    ref = h5py.File(db_prefix + ".h5", 'r')
+    for sample_name in list(ref['sketches'].keys()):
+        rList.append(sample_name)
+    return(rList)
+
 def storePickle(rlist, qlist, self, X, pklName):
     """Saves core and accessory distances in a .npy file, names in a .pkl
 
@@ -90,6 +97,10 @@ def get_options():
                         action='store_true',
                         default=False,
                         help='Find distances between two sketch databases')
+    mode.add_argument('--add-random',
+                        action='store_true',
+                        default=False,
+                        help='Calculate random match chances and add these to a database'
 
     io = parser.add_argument_group('Input/output')
     io.add_argument('--rfile',
@@ -180,6 +191,9 @@ def main():
         sys.exit(1)
     kmers = np.arange(args.min_k, args.max_k + 1, args.k_step)
 
+    #
+    # Create a database (sketch input)
+    #
     if args.sketch:
         names = []
         sequences = []
@@ -198,7 +212,10 @@ def main():
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, 
                                        int(round(args.sketch_size/64)), args.strand, 
                                        args.min_count, args.exact_counter, args.cpus)
-
+    
+    #
+    # Join two databases 
+    # 
     elif args.join:
         join_name = args.output + ".h5"
         db1_name = args.ref_db + ".h5"
@@ -235,17 +252,13 @@ def main():
         hdf2.close()
         hdf_join.close()
         os.rename(join_name + ".tmp", join_name)
-    
+           
+    #
+    # Query a database (calculate distances)
+    # 
     elif args.query:
-        rList = []
-        ref = h5py.File(args.ref_db + ".h5", 'r')
-        for sample_name in list(ref['sketches'].keys()):
-            rList.append(sample_name)
-
-        qList = []
-        query = h5py.File(args.query_db + ".h5", 'r')
-        for sample_name in list(query['sketches'].keys()):
-            qList.append(sample_name)
+        rList = getSampleNames(args.ref_db)
+        qList = getSampleNames(args.query_db)
 
         if args.subset != None:
             subset = []
@@ -260,6 +273,8 @@ def main():
                 sys.exit(1)
 
         # Check inputs overlap
+        ref = h5py.File(args.ref_db + ".h5", 'r')
+        query = h5py.File(args.query_db + ".h5", 'r')
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
            query['sketches/' + qList[0]].attrs['kmers'] 
         )
@@ -309,6 +324,17 @@ def main():
                         sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
             else:
                 storePickle(rList, qList, rList == qList, distMat, args.output)
+
+    #
+    # Add random match chances to an older database
+    #
+    elif args.add_random:
+        rList = getSampleNames(args.ref_db))
+        ref = h5py.File(args.ref_db + ".h5", 'r')
+        db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
+        use_rc = ref['sketches/' + rList[0]].attrs['use_rc']
+
+        pp_sketchlib.addRandom(args.ref_db, rList, db_kmers, use_rc, args.cpus)
 
     sys.exit(0)
 
