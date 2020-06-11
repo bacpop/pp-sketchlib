@@ -446,8 +446,10 @@ thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches,
 	thrust::host_vector<float> random_sample_strided(sketch_size * kmer_lengths.size());
 	for (unsigned int sketch_idx = 0; sketch_idx < sketch_size; sketch_idx++) {
 		for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-			random_sample_strided[kmer_idx * sketch_size + sketch_idx] = 
-				(float)sketches[sketch_idx + start_sample_idx].random_match(kmer_lengths[kmer_idx]);
+			random_sample_strided[kmer_idx * sketch_size + sketch_idx] = 0;	
+			// FIXME
+			//random_sample_strided[kmer_idx * sketch_size + sketch_idx] = 
+			//	(float)sketches[sketch_idx + start_sample_idx].random_match(kmer_lengths[kmer_idx]);
 		}
 	}
 	return random_sample_strided;

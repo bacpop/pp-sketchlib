@@ -267,7 +267,7 @@ double jaccardDist(const std::string& db_name,
                    const size_t kmer_size)
 {
     auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
-    return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size));
+    return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size, RandomMC()));
 }
 
 // Wrapper which makes a ref to the python/numpy array

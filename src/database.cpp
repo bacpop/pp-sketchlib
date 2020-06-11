@@ -8,7 +8,10 @@
 #include <iostream>
 
 #include "database.hpp"
+#include "random_match.hpp"
+#include "matrix.hpp"
 
+#include "robin_hood.h"
 #include <highfive/H5Group.hpp>
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5DataSpace.hpp>
@@ -16,13 +19,19 @@
 // const int deflate_level = 9;
 
 // Helper function prototypes
-template <typedef T, typedef U>
-void save_hash(robin_hood::unordered_node_map<T, U> hash&,
+template <typename T, typename U>
+void save_hash(const robin_hood::unordered_node_map<T, U>& hash,
                HighFive::Group& group,
                const std::string& dataset_name);
-template <typedef T, typedef U>
+void save_eigen(const NumpyMatrix& mat,
+               HighFive::Group& group,
+               const std::string& dataset_name)
+
+template <typename T, typename U>
 robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group& group,
                                                const std::string& dataset_name);
+NumpyMatrix load_eigen(HighFive::Group& group,
+               const std::string& dataset_name)
 
 // Initialisation
 // Create new file
@@ -152,14 +161,12 @@ void Database::save_random(const RandomMC& random) {
     HighFive::Group random_group = _h5_file.createGroup("random");
     
     // Save the cluster table
-    save_hash(random.cluster_table(), random_group, "table");
+    save_hash<std::string, uint16_t>(random.cluster_table(), random_group, "table");
     // Save the match matrices
-    save_hash(random.matches(), random_group, "matches");
+    save_hash<size_t, NumpyMatrix>(random.matches(), random_group, "matches");
     
     // Save the cluster centroid matrix
-    NumpyMatrix cluster_centroids = random.cluster_centroids();
-    HighFive::DataSet centroid_dataset = random_group.createDataSet<float>("centroids", HighFive::DataSpace::From(cluster_centroids));
-    centroid_dataset.write(cluster_centroids);
+    save_eigen(random.cluster_centroids(), random_group, "centroids");
 
     // Save attributes
     unsigned int k_min, k_max; bool use_rc;
@@ -179,12 +186,13 @@ RandomMC Database::load_random(const bool use_rc_default) {
         HighFive::Group random_group = _h5_file.getGroup("/random");
         
         // Flattened hashes
-        robin_hood::unordered_node_map<std::string, uint16_t> cluster_table = load_hash(random_group, "table");
-        robin_hood::unordered_node_map<size_t, NumpyMatrix> matches = load_hash(random_group, "matches");
+        robin_hood::unordered_node_map<std::string, uint16_t> cluster_table = 
+            load_hash<std::string, uint16_t>(random_group, "table");
+        robin_hood::unordered_node_map<size_t, NumpyMatrix> matches = 
+            load_hash<size_t, NumpyMatrix>(random_group, "matches");
         
         // Centroid matrix
-        NumpyMatrix centroids;
-        random_group.getDataSet("centroids").read(centroids); 
+        NumpyMatrix centroids = load_eigen(random_group, "centroids");
 
         // Read attributes
         unsigned int k_min, k_max; bool use_rc;
@@ -201,24 +209,57 @@ RandomMC Database::load_random(const bool use_rc_default) {
     return(random);
 }
 
-template <typedef T, typedef U>
-void save_hash(robin_hood::unordered_node_map<T, U> hash&,
+// Save a hash into a HDF5 file by saving as array of keys and values
+template <typename T, typename U>
+void save_hash(const robin_hood::unordered_node_map<T, U>& hash,
                HighFive::Group& group,
                const std::string& dataset_name) {
     std::vector<T> hash_keys;
     std::vector<U> hash_values;
-    for (auto hash_it = hash.begin(); hash_it != hash.end(); hash_it++) {
+    for (auto hash_it = hash.cbegin(); hash_it != hash.cend(); hash_it++) {
         hash_keys.push_back(hash_it->first);
         hash_values.push_back(hash_it->second);
     }
     
-    HighFive::DataSet key_dataset = group.createDataSet<T>(dataset_name + "_keys", DataSpace::From(hash_keys));
+    HighFive::DataSet key_dataset = group.createDataSet<T>(dataset_name + "_keys", HighFive::DataSpace::From(hash_keys));
     key_dataset.write(hash_keys);
-    HighFive::DataSet value_dataset = group.createDataSet<U>(dataset_name + "_values", DataSpace::From(hash_values));
+    HighFive::DataSet value_dataset = group.createDataSet<U>(dataset_name + "_values", HighFive::DataSpace::From(hash_values));
     value_dataset.write(hash_values); 
 }
 
-template <typedef T, typedef U>
+// Specialisation for saving Eigen matrix keys
+template <typename T>
+void save_hash<NumpyMatrix>(const robin_hood::unordered_node_map<T, NumpyMatrix>& hash,
+               HighFive::Group& group,
+               const std::string& dataset_name) {
+    std::vector<T> hash_keys;
+    std::vector<float> buffer;
+    std::vector<size_t> dims = {hash.cbegin()->second.rows(), hash.cbegin()->second.cols()};
+    for (auto hash_it = hash.cbegin(); hash_it != hash.cend(); hash_it++) {
+        hash_keys.push_back(hash_it->first);
+        
+        // Saving the vector of matrices is more annoying
+        // Flatten out and save the dimensions
+        if (hash_it->second.rows() != dims[0] ||  hash_it->second.cols() != dims[1]) {
+            throw std::runtime_error("Mismatching matrix sizes in save");
+        }
+        for (auto& v : hash_it->second){
+            std::copy(v.data(), v.data() + v.size(), std::back_inserter(buffer));
+        }
+    }
+    
+    HighFive::DataSet key_dataset = group.createDataSet<T>(dataset_name + "_keys", HighFive::DataSpace::From(hash_keys));
+    key_dataset.write(hash_keys);
+
+    dims.push_back(hash_keys.size());
+    Eigen::DataSet dataset =
+            group.createDataSet<float>(dataset_name + "_values", DataSpace(dims));
+    dataset.write(buffer);
+}
+
+// Load a hash from a HDF5 file by reading arrays of keys and values
+// and re-inserting into a new hash
+template <typename T, typename U>
 robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group& group,
                                                const std::string& dataset_name) {
     std::vector<T> hash_keys;
@@ -230,7 +271,56 @@ robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group& group,
     for (size_t i = 0; i < hash_keys.size(); i++) {
         hash[hash_keys[i]] = hash_values[i];
     }
-    return(hash)
+    return(hash);
+}
+
+// Specialisation for reading in Eigen matrices
+template <typename T>
+robin_hood::unordered_node_map<T, NumpyMatrix> load_hash<NumpyMatrix>(
+    HighFive::Group& group,
+    const std::string& dataset_name) {
+
+    std::vector<T> hash_keys;
+    std::vector<float> buffer;
+    group.getDataSet(dataset_name + "_keys").read(hash_keys); 
+    group.getDataSet(dataset_name + "_values").read(buffer);
+    std::vector<size_t> dims = group.getDataSet(dataset_name + "_values").getDimensions();
+    
+    robin_hood::unordered_node_map<T, NumpyMatrix> hash;
+    float * buffer_pos = buffer.data();
+    for (size_t i = 0; i < hash_keys.size(); i++) {
+        NumpyMatrix mat = Eigen::Map<NumpyMatrix>(buffer_pos, dims[0], dims[1]);
+        buffer_pos += mat.rows() * mat.cols(); 
+        hash[hash_keys[i]] = mat;
+    }
+    return(hash);
+}
+
+// Save a single Eigen matrix to a HDF5 file
+void save_eigen(const NumpyMatrix& mat,
+               HighFive::Group& group,
+               const std::string& dataset_name) {
+    std::vector<float> buffer;
+    for (auto& v : mat){
+        std::copy(v.data(), v.data() + v.size(), std::back_inserter(buffer));
+    }
+    std::vector<size_t> dims = {mat.rows(), mat.cols()}; 
+
+    Eigen::DataSet dataset =
+            group.createDataSet<float>(dataset_name, DataSpace(dims));
+    dataset.write(buffer);
+}
+
+// Load a single Eigen matrix from an HDF5 file
+NumpyMatrix load_eigen(HighFive::Group& group,
+               const std::string& dataset_name) {
+    std::vector<float> buffer;
+    HighFive::DataSet dataset = group.getDataSet(dataset_name);
+    dataset.read(buffer);
+    NumpyMatrix mat = Eigen::Map<NumpyMatrix>(buffer.data(), 
+                                              dataset.getDimensions()[0], 
+                                              dataset.getDimensions()[1]);
+    return mat;
 }
 
 HighFive::File open_h5(const std::string& filename)
