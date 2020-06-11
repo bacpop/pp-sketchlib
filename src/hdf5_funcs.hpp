@@ -51,9 +51,9 @@ void save_hash<size_t, NumpyMatrix>(const robin_hood::unordered_node_map<size_t,
         if (hash_it->second.rows() != dims[0] ||  hash_it->second.cols() != dims[1]) {
             throw std::runtime_error("Mismatching matrix sizes in save");
         }
-        for (auto& v : hash_it->second){
-            std::copy(v.data(), v.data() + v.size(), std::back_inserter(buffer));
-        }
+        std::copy(hash_it->second.data(), 
+                  hash_it->second.data() + hash_it->second.rows() * hash_it->second.cols(), 
+                  std::back_inserter(buffer));
     }
     
     HighFive::DataSet key_dataset = group.createDataSet<size_t>(dataset_name + "_keys", HighFive::DataSpace::From(hash_keys));
