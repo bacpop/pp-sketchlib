@@ -44,24 +44,15 @@ int main (int argc, char* argv[])
                                0,
                                false,
                                2);
-
+    RandomMC basic_adjust(true);
     NumpyMatrix dists = query_db(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
+                              basic_adjust,
                               false,
                               2);
 
     std::cout << dists << std::endl;
-
-#ifdef GPU_AVAILABLE
-    NumpyMatrix gpu_dists = query_db_gpu(ref_sketches,
-                              ref_sketches,
-                              kmer_lengths,
-                              0,
-                              2);
-
-    std::cout << gpu_dists << std::endl;
-#endif
 
     std::ifstream rfile(argv[5]);
     std::string name, file;
@@ -84,16 +75,23 @@ int main (int argc, char* argv[])
                     false,
                     4);
 
-    HighFive::File h5_db("listeria.h5");
+    HighFive::File h5_db = open_h5("listeria.h5");
     Database listeria_db(h5_db);
     std::vector<Reference> listeria_sketches;
     for (auto name_it = names.cbegin(); name_it != names.cend(); name_it++)
     {
         listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
     }
+
+    // Save random matches to db
+    RandomMC random(listeria_sketches, 2, 5, true, 4);
+    listeria_db.save_random(random);
+    RandomMC random_retrived = listeria_db.load_random(true);
+
     NumpyMatrix listeria_dists = query_db(listeria_sketches,
                             listeria_sketches,
                             kmer_lengths,
+                            random,
                             false,
                             4); 
     std::cout << listeria_dists << std::endl;

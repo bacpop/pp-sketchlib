@@ -48,7 +48,7 @@ void save_hash<size_t, NumpyMatrix>(const robin_hood::unordered_node_map<size_t,
         
         // Saving the vector of matrices is more annoying
         // Flatten out and save the dimensions
-        if (hash_it->second.rows() != dims[0] ||  hash_it->second.cols() != dims[1]) {
+        if ((size_t)hash_it->second.rows() != dims[0] || (size_t)hash_it->second.cols() != dims[1]) {
             throw std::runtime_error("Mismatching matrix sizes in save");
         }
         std::copy(hash_it->second.data(), 
@@ -59,10 +59,12 @@ void save_hash<size_t, NumpyMatrix>(const robin_hood::unordered_node_map<size_t,
     HighFive::DataSet key_dataset = group.createDataSet<size_t>(dataset_name + "_keys", HighFive::DataSpace::From(hash_keys));
     key_dataset.write(hash_keys);
 
-    dims.push_back(hash_keys.size());
     HighFive::DataSet dataset =
-            group.createDataSet<float>(dataset_name + "_values", HighFive::DataSpace(dims));
+            group.createDataSet<float>(dataset_name + "_values", HighFive::DataSpace::From(buffer));
     dataset.write(buffer);
+    dims.push_back(hash_keys.size());
+    HighFive::Attribute dim_a = dataset.createAttribute<size_t>("dims", HighFive::DataSpace::From(dims));
+    dim_a.write(dims); 
 }
 
 // Load a hash from a HDF5 file by reading arrays of keys and values
@@ -88,11 +90,11 @@ robin_hood::unordered_node_map<size_t, NumpyMatrix> load_hash(
     HighFive::Group& group,
     const std::string& dataset_name) {
 
-    std::vector<size_t> hash_keys;
+    std::vector<size_t> hash_keys, dims;
     std::vector<float> buffer;
+    group.getAttribute("dims").read(dims);
     group.getDataSet(dataset_name + "_keys").read(hash_keys); 
     group.getDataSet(dataset_name + "_values").read(buffer);
-    std::vector<size_t> dims = group.getDataSet(dataset_name + "_values").getDimensions();
     
     robin_hood::unordered_node_map<size_t, NumpyMatrix> hash;
     float * buffer_pos = buffer.data();
@@ -113,18 +115,22 @@ void save_eigen(const NumpyMatrix& mat,
     std::vector<size_t> dims = {(size_t)mat.rows(), (size_t)mat.cols()}; 
 
     HighFive::DataSet dataset =
-            group.createDataSet<float>(dataset_name, HighFive::DataSpace(dims));
+            group.createDataSet<float>(dataset_name, HighFive::DataSpace::From(buffer));
     dataset.write(buffer);
+    HighFive::Attribute dim_a = dataset.createAttribute<size_t>("dims", HighFive::DataSpace::From(dims));
+    dim_a.write(dims); 
 }
 
 // Load a single Eigen matrix from an HDF5 file
 NumpyMatrix load_eigen(HighFive::Group& group,
                const std::string& dataset_name) {
     std::vector<float> buffer;
+    std::vector<size_t> dims;
     HighFive::DataSet dataset = group.getDataSet(dataset_name);
     dataset.read(buffer);
+    dataset.getAttribute("dims").read(dims);
     NumpyMatrix mat = Eigen::Map<NumpyMatrix>(buffer.data(), 
-                                              dataset.getDimensions()[0], 
-                                              dataset.getDimensions()[1]);
+                                              dims[0], 
+                                              dims[1]);
     return mat;
 }

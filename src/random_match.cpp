@@ -24,7 +24,6 @@ const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
 // k-mer length parameters
-const double min_random = 0.00001;
 const size_t min_kmer = 6;
 const size_t max_kmer = 31;
 
@@ -94,6 +93,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	RandomMC default_adjustment(use_rc);
 	std::vector<size_t> kmer_lengths = {min_kmer};
 	size_t kmer_size = min_kmer + 1;
+	const double min_random = static_cast<double>(1)/(sketchsize64 * 64);
 	while (kmer_size <= max_kmer) {
 		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
 																sketches[representatives_idx[1]], 

@@ -27,6 +27,7 @@ Database::Database(const std::string& filename)
     _h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
 {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
+    _h5_file.createGroup("random");
     
     _version_hash = SKETCH_VERSION; 
     HighFive::Attribute sketch_version_a = 
@@ -145,7 +146,12 @@ Reference Database::load_sketch(const std::string& name)
 // Save a RandomMC object to the database
 void Database::save_random(const RandomMC& random) {
     // Open or create the random group
-    HighFive::Group random_group = _h5_file.createGroup("random");
+    HighFive::Group random_group;
+    if (_h5_file.exist("random")) {
+        random_group = _h5_file.getGroup("random");
+    } else {
+        random_group = _h5_file.createGroup("random");
+    }
     
     // Save the cluster table
     save_hash<std::string, uint16_t>(random.cluster_table(), random_group, "table");
@@ -156,7 +162,7 @@ void Database::save_random(const RandomMC& random) {
     save_eigen(random.cluster_centroids(), random_group, "centroids");
 
     // Save attributes
-    unsigned int k_min, k_max; bool use_rc;
+    unsigned int k_min, k_max;
     std::tie(k_min, k_max) = random.k_range();
     HighFive::Attribute k_min_a = random_group.createAttribute<unsigned int>("k_min", HighFive::DataSpace::From(k_min));
     k_min_a.write(k_min);
