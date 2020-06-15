@@ -22,6 +22,7 @@
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 #include "matrix.hpp"
+#include "random_match.hpp"
 
 const float mem_epsilon = 0.05;
 
@@ -113,6 +114,7 @@ void longToSquareBlock(NumpyMatrix& coreSquare,
 NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
+	RandomMC& random_match,
 	const int device_id,
 	const unsigned int num_cpu_threads)
 {
@@ -146,9 +148,10 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		dist_rows = ref_sketches.size() * query_sketches.size();
 		n_samples = ref_sketches.size() + query_sketches.size(); 
 	}
-	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) + // Size of sketches
-						kmer_lengths.size() * n_samples * sizeof(float) +                           // Size of random matches
-						dist_rows * 2 * sizeof(float));							    				// Size of distance matrix
+	double est_size  = (bbits * sketchsize64 * kmer_lengths.size() * n_samples * sizeof(uint64_t) +    // Size of sketches
+						kmer_lengths.size() * std::pow(random_match.n_clusters(), 2) * sizeof(float) + // Size of random matches
+						n_samples * sizeof(uint16_t) +                           
+						dist_rows * 2 * sizeof(float));							    				   // Size of distance matrix
 	std::cerr << "Estimated device memory required: " << std::fixed << std::setprecision(0) << est_size/(1048576) << "Mb" << std::endl;
 	std::cerr << "Total device memory: " << std::fixed << std::setprecision(0) << mem_total/(1048576) << "Mb" << std::endl;
 	std::cerr << "Free device memory: " << std::fixed << std::setprecision(0) << mem_free/(1048576) << "Mb" << std::endl;
@@ -157,6 +160,10 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		throw std::runtime_error("Using greater than device memory is unsupported for query mode. "
 							     "Split your input into smaller chunks");	
 	}
+
+	// Turn the random matches into an array (same for any ref, query or subsample thereof)
+	FlatRandom flat_random = random_match.flattened_random(kmer_lengths, ref_sketches[0].seq_length());
+	std::vector<uint16_t> ref_random_idx = random_match.lookup_array(ref_sketches);
 
 	// Ready to run dists on device
 	SketchSlice sketch_subsample;
@@ -207,6 +214,9 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						ref_sketches,
 						ref_strides,
 						query_strides,
+						flat_random,
+						ref_random_idx,
+						ref_random_idx,
 						sketch_subsample,
 						kmer_lengths,
 						chunk_i == chunk_j);            
@@ -234,6 +244,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 	else
 	{
+		std::vector<uint16_t> query_random_idx = random_match.lookup_array(ref_sketches);
+	
 		sketch_subsample.ref_size = ref_sketches.size();
 		sketch_subsample.query_size = query_sketches.size();
         sketch_subsample.ref_offset = 0;
@@ -243,6 +255,9 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
                                     query_sketches,
                                     ref_strides,
                                     query_strides,
+									flat_random,
+									ref_random_idx,
+									query_random_idx,
                                     sketch_subsample,
                                     kmer_lengths,
                                     false);	

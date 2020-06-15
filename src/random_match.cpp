@@ -32,6 +32,7 @@ const int max_iter = 300;
 const int max_tries = 5;
 
 // Functions used in construction
+double csrs(const size_t k, const bool use_rc, const size_t l1, const size_t l2);
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 			NumpyMatrix> cluster_frequencies(
 	const std::vector<Reference>& sketches,
@@ -167,18 +168,7 @@ double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id,
 	double random_chance = 0;
 	const uint16_t r_cluster_id = _cluster_table.at(r1.name()); 
 	if (_no_MC) {
-		// This is what we're doing, written more clearly
-		// int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
-		// size_t match_chance = rc_factor * std::pow(N_BASES, (double)-kmer_len)
-		//float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
-		//float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
-		// use bitshift to calculate 4^k
-		size_t match_chance = (size_t)1 << ((kmer_len - 1) * 2 + (_use_rc ? 1 : 0));
-		double j1 = 1 - std::pow(1 - (double)1/match_chance, (double)r1.seq_length());
-		double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)q_length);
-		if (j1 > 0 && j2 > 0) {
-			random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
-		}
+		random_chance = csrs(kmer_len, _use_rc, r1.seq_length(), q_length);
 	} else if (!_no_adjustment && kmer_len < _max_k) {
 		// Longer k-mer lengths here are set to zero
 		random_chance = _matches.at(kmer_len)(r_cluster_id, q_cluster_id);
@@ -215,27 +205,58 @@ void RandomMC::add_query(const Reference& query) {
 }
 
 // Helper functions for loading onto GPU
-std::vector<uint16_t> RandomMC::lookup_array(const std::vector<std::string>& names) const {
+// Get an array index in order of sample name
+std::vector<uint16_t> RandomMC::lookup_array(const std::vector<Reference>& sketches) const {
 	std::vector<uint16_t> lookup;
-	for (auto &name : names) {
-		lookup.push_back(_cluster_table.at(name));
+	for (auto &sketch : sketches) {
+		if (_no_adjustment || _no_MC) {
+			lookup.push_back(0); // If no MC, look tables have only one index (0)
+		} else {
+			auto in_table = _cluster_table.find(sketch.name());
+			if (in_table == _cluster_table.end()) {
+				// Queries need to be added
+				lookup.push_back(closest_cluster(sketch));
+			} else {
+				// References are already in the table
+				lookup.push_back(in_table->second);
+			}
+		}
 	}
 	return lookup;
 }
 
-std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(const std::vector<size_t>& kmer_lengths) const {
-	size_t matrix_size = _n_clusters * _n_clusters; 
-	RandomStrides strides = {matrix_size, _n_clusters, 1}; // access: kmer_idx * kmer_stride + ref_idx * inner_stride + query_idx * outer_stride
+// Flatten chosen random structure
+// access: kmer_idx * kmer_stride + ref_idx * inner_stride + query_idx * outer_stride
+std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(
+	const std::vector<size_t>& kmer_lengths,
+	const size_t default_length) const {
+	size_t matrix_size = _n_clusters * _n_clusters;
+	RandomStrides strides;
+	
 	std::vector<float> flat;
-	for (auto &k : kmer_lengths) {
-		if (k < _min_k) {
-			throw std::runtime_error("Trying to choose a k-mer length below the minimum allowed\n");
-		} else if (k <= _max_k) {
-			std::copy(_matches[k].data(), 
-					  _matches[k].data() +  matrix_size, 
-					  std::back_inserter(flat));
-		} else {
-			std::fill_n(std::back_inserter(v), matrix_size, 0);
+	// No adjustment -> return 0
+	if (_no_adjustment) {
+		strides = {0, 0, 0};
+		flat.push_back(0);
+	} else {
+		for (auto &k : kmer_lengths) {
+			if (_no_MC) {
+				// Keep one entry based on equal base frequencies
+				strides = {1, 0, 0};
+				flat.push_back(csrs(k, _use_rc, default_length, default_length));
+			} else {
+				// Full structure, indexed with lookup_array
+				strides = {matrix_size, _n_clusters, 1};
+				if (k < _min_k) {
+					throw std::runtime_error("Trying to choose a k-mer length below the minimum allowed\n");
+				} else if (k <= _max_k) {
+					std::copy(_matches[k].data(), 
+							_matches[k].data() + matrix_size, 
+							std::back_inserter(flat));
+				} else {
+					std::fill_n(std::back_inserter(flat), matrix_size, 0);
+				}
+			}
 		}
 	}
 	return(std::make_tuple(strides, flat));
@@ -246,6 +267,23 @@ std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(const s
 * Internal functions
 *
 */
+
+double csrs(const size_t k, const bool use_rc, const size_t l1, const size_t l2) {
+	// This is what we're doing, written more clearly
+	// int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
+	// size_t match_chance = rc_factor * std::pow(N_BASES, (double)-kmer_len)
+	//float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
+	//float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
+	// use bitshift to calculate 4^k
+	double random_chance = 0;
+	size_t match_chance = (size_t)1 << ((k - 1) * 2 + (use_rc ? 1 : 0));
+	double j1 = 1 - std::pow(1 - (double)1/match_chance, (double)l1);
+	double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)l2);
+	if (j1 > 0 && j2 > 0) {
+		random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
+	}
+	return(random_chance);
+}
 
 std::vector<double> apply_rc(const Reference& ref) {
 	std::vector<double> base_ref = ref.base_composition();

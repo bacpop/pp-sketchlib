@@ -555,10 +555,19 @@ std::vector<float> dispatchDists(
 	std::vector<Reference>& query_sketches,
 	SketchStrides& ref_strides,
 	SketchStrides& query_strides,
+	const FlatRandom& flat_random,
+	const std::vector<uint16_t>& ref_random_idx,
+	const std::vector<uint16_t>& query_random_idx,
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
 	const bool self) {
 	
+	//TODO
+	// subset and load ref/query idx in loadDeviceMemory
+	// load flat_random in loadDeviceMemory
+	// remove existing random function
+	// add device function to lookup random match value using idx + flat_random
+
 	// Progress meter
 	volatile int *blocks_complete;
 	cdpErrchk( cudaMallocManaged(&blocks_complete, sizeof(int)) );

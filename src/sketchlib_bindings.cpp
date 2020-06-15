@@ -107,6 +107,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
+                            random,
                             device_id,
                             num_threads);
     }
@@ -164,6 +165,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
+                            random,
                             device_id,
                             num_threads);
     }
@@ -240,6 +242,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
         dists = query_db_cuda(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
+                             random,
                              device_id,
                              num_threads);
     }

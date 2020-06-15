@@ -37,6 +37,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
+  RandomMC& random_chance,
 	const int device_id = 0,
   const unsigned int num_cpu_threads = 1);
 #endif

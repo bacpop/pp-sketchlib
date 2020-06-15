@@ -12,6 +12,8 @@
 
 #include "reference.hpp"
 
+typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
+
 #ifdef GPU_AVAILABLE
 // Structure of flattened vectors
 struct SketchStrides {
@@ -37,6 +39,9 @@ std::vector<float> dispatchDists(
 				   std::vector<Reference>& query_sketches,
 				   SketchStrides& ref_strides,
 				   SketchStrides& query_strides,
+				   const FlatRandom& flat_random,
+				   const std::vector<uint16_t>& ref_random_idx,
+				   const std::vector<uint16_t>& query_random_idx,
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self);

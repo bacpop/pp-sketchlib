@@ -58,11 +58,15 @@ class RandomMC {
 		// Use in ref v ref mode
 		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
         
+		// Other functions for adding new data in
 		uint16_t closest_cluster(const Reference& ref) const;
 		void add_query(const Reference& query);
+
 		// GPU helper functions to flatten
-		std::vector<uint16_t> lookup_array(const std::vector<std::string>& names) const;
-		std::tuple<RandomStrides, std::vector<float>> flattened_random(const std::vector<size_t>& kmer_lengths) const;
+		std::vector<uint16_t> lookup_array(const std::vector<Reference>& sketches) const;
+		std::tuple<RandomStrides, std::vector<float>> flattened_random(
+			const std::vector<size_t>& kmer_lengths,
+			const size_t default_length) const;
 
 		// functions for saving
 		robin_hood::unordered_node_map<std::string, uint16_t> cluster_table() const { return _cluster_table; }
@@ -70,6 +74,7 @@ class RandomMC {
 		NumpyMatrix cluster_centroids() const { return _cluster_centroids; }
 		std::tuple<unsigned int, unsigned int> k_range() const { return std::make_tuple(_min_k, _max_k); }
 		bool use_rc() const { return _use_rc; }
+		unsigned int n_clusters() const { return _n_clusters; }
 		
 		// Overloads
 		bool operator==(const RandomMC& rhs) const { 
