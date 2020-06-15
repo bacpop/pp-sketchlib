@@ -76,6 +76,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
                          const std::vector<std::string>& ref_names,
                          const std::vector<std::string>& query_names,
                          std::vector<size_t> kmer_lengths,
+                         const bool random_correct = true,
                          const bool jaccard = false,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
@@ -92,7 +93,12 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
-    RandomMC random = get_random(ref_db_name, ref_sketches[0].rc());
+    RandomMC random;
+    if (random_correct) {
+        random = get_random(ref_db_name, ref_sketches[0].rc());
+    } else {
+        random = RandomMC();
+    }
 
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
@@ -129,6 +135,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
                          const std::vector<std::string>& ref_names,
                          const std::vector<std::string>& query_names,
                          std::vector<size_t> kmer_lengths,
+                         const bool random_correct = true,
                          const float dist_cutoff = 0,
                          const unsigned long int kNN = 0,
                          const bool core = true,
@@ -144,8 +151,12 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
-    RandomMC random = get_random(ref_db_name, ref_sketches[0].rc());
-
+    RandomMC random;
+    if (random_correct) {
+        random = get_random(ref_db_name, ref_sketches[0].rc());
+    } else {
+        random = RandomMC();
+    }
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
@@ -197,6 +208,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
                              const bool use_rc = true,
                              size_t min_count = 0,
                              const bool exact = false,
+                             const bool random_correct = true,
                              const bool jaccard = false,
                              const size_t num_threads = 1,
                              const bool use_gpu = false,
@@ -217,6 +229,10 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
                                        default_n_MC,
                                        use_rc,
                                        num_threads);
+    if (!random_correct) {
+        random = RandomMC();
+    }
+
     NumpyMatrix dists; 
 #ifdef GPU_AVAILABLE
     if (use_gpu)
@@ -311,6 +327,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("rList"),
         py::arg("qList"),
         py::arg("klist"),
+        py::arg("random_correct") = true,
         py::arg("jaccard") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
@@ -322,6 +339,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("rList"),
         py::arg("qList"),
         py::arg("klist"),
+        py::arg("random_correct") = true,
         py::arg("dist_cutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("core") = true,
@@ -338,6 +356,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("use_rc") = true,
         py::arg("min_count") = 0,
         py::arg("exact") = false,
+        py::arg("random_correct") = true,
         py::arg("jaccard") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,

@@ -119,7 +119,9 @@ def get_options():
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
-    kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='Kmer sketch size [default = 10000]')
+    kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='K-mer sketch size [default = 10000]')
+    kmerGroup.add_argument('--no-correction', default=False, action='store_true', 
+                            help='Disable correction for random matches at short k-mer lengths')
     kmerGroup.add_argument('--jaccard', default=False, action='store_true', 
                             help='Output adjusted Jaccard distances, not core and accessory distances')
     kmerGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
@@ -290,8 +292,8 @@ def main():
 
         if args.sparse:
             sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                                         args.threshold, args.kNN, ~args.accessory, args.cpus, 
-                                                         args.use_gpu, args.gpu_id)
+                                                         ~args.no_correction, args.threshold, args.kNN, 
+                                                         ~args.accessory, args.cpus, args.use_gpu, args.gpu_id)
             if args.print:
                 if args.accessory:
                     distName = 'Accessory'
@@ -309,7 +311,8 @@ def main():
 
         else:
             distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                                args.jaccard, args.cpus, args.use_gpu, args.gpu_id)
+                                                 ~args.no_correction, args.jaccard, args.cpus, args.use_gpu,
+                                                 args.gpu_id)
             
             # get names order
             if args.print:
