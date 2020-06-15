@@ -161,10 +161,11 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
 }
 
-// Get the random match chance between two samples at a given k-mer length
-// Will use Bernoulli estimate if MC was not run
-double RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+// This is used for query v ref, so query lookup is not repeated
+double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id, 
+						      const size_t q_length, const size_t kmer_len) const {
 	double random_chance = 0;
+	const uint16_t r_cluster_id = _cluster_table.at(r1.name()); 
 	if (_no_MC) {
 		// This is what we're doing, written more clearly
 		// int rc_factor = _use_rc ? 2 : 1; // If using the rc, may randomly match on the other strand
@@ -174,17 +175,23 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 		// use bitshift to calculate 4^k
 		size_t match_chance = (size_t)1 << ((kmer_len - 1) * 2 + (_use_rc ? 1 : 0));
 		double j1 = 1 - std::pow(1 - (double)1/match_chance, (double)r1.seq_length());
-		double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)r2.seq_length());
+		double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)q_length);
 		if (j1 > 0 && j2 > 0) {
 			random_chance = (j1 * j2) / (j1 + j2 - j1 * j2);
 		}
 	} else if (!_no_adjustment && kmer_len < _max_k) {
 		// Longer k-mer lengths here are set to zero
-		const uint16_t cluster1 = _cluster_table.at(r1.name()); 
-		const uint16_t cluster2 = _cluster_table.at(r2.name());
-		random_chance = _matches.at(kmer_len)(cluster1, cluster2);
+		random_chance = _matches.at(kmer_len)(r_cluster_id, q_cluster_id);
 	}
 	return(random_chance);
+}
+
+std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id, 
+						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const {
+    std::vector<double> random;
+	for (auto kmer_len = kmer_lengths.cbegin(); kmer_len != kmer_lengths.cend(); ++kmer_len) {
+		random.push_back(random_match(r1, q_cluster_id, q_length, *kmer_len));
+	}
 }
 
 size_t RandomMC::closest_cluster(const Reference& ref) const {
@@ -220,14 +227,14 @@ std::vector<double> apply_rc(const Reference& ref) {
 	return base_ref;
 }
 
-// find nearest neighbour
-size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids) {
+// find nearest neighbour centroid id
+uint16_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids) {
 	std::vector<double> bases = apply_rc(ref);
 	Eigen::MatrixXf::Index index;
 	Eigen::Map<Eigen::VectorXd> vd(bases.data(), bases.size());
 	Eigen::RowVectorXf vf = vd.cast<float>();
   	(cluster_centroids.rowwise() - vf).colwise().squaredNorm().minCoeff(&index);
-	return((size_t)index);
+	return((uint16_t)index);
 }
 
 arma::uvec random_ints(const size_t k_draws, const size_t max_n) {

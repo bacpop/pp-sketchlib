@@ -43,8 +43,16 @@ class RandomMC {
               _cluster_table(cluster_table), _matches(matches), _cluster_centroids(cluster_centroids)
 		{}
 
-		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
-        size_t closest_cluster(const Reference& ref) const;
+		// Use in ref v query mode
+		double random_match(const Reference& r1, const uint16_t q_cluster_id, 
+						    const size_t q_length, const size_t kmer_len) const;
+		std::vector<double> random_matches(const Reference& r1, const uint16_t q_cluster_id, 
+						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const;
+		// Use in ref v ref mode
+		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+			return random_match(r1, _cluster_table.at(r2.name()), r2.seq_length());
+		}
+        uint16_t closest_cluster(const Reference& ref) const;
 		void add_query(const Reference& query);
 		// TODO add flatten functions here too
 		// will need a lookup table (array) from sample_idx -> random_match_idx
@@ -55,6 +63,8 @@ class RandomMC {
 		NumpyMatrix cluster_centroids() const { return _cluster_centroids; }
 		std::tuple<unsigned int, unsigned int> k_range() const { return std::make_tuple(_min_k, _max_k); }
 		bool use_rc() const { return _use_rc; }
+		
+		// Overloads
 		bool operator==(const RandomMC& rhs) const { 
 			return _cluster_table == rhs.cluster_table() &&
 				   _matches == rhs.matches() &&

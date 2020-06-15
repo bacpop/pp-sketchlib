@@ -90,8 +90,7 @@ Reference::Reference(const std::string& name,
     _bases.t = bases[3];
 }
 
-double Reference::jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random)
-{
+double jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
                                       _sketchsize64, 
@@ -99,12 +98,12 @@ double Reference::jaccard_dist(Reference &query, const int kmer_len, const Rando
 	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
     
     double jaccard_obs = intersize/(double)unionsize;
-    double jaccard_expected = random.random_match(*this, query, kmer_len);
-    double jaccard = observed_excess(jaccard_obs, jaccard_expected, 1);
-    return(jaccard);
+    double jaccard = observed_excess(jaccard_obs, random_jaccard, 1);
+    return(jaccard);    
 }
 
-std::tuple<float, float> Reference::core_acc_dist(Reference &query, const RandomMC& random)
+template <typename T>
+std::tuple<float, float> Reference::core_acc_dist(Reference &query, const T& random)
 {
     std::vector<size_t> kmers = this->kmer_lengths();
     if (kmers != query.kmer_lengths())
@@ -120,9 +119,10 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query, const Random
 }
 
 // Without k-mer sizes check
+template <typename T>
 std::tuple<float, float> Reference::core_acc_dist(Reference &query, 
                                                   const arma::mat &kmers,
-                                                  const RandomMC& random)
+                                                  const T& random)
 {
     std::tuple<float, float> core_acc = regress_kmers(this, 
                                                       &query, 

@@ -24,7 +24,7 @@ int main (int argc, char* argv[])
     std::cout << ref.jaccard_dist(query, 29, random_match) << std::endl;
     std::cout << query.jaccard_dist(ref, 29, random_match) << std::endl;
 
-    auto core_acc = ref.core_acc_dist(query, random_match); 
+    auto core_acc = ref.core_acc_dist<RandomMC>(query, random_match); 
     std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
 
     Database sketch_db("sketch.h5");

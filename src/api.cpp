@@ -291,7 +291,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
 
     try
     {
-        HighFive::File h5_db(db_name + ".h5");
+        HighFive::File h5_db = open_h5(db_name + ".h5");
         Database prev_db(h5_db);
         
         if (messages)
@@ -370,7 +370,7 @@ RandomMC calculate_random(const std::vector<Reference>& sketches,
 	RandomMC random(sketches, n_clusters, n_MC, use_rc, num_threads);
     
     // Save to the database provided
-    HighFive::File h5_db(db_name + ".h5");
+    HighFive::File h5_db = open_h5(db_name + ".h5");
     Database db(h5_db);
     db.save_random(random);
 
@@ -379,7 +379,7 @@ RandomMC calculate_random(const std::vector<Reference>& sketches,
 
 RandomMC get_random(const std::string& db_name,
                     const bool use_rc_default) {
-    HighFive::File h5_db(db_name + ".h5");
+    HighFive::File h5_db = open_h5(db_name + ".h5");
     Database db(h5_db); 
     RandomMC random = db.load_random(use_rc_default);
     return(random);
@@ -436,7 +436,7 @@ void self_dist_block(NumpyMatrix& distMat,
                         distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx], random_chance);
                     }
                 } else {
-                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat, random_chance);
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist<RandomMC>(sketches[j], kmer_mat, random_chance);
                 }
                 done_calcs++;
                 if (done_calcs >= calcs)
@@ -464,16 +464,21 @@ void query_dist_row(NumpyMatrix& distMat,
                     const size_t row_start)
 {
     arma::mat kmer_mat = kmer2mat(kmer_lengths);
+    const size_t query_length = query_sketch_ptr->seq_length();
+    const uint16_t query_random_idx = random_chance.closest_cluster(*query_sketch_ptr);
+    
     size_t current_row = row_start;
     for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
         if (jaccard) {
+            double jaccard_random = random_chance.random_match(*ref_it, query_random_idx, query_length, kmer_lengths[kmer_idx]);
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx], random_chance);
+                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx], jaccard_random);
             }
         } else {
+            std::vector<double> jaccard_random = random_chance.random_matches(*ref_it, query_random_idx, query_length, kmer_lengths);
             std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                     query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat, random_chance);
+                     query_sketch_ptr->core_acc_dist<std::vector<double>>(*ref_it, kmer_mat, jaccard_random);
         }
         current_row++;
     }
