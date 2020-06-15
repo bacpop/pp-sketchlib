@@ -44,9 +44,7 @@ class Reference
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         void remove_kmer_sketch(const size_t kmer_len);
         double jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard);
-        double jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random) {
-            return(jaccard_dist(query, kmer_len, random.random_match(*this, query, kmer_len)))
-        }
+        double jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random);
         template <typename T>
         std::tuple<float, float> core_acc_dist(Reference &query, const T& random);
         template <typename T>

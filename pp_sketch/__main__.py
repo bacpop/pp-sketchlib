@@ -100,7 +100,7 @@ def get_options():
     mode.add_argument('--add-random',
                         action='store_true',
                         default=False,
-                        help='Calculate random match chances and add these to a database'
+                        help='Calculate random match chances and add these to a database')
 
     io = parser.add_argument_group('Input/output')
     io.add_argument('--rfile',
@@ -332,7 +332,7 @@ def main():
     # Add random match chances to an older database
     #
     elif args.add_random:
-        rList = getSampleNames(args.ref_db))
+        rList = getSampleNames(args.ref_db)
         ref = h5py.File(args.ref_db + ".h5", 'r')
         db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
         use_rc = ref['sketches/' + rList[0]].attrs['use_rc']

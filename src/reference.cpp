@@ -90,7 +90,7 @@ Reference::Reference(const std::string& name,
     _bases.t = bases[3];
 }
 
-double jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
+double Reference::jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
                                       &query.get_sketch(kmer_len), 
                                       _sketchsize64, 
@@ -100,6 +100,10 @@ double jaccard_dist(Reference &query, const int kmer_len, const double random_ja
     double jaccard_obs = intersize/(double)unionsize;
     double jaccard = observed_excess(jaccard_obs, random_jaccard, 1);
     return(jaccard);    
+}
+
+double Reference::jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random) {
+    return(jaccard_dist(query, kmer_len, random.random_match(*this, query, kmer_len)));
 }
 
 template <typename T>
@@ -118,6 +122,12 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query, const T& ran
     return(core_acc);
 }
 
+// Instantiate templates here so they can be used in other files
+template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query, 
+                                                  const RandomMC& random);
+template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query, 
+                                                  const std::vector<double>& random);
+
 // Without k-mer sizes check
 template <typename T>
 std::tuple<float, float> Reference::core_acc_dist(Reference &query, 
@@ -130,6 +140,14 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query,
                                                       random); 
     return(core_acc);
 }
+
+// Instantiate templates here so they can be used in other files
+template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query, 
+                                                  const arma::mat &kmers,
+                                                  const RandomMC& random);
+template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query, 
+                                                  const arma::mat &kmers,
+                                                  const std::vector<double>& random);
 
 const std::vector<uint64_t> & Reference::get_sketch(const int kmer_len) const
 {
@@ -171,3 +189,5 @@ arma::mat kmer2mat(const T& kmers)
     }
     return X;
 }
+
+template arma::mat kmer2mat<std::vector<size_t>>(const std::vector<size_t>& kmers); 

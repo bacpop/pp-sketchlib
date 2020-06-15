@@ -421,7 +421,7 @@ void self_dist_block(NumpyMatrix& distMat,
                      const size_t start_pos,
                      const size_t calcs)
 {
-    arma::mat kmer_mat = kmer2mat(kmer_lengths);
+    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     // Iterate upper triangle
     size_t done_calcs = 0;
     size_t pos = 0;
@@ -463,7 +463,7 @@ void query_dist_row(NumpyMatrix& distMat,
                     const bool jaccard,
                     const size_t row_start)
 {
-    arma::mat kmer_mat = kmer2mat(kmer_lengths);
+    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     const size_t query_length = query_sketch_ptr->seq_length();
     const uint16_t query_random_idx = random_chance.closest_cluster(*query_sketch_ptr);
     
@@ -471,8 +471,8 @@ void query_dist_row(NumpyMatrix& distMat,
     for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
         if (jaccard) {
-            double jaccard_random = random_chance.random_match(*ref_it, query_random_idx, query_length, kmer_lengths[kmer_idx]);
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+                double jaccard_random = random_chance.random_match(*ref_it, query_random_idx, query_length, kmer_lengths[kmer_idx]);
                 distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx], jaccard_random);
             }
         } else {

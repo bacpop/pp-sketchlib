@@ -38,7 +38,7 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const unsigned int n_clusters,
 	const unsigned int num_threads);
 std::vector<double> apply_rc(const Reference& ref);
-size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
+uint16_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
 std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
 											      const bool use_rc, 
 												  Xoshiro& generator);
@@ -186,15 +186,20 @@ double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id,
 	return(random_chance);
 }
 
+double RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+	return random_match(r1, _cluster_table.at(r2.name()), r2.seq_length(), kmer_len);
+}
+
 std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id, 
 						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const {
     std::vector<double> random;
 	for (auto kmer_len = kmer_lengths.cbegin(); kmer_len != kmer_lengths.cend(); ++kmer_len) {
 		random.push_back(random_match(r1, q_cluster_id, q_length, *kmer_len));
 	}
+	return random;
 }
 
-size_t RandomMC::closest_cluster(const Reference& ref) const {
+uint16_t RandomMC::closest_cluster(const Reference& ref) const {
 	return(nearest_neighbour(ref, _cluster_centroids));
 }
 

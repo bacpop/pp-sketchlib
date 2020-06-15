@@ -49,10 +49,9 @@ class RandomMC {
 		std::vector<double> random_matches(const Reference& r1, const uint16_t q_cluster_id, 
 						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const;
 		// Use in ref v ref mode
-		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
-			return random_match(r1, _cluster_table.at(r2.name()), r2.seq_length());
-		}
-        uint16_t closest_cluster(const Reference& ref) const;
+		double random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const;
+        
+		uint16_t closest_cluster(const Reference& ref) const;
 		void add_query(const Reference& query);
 		// TODO add flatten functions here too
 		// will need a lookup table (array) from sample_idx -> random_match_idx

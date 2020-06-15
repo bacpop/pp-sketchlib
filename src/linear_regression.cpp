@@ -15,7 +15,7 @@ const float accessory_upper = 0;
 std::tuple<float, float> fit_slope(const arma::mat& kmers,
                                    const arma::vec& dists,
                                    Reference * r1, 
-                                   Reference * r2, ) {
+                                   Reference * r2) {
     
     try {
         arma::colvec slopes = arma::solve(kmers, dists);
