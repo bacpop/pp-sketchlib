@@ -214,6 +214,33 @@ void RandomMC::add_query(const Reference& query) {
 	_cluster_table[query.name()] = closest_cluster(query);
 }
 
+// Helper functions for loading onto GPU
+std::vector<uint16_t> RandomMC::lookup_array(const std::vector<std::string>& names) const {
+	std::vector<uint16_t> lookup;
+	for (auto &name : names) {
+		lookup.push_back(_cluster_table.at(name));
+	}
+	return lookup;
+}
+
+std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(const std::vector<size_t>& kmer_lengths) const {
+	size_t matrix_size = _n_clusters * _n_clusters; 
+	RandomStrides strides = {matrix_size, _n_clusters, 1}; // access: kmer_idx * kmer_stride + ref_idx * inner_stride + query_idx * outer_stride
+	std::vector<float> flat;
+	for (auto &k : kmer_lengths) {
+		if (k < _min_k) {
+			throw std::runtime_error("Trying to choose a k-mer length below the minimum allowed\n");
+		} else if (k <= _max_k) {
+			std::copy(_matches[k].data(), 
+					  _matches[k].data() +  matrix_size, 
+					  std::back_inserter(flat));
+		} else {
+			std::fill_n(std::back_inserter(v), matrix_size, 0);
+		}
+	}
+	return(std::make_tuple(strides, flat));
+}
+
 /*
 *
 * Internal functions

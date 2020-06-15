@@ -20,6 +20,12 @@ const unsigned int default_n_MC = 5;
 
 class Reference;
 
+struct RandomStrides {
+	size_t kmer_stride;
+	size_t cluster_inner_stride;
+	size_t cluster_outer_stride;
+}
+
 class RandomMC {
 	public:
 		// no adjustment
@@ -39,8 +45,9 @@ class RandomMC {
 				 const robin_hood::unordered_node_map<std::string, uint16_t>& cluster_table,
 				 const robin_hood::unordered_node_map<size_t, NumpyMatrix>& matches,
 				 const NumpyMatrix& cluster_centroids)
-			: _no_adjustment(false), _no_MC(false), _use_rc(use_rc), _min_k(min_k), _max_k(max_k),
-              _cluster_table(cluster_table), _matches(matches), _cluster_centroids(cluster_centroids)
+			: _n_clusters(cluster_centroids.rows()), _no_adjustment(false), _no_MC(false), _use_rc(use_rc), 
+			  _min_k(min_k), _max_k(max_k), _cluster_table(cluster_table), _matches(matches), 
+			  _cluster_centroids(cluster_centroids)
 		{}
 
 		// Use in ref v query mode
@@ -53,8 +60,9 @@ class RandomMC {
         
 		uint16_t closest_cluster(const Reference& ref) const;
 		void add_query(const Reference& query);
-		// TODO add flatten functions here too
-		// will need a lookup table (array) from sample_idx -> random_match_idx
+		// GPU helper functions to flatten
+		std::vector<uint16_t> lookup_array(const std::vector<std::string>& names) const;
+		std::tuple<RandomStrides, std::vector<float>> flattened_random(const std::vector<size_t>& kmer_lengths) const;
 
 		// functions for saving
 		robin_hood::unordered_node_map<std::string, uint16_t> cluster_table() const { return _cluster_table; }
