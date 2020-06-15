@@ -55,6 +55,11 @@ class RandomMC {
 		NumpyMatrix cluster_centroids() const { return _cluster_centroids; }
 		std::tuple<unsigned int, unsigned int> k_range() const { return std::make_tuple(_min_k, _max_k); }
 		bool use_rc() const { return _use_rc; }
+		bool operator==(const RandomMC& rhs) const { 
+			return _cluster_table == rhs.cluster_table() &&
+				   _matches == rhs.matches() &&
+				   _cluster_centroids == rhs.cluster_centroids(); }
+		bool operator!=(const RandomMC& rhs) const {return !(*this == rhs); }
 
 	private:
 		unsigned int _n_clusters;

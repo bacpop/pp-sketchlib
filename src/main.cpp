@@ -85,8 +85,16 @@ int main (int argc, char* argv[])
 
     // Save random matches to db
     RandomMC random(listeria_sketches, 2, 5, true, 4);
-    listeria_db.save_random(random);
+    try {
+        listeria_db.save_random(random);
+    } catch (const std::exception& e) {
+        std::cerr << "Not writing random matches" << std::endl;
+        std::cout << e.what();
+    }
     RandomMC random_retrived = listeria_db.load_random(true);
+    if (random_retrived != random) {
+        throw std::runtime_error("Saving and loading random from DB failed!");
+    }
 
     NumpyMatrix listeria_dists = query_db(listeria_sketches,
                             listeria_sketches,

@@ -105,8 +105,8 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		}
 		kmer_size++;
 	}
-	_min_k = min_kmer;
-	_max_k = kmer_size - 1;
+	_min_k = kmer_lengths.front();
+	_max_k = kmer_lengths.back();
 
 	// Generate random sequences and sketch them (in parallel)
 	std::vector<std::vector<Reference>> random_seqs(n_clusters);
@@ -172,7 +172,7 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 		//float j1 = r1.seq_length() / (r1.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
 		//float j2 = r2.seq_length() / (r2.seq_length() + rc_factor * std::pow(N_BASES, (double)-kmer_len));
 		// use bitshift to calculate 4^k
-		size_t match_chance = (size_t)1 << (kmer_len * 2 + (_use_rc ? 1 : 0));
+		size_t match_chance = (size_t)1 << ((kmer_len - 1) * 2 + (_use_rc ? 1 : 0));
 		double j1 = 1 - std::pow(1 - (double)1/match_chance, (double)r1.seq_length());
 		double j2 = 1 - std::pow(1 - (double)1/match_chance, (double)r2.seq_length());
 		if (j1 > 0 && j2 > 0) {
@@ -233,7 +233,8 @@ size_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centro
 arma::uvec random_ints(const size_t k_draws, const size_t max_n) {
 	std::vector<arma::uword> random_idx(max_n);
 	std::iota(random_idx.begin(), random_idx.end(), 0);
-    std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()}); // non-deterministic
+    // std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{std::random_device{}()}); // non-deterministic
+    std::shuffle(random_idx.begin(), random_idx.end(), std::mt19937{1}); // deterministic
 	std::sort(random_idx.begin(), random_idx.begin() + k_draws);
 	random_idx.erase(random_idx.begin() + k_draws, random_idx.end());
 	return(arma::uvec(random_idx));
@@ -290,11 +291,17 @@ std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
 												  const bool use_rc,
 												  Xoshiro& generator) {
 	std::vector<double> base_f = ref_seq.base_composition();
-	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};   
+	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};
+	
+	// Better simulation:
+	// draw number of contigs N ~ Pois(mean(nr_contigs))
+	// draw lengths, probably from an empirical distribution 
+	// (exp doesn't fit well, there's usually one long contig)
+	// draw direction from std::bernoulli_distribution rc_dist(0.5);
 	
 	std::ostringstream random_seq_buffer;
 	for (size_t i = 0; i < ref_seq.seq_length(); i++) {
-		if (use_rc && i > (ref_seq.seq_length()/2)) {
+		if (use_rc && i > ref_seq.seq_length()/2) {
 			random_seq_buffer << RCMAP[base_dist(generator)];
 		} else {
 			random_seq_buffer << BASEMAP[base_dist(generator)];

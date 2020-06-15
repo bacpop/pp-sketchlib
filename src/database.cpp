@@ -27,7 +27,6 @@ Database::Database(const std::string& filename)
     _h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
 {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
-    _h5_file.createGroup("random");
     
     _version_hash = SKETCH_VERSION; 
     HighFive::Attribute sketch_version_a = 
@@ -148,7 +147,7 @@ void Database::save_random(const RandomMC& random) {
     // Open or create the random group
     HighFive::Group random_group;
     if (_h5_file.exist("random")) {
-        random_group = _h5_file.getGroup("random");
+        throw std::runtime_error("Random matches already exist in " + _filename);
     } else {
         random_group = _h5_file.createGroup("random");
     }

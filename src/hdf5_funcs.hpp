@@ -92,9 +92,10 @@ robin_hood::unordered_node_map<size_t, NumpyMatrix> load_hash(
 
     std::vector<size_t> hash_keys, dims;
     std::vector<float> buffer;
-    group.getAttribute("dims").read(dims);
     group.getDataSet(dataset_name + "_keys").read(hash_keys); 
-    group.getDataSet(dataset_name + "_values").read(buffer);
+    HighFive::DataSet values = group.getDataSet(dataset_name + "_values");
+    values.read(buffer);
+    values.getAttribute("dims").read(dims);
     
     robin_hood::unordered_node_map<size_t, NumpyMatrix> hash;
     float * buffer_pos = buffer.data();
