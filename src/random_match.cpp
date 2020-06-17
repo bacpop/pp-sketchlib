@@ -252,8 +252,8 @@ FlatRandom RandomMC::flattened_random(
 				if (k < _min_k) {
 					throw std::runtime_error("Trying to choose a k-mer length below the minimum allowed\n");
 				} else if (k <= _max_k) {
-					std::copy(_matches[k].data(),
-							_matches[k].data() + matrix_size,
+					std::copy(_matches.at(k).data(),
+							_matches.at(k).data() + matrix_size,
 							std::back_inserter(flat));
 				} else {
 					std::fill_n(std::back_inserter(flat), matrix_size, 0);

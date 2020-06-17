@@ -243,8 +243,8 @@ void calculate_query_dists(const uint64_t * ref,
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
-												  ref_idx_lookup[i] * random_strides.cluster_inner_stride +
-												  query_idx_lookup[j] * random_strides.cluster_outer_stride];
+												  ref_idx_lookup[ref_idx] * random_strides.cluster_inner_stride +
+												  query_idx_lookup[query_idx] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
 			//printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, r1, r2, jaccard_obs, y);
 
