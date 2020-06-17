@@ -12,6 +12,12 @@
 
 #include "reference.hpp"
 
+struct RandomStrides {
+	size_t kmer_stride;
+	size_t cluster_inner_stride;
+	size_t cluster_outer_stride;
+};
+
 typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
 
 #ifdef GPU_AVAILABLE
@@ -20,7 +26,7 @@ struct SketchStrides {
 	size_t bin_stride;
 	size_t kmer_stride;
 	size_t sample_stride;
-	size_t sketchsize64; 
+	size_t sketchsize64;
 	size_t bbits;
 };
 

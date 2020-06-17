@@ -40,8 +40,8 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const unsigned int num_threads);
 std::vector<double> apply_rc(const Reference& ref);
 uint16_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
-											      const bool use_rc, 
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
+											      const bool use_rc,
 												  Xoshiro& generator);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
@@ -50,14 +50,14 @@ RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _
 
 // Constructor - generates random match chances by Monte Carlo, sampling probabilities
 // from the input sketches
-RandomMC::RandomMC(const std::vector<Reference>& sketches, 
+RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
 				   const bool use_rc,
-				   const int num_threads) 
+				   const int num_threads)
 	: _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
 	std::cerr << "Calculating random match chances using Monte Carlo" << std::endl;
-	
+
 	if (n_clusters >= sketches.size()) {
 		std::cerr << "Cannot make more base frequency clusters than sketches" << std::endl;
 		n_clusters = sketches.size() - 1;
@@ -66,24 +66,25 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		throw std::runtime_error("Cannot make this few base frequency clusters");
 	}
 	_n_clusters = n_clusters;
-	
+
 	size_t sketchsize64 = sketches[0].sketchsize64();
 	_use_rc = sketches[0].rc();
- 
-    // Run k-means on the base frequencies, save the results in a hash table   
+
+    // Run k-means on the base frequencies, save the results in a hash table
 	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
-	
+
 	// Pick representative sequences, generate random sequence from them
-	unsigned int found = 0; 
+	unsigned int found = 0;
 	std::vector<size_t> representatives_idx;
+	representatives_idx.reserve(n_clusters);
 	_representatives.resize(n_clusters, "");
 	for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++) {
 		if (sketch_it->sketchsize64() != sketchsize64 || sketch_it->rc() != _use_rc) {
 			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
 		}
 		if (_representatives[_cluster_table[sketch_it->name()]].length() == 0) {
-			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name(); 
-			representatives_idx.push_back(sketch_it - sketches.begin());	
+			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name();
+			representatives_idx.push_back(sketch_it - sketches.begin());
 			if (++found >= n_clusters) {
 				break;
 			}
@@ -96,8 +97,8 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	size_t kmer_size = min_kmer + 1;
 	const double min_random = static_cast<double>(1)/(sketchsize64 * 64);
 	while (kmer_size <= max_kmer) {
-		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]], 
-																sketches[representatives_idx[1]], 
+		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]],
+																sketches[representatives_idx[1]],
 																kmer_size);
 		if (match_chance > min_random) {
 			kmer_lengths.push_back(kmer_size);
@@ -120,13 +121,13 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 					generator.jump();
 				}
 				// Make the sequence
-				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, generator), 
+				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, generator),
 						sketches[representatives_idx[r_idx]].base_composition(),
-						sketches[representatives_idx[r_idx]].seq_length(), 
+						sketches[representatives_idx[r_idx]].seq_length(),
 						0, kmer_lengths.back());
 				// Sketch it
 				random_seqs[r_idx].push_back(
-					Reference("random" + std::to_string(r_idx * n_MC + copies), 
+					Reference("random" + std::to_string(r_idx * n_MC + copies),
 							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false));
 		}
 	}
@@ -152,21 +153,21 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				}
 				matches(i, j) = dist_sum/dist_count;
 				matches(j, i) = matches(i, j);
-				//printf("%lu\t%f\t%f\n", *kmer_it, matches(i, j), default_adjustment.random_match(random_seqs[i][0], 
-				//												random_seqs[j][0], 
+				//printf("%lu\t%f\t%f\n", *kmer_it, matches(i, j), default_adjustment.random_match(random_seqs[i][0],
+				//												random_seqs[j][0],
 				//												*kmer_it));
 			}
 		}
-		_matches[*kmer_it] = matches;	
+		_matches[*kmer_it] = matches;
 	}
 
 }
 
 // This is used for query v ref, so query lookup is not repeated
-double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id, 
+double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id,
 						      const size_t q_length, const size_t kmer_len) const {
 	double random_chance = 0;
-	const uint16_t r_cluster_id = _cluster_table.at(r1.name()); 
+	const uint16_t r_cluster_id = _cluster_table.at(r1.name());
 	if (_no_MC) {
 		random_chance = csrs(kmer_len, _use_rc, r1.seq_length(), q_length);
 	} else if (!_no_adjustment && kmer_len < _max_k) {
@@ -180,7 +181,7 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 	return random_match(r1, _cluster_table.at(r2.name()), r2.seq_length(), kmer_len);
 }
 
-std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id, 
+std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id,
 						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const {
     std::vector<double> random;
 	for (auto kmer_len = kmer_lengths.cbegin(); kmer_len != kmer_lengths.cend(); ++kmer_len) {
@@ -195,7 +196,7 @@ uint16_t RandomMC::closest_cluster(const Reference& ref) const {
 
 /*
 size_t RandomMC::closest_cluster(const arma::vec& bases) const {
-	double* ptr = bases.memptr(); 
+	double* ptr = bases.memptr();
 	return(closest_cluster(ptr, _cluster_centroids));
 }
 */
@@ -208,6 +209,7 @@ void RandomMC::add_query(const Reference& query) {
 // Get an array index in order of sample name
 std::vector<uint16_t> RandomMC::lookup_array(const std::vector<Reference>& sketches) const {
 	std::vector<uint16_t> lookup;
+	lookup.reserve(sketches.size());
 	for (auto &sketch : sketches) {
 		if (_no_adjustment || _no_MC) {
 			lookup.push_back(0); // If no MC, look tables have only one index (0)
@@ -227,12 +229,12 @@ std::vector<uint16_t> RandomMC::lookup_array(const std::vector<Reference>& sketc
 
 // Flatten chosen random structure
 // access: kmer_idx * kmer_stride + ref_idx * inner_stride + query_idx * outer_stride
-std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(
+FlatRandom RandomMC::flattened_random(
 	const std::vector<size_t>& kmer_lengths,
 	const size_t default_length) const {
 	size_t matrix_size = _n_clusters * _n_clusters;
 	RandomStrides strides;
-	
+
 	std::vector<float> flat;
 	// No adjustment -> return 0
 	if (_no_adjustment) {
@@ -250,8 +252,8 @@ std::tuple<RandomStrides, std::vector<float>> RandomMC::flattened_random(
 				if (k < _min_k) {
 					throw std::runtime_error("Trying to choose a k-mer length below the minimum allowed\n");
 				} else if (k <= _max_k) {
-					std::copy(_matches[k].data(), 
-							_matches[k].data() + matrix_size, 
+					std::copy(_matches[k].data(),
+							_matches[k].data() + matrix_size,
 							std::back_inserter(flat));
 				} else {
 					std::fill_n(std::back_inserter(flat), matrix_size, 0);
@@ -323,7 +325,7 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const std::vector<Reference>& sketches,
 	const unsigned int n_clusters,
 	const unsigned int num_threads) {
-	
+
 	// Build the input matrix in the right form
 	arma::mat data(N_BASES, sketches.size(), arma::fill::zeros);
 	for (size_t idx = 0; idx < sketches.size(); idx++) {
@@ -332,7 +334,7 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 			data(base, idx) = base_ref[base];
 		}
 	}
-    
+
 	arma::mat means;
 	bool success = false;
 	int tries = 0;
@@ -357,25 +359,25 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	// #pragma omp parallel for schedule(static)
 	for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
 		cluster_map[sketches[sketch_idx].name()] = \
-			nearest_neighbour(sketches[sketch_idx], centroids_matrix); 
+			nearest_neighbour(sketches[sketch_idx], centroids_matrix);
 	}
 
-	return std::make_tuple(cluster_map, centroids_matrix);	
+	return std::make_tuple(cluster_map, centroids_matrix);
 }
 
 // Bernoulli random draws - each base independent
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq, 
+std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
 												  const bool use_rc,
 												  Xoshiro& generator) {
 	std::vector<double> base_f = ref_seq.base_composition();
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};
-	
+
 	// Better simulation:
 	// draw number of contigs N ~ Pois(mean(nr_contigs))
-	// draw lengths, probably from an empirical distribution 
+	// draw lengths, probably from an empirical distribution
 	// (exp doesn't fit well, there's usually one long contig)
 	// draw direction from std::bernoulli_distribution rc_dist(0.5);
-	
+
 	std::ostringstream random_seq_buffer;
 	for (size_t i = 0; i < ref_seq.seq_length(); i++) {
 		if (use_rc && i > ref_seq.seq_length()/2) {

@@ -59,4 +59,3 @@ RandomMC calculate_random(const std::vector<Reference>& sketches,
 
 RandomMC get_random(const std::string& db_name,
                     const bool use_rc_default);
-                    
