@@ -98,8 +98,9 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	const double min_random = static_cast<double>(1)/(sketchsize64 * 64);
 	while (kmer_size <= max_kmer) {
 		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]],
-																sketches[representatives_idx[1]],
-																kmer_size);
+															  0,
+															  sketches[representatives_idx[0]].seq_length(),
+															  kmer_size);
 		if (match_chance > min_random) {
 			kmer_lengths.push_back(kmer_size);
 		} else {
@@ -167,18 +168,22 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id,
 						      const size_t q_length, const size_t kmer_len) const {
 	double random_chance = 0;
-	const uint16_t r_cluster_id = _cluster_table.at(r1.name());
 	if (_no_MC) {
 		random_chance = csrs(kmer_len, _use_rc, r1.seq_length(), q_length);
 	} else if (!_no_adjustment && kmer_len < _max_k) {
 		// Longer k-mer lengths here are set to zero
+		const uint16_t r_cluster_id = _cluster_table.at(r1.name());
 		random_chance = _matches.at(kmer_len)(r_cluster_id, q_cluster_id);
 	}
 	return(random_chance);
 }
 
 double RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
-	return random_match(r1, _cluster_table.at(r2.name()), r2.seq_length(), kmer_len);
+	uint16_t q_cluster_id = 0;
+	if (!_no_MC && !_no_adjustment) {
+		q_cluster_id = _cluster_table.at(r2.name());
+	}
+	return random_match(r1, q_cluster_id, r2.seq_length(), kmer_len);
 }
 
 std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id,

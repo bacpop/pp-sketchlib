@@ -19,8 +19,8 @@ NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf>& distVec,
                           const unsigned int num_threads) {
     Eigen::VectorXf dummy_query_ref;
     Eigen::VectorXf dummy_query_query;
-    NumpyMatrix converted = long_to_square(distVec, 
-                                            dummy_query_ref, 
+    NumpyMatrix converted = long_to_square(distVec,
+                                            dummy_query_ref,
                                             dummy_query_query,
                                             num_threads);
     return(converted);
@@ -30,8 +30,8 @@ NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf>& distVec,
                             const Eigen::Ref<Eigen::VectorXf>& query_ref_distVec,
                             const Eigen::Ref<Eigen::VectorXf>& query_query_distVec,
                             const unsigned int num_threads) {
-    NumpyMatrix converted = long_to_square(distVec, 
-                                            query_ref_distVec, 
+    NumpyMatrix converted = long_to_square(distVec,
+                                            query_ref_distVec,
                                             query_query_distVec,
                                             num_threads);
     return(converted);
@@ -39,7 +39,7 @@ NumpyMatrix longToSquareMulti(const Eigen::Ref<Eigen::VectorXf>& distVec,
 
 Eigen::VectorXf squareToLong(const Eigen::Ref<NumpyMatrix>& distMat,
                              const unsigned int num_threads) {
-    Eigen::VectorXf converted = square_to_long(distMat, num_threads); 
+    Eigen::VectorXf converted = square_to_long(distMat, num_threads);
     return(converted);
 }
 
@@ -55,8 +55,8 @@ void constructDatabase(const std::string& db_name,
                        const size_t num_threads = 1)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                            sample_names, 
-                                                            file_names, 
+                                                            sample_names,
+                                                            file_names,
                                                             kmer_lengths,
                                                             sketch_size,
                                                             use_rc,
@@ -89,7 +89,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
         std::cerr << "WARNING: versions of input databases sketches are different," \
                      " results may not be compatible" << std::endl;
     }
-    
+
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
@@ -100,7 +100,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
         random = RandomMC();
     }
 
-    NumpyMatrix dists; 
+    NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -148,7 +148,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
         std::cerr << "WARNING: versions of input databases sketches are different," \
                      " results may not be compatible" << std::endl;
     }
-    
+
     std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
     std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
 
@@ -158,7 +158,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     } else {
         random = RandomMC();
     }
-    NumpyMatrix dists; 
+    NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -193,11 +193,11 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     }
     Eigen::VectorXf dummy_query_ref;
     Eigen::VectorXf dummy_query_query;
-    NumpyMatrix long_form = long_to_square(dists.col(dist_col), 
-                                            dummy_query_ref, 
+    NumpyMatrix long_form = long_to_square(dists.col(dist_col),
+                                            dummy_query_ref,
                                             dummy_query_query,
                                             num_threads);
-    sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN, num_threads); 
+    sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN, num_threads);
 
     return(sparse_return);
 }
@@ -217,8 +217,8 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
                              const int device_id = 0)
 {
     std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                            sample_names, 
-                                                            file_names, 
+                                                            sample_names,
+                                                            file_names,
                                                             kmer_lengths,
                                                             sketch_size,
                                                             use_rc,
@@ -235,7 +235,7 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
         random = RandomMC();
     }
 
-    NumpyMatrix dists; 
+    NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
     if (use_gpu)
     {
@@ -313,7 +313,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
   m.doc() = "Sketch implementation for PopPUNK";
 
   // Exported functions
-  m.def("constructDatabase", &constructDatabase, "Create and save sketches", 
+  m.def("constructDatabase", &constructDatabase, "Create and save sketches",
         py::arg("db_name"),
         py::arg("samples"),
         py::arg("files"),
@@ -323,8 +323,8 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("min_count") = 0,
         py::arg("exact") = false,
         py::arg("num_threads") = 1);
-  
-  m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches; return all distances", 
+
+  m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches; return all distances",
         py::arg("ref_db_name"),
         py::arg("query_db_name"),
         py::arg("rList"),
@@ -336,7 +336,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 
-  m.def("queryDatabaseSparse", &sparseQuery, py::return_value_policy::reference_internal, "Find distances between sketches; return a sparse matrix", 
+  m.def("queryDatabaseSparse", &sparseQuery, py::return_value_policy::reference_internal, "Find distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"),
         py::arg("query_db_name"),
         py::arg("rList"),
@@ -350,7 +350,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 
-  m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances", 
+  m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances",
         py::arg("db_name"),
         py::arg("samples"),
         py::arg("files"),
@@ -392,13 +392,13 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("query_query_distVec").noconvert(),
         py::arg("num_threads") = 1);
 
-  m.def("sparsifyDists", &sparsifyDists, py::return_value_policy::reference_internal, "Transform all distances into a sparse matrix", 
+  m.def("sparsifyDists", &sparsifyDists, py::return_value_policy::reference_internal, "Transform all distances into a sparse matrix",
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("num_threads") = 1);
 
-  m.def("assignThreshold", &assignThreshold, py::return_value_policy::reference_internal, "Assign samples based on their relation to a 2D boundary", 
+  m.def("assignThreshold", &assignThreshold, py::return_value_policy::reference_internal, "Assign samples based on their relation to a 2D boundary",
         py::arg("distMat").noconvert(),
         py::arg("slope"),
         py::arg("x_max"),

@@ -73,7 +73,7 @@ def storePickle(rlist, qlist, self, X, pklName):
     if isinstance(X, np.ndarray):
         np.save(pklName + ".npy", X)
     else:
-        save_npz(pklName + ".npz", X) 
+        save_npz(pklName + ".npz", X)
 
 def get_options():
     import argparse
@@ -120,14 +120,14 @@ def get_options():
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
     kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='K-mer sketch size [default = 10000]')
-    kmerGroup.add_argument('--no-correction', default=False, action='store_true', 
+    kmerGroup.add_argument('--no-correction', default=False, action='store_true',
                             help='Disable correction for random matches at short k-mer lengths')
-    kmerGroup.add_argument('--jaccard', default=False, action='store_true', 
+    kmerGroup.add_argument('--jaccard', default=False, action='store_true',
                             help='Output adjusted Jaccard distances, not core and accessory distances')
     kmerGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
                                                                                 'e.g. for RNA viruses with preserved strand')
     kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
-    kmerGroup.add_argument('--exact-counter', default=False, action='store_true', 
+    kmerGroup.add_argument('--exact-counter', default=False, action='store_true',
                             help='Use an exact rather than approximate k-mer counter '
                                   'when using reads as input (increases memory use) '
                                   '[default = False]')
@@ -199,7 +199,7 @@ def main():
     if args.sketch:
         names = []
         sequences = []
-        
+
         with open(args.rfile, 'rU') as refFile:
             for refLine in refFile:
                 refFields = refLine.rstrip().split("\t")
@@ -211,13 +211,13 @@ def main():
             sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers, 
-                                       int(round(args.sketch_size/64)), args.strand, 
+        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers,
+                                       int(round(args.sketch_size/64)), args.strand,
                                        args.min_count, args.exact_counter, args.cpus)
-    
+
     #
-    # Join two databases 
-    # 
+    # Join two databases
+    #
     elif args.join:
         join_name = args.output + ".h5"
         db1_name = args.ref_db + ".h5"
@@ -254,10 +254,10 @@ def main():
         hdf2.close()
         hdf_join.close()
         os.rename(join_name + ".tmp", join_name)
-           
+
     #
     # Query a database (calculate distances)
-    # 
+    #
     elif args.query:
         rList = getSampleNames(args.ref_db)
         qList = getSampleNames(args.query_db)
@@ -278,7 +278,7 @@ def main():
         ref = h5py.File(args.ref_db + ".h5", 'r')
         query = h5py.File(args.query_db + ".h5", 'r')
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
-           query['sketches/' + qList[0]].attrs['kmers'] 
+           query['sketches/' + qList[0]].attrs['kmers']
         )
         if args.read_k:
             query_kmers = sorted(db_kmers)
@@ -289,10 +289,12 @@ def main():
                 sys.exit(1)
             elif (len(query_kmers) < len(query_kmers)):
                 sys.stderr.write("Some requested k-mer lengths not found in DB\n")
+        ref.close()
+        query.close()
 
         if args.sparse:
-            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers, 
-                                                         ~args.no_correction, args.threshold, args.kNN, 
+            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers,
+                                                         ~args.no_correction, args.threshold, args.kNN,
                                                          ~args.accessory, args.cpus, args.use_gpu, args.gpu_id)
             if args.print:
                 if args.accessory:
@@ -300,20 +302,20 @@ def main():
                 else:
                     distName = 'Core'
                 sys.stdout.write("\t".join(['Query', 'Reference', distName]) + "\n")
-                
+
                 (i_vec, j_vec, dist_vec) = sparseIdx
                 for (i, j, dist) in zip(i_vec, j_vec, dist_vec):
                     sys.stdout.write("\t".join([rList[i], qList[j], str(dist)]) + "\n")
 
             else:
                 coo_matrix = ijv_to_coo(sparseIdx, (len(rList), len(qList)), np.float32)
-                storePickle(rList, qList, rList == qList, coo_matrix, args.output) 
+                storePickle(rList, qList, rList == qList, coo_matrix, args.output)
 
         else:
-            distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers, 
+            distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers,
                                                  ~args.no_correction, args.jaccard, args.cpus, args.use_gpu,
                                                  args.gpu_id)
-            
+
             # get names order
             if args.print:
                 names = iterDistRows(rList, qList, rList == qList)
@@ -324,7 +326,7 @@ def main():
                 else:
                     sys.stdout.write("\t".join(['Query', 'Reference'] + [str(i) for i in query_kmers]) + "\n")
                     for i, (ref, query) in enumerate(names):
-                        sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n") 
+                        sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n")
             else:
                 storePickle(rList, qList, rList == qList, distMat, args.output)
 
@@ -336,6 +338,7 @@ def main():
         ref = h5py.File(args.ref_db + ".h5", 'r')
         db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
         use_rc = ref['sketches/' + rList[0]].attrs['use_rc']
+        ref.close()
 
         pp_sketchlib.addRandom(args.ref_db, rList, db_kmers, use_rc, args.cpus)
 

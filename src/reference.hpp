@@ -19,16 +19,16 @@
 
 #include "seqio.hpp"
 
-class RandomMC; 
+class RandomMC;
 
 class Reference
 {
     public:
         Reference();
-        Reference(const std::string& name, 
-                  SeqBuf& sequence, 
+        Reference(const std::string& name,
+                  SeqBuf& sequence,
                   const std::vector<size_t>& kmer_lengths,
-                  const size_t sketchsize64, 
+                  const size_t sketchsize64,
                   const bool use_rc,
                   const uint8_t min_count,
                   const bool exact); // read and run sketch
@@ -39,7 +39,7 @@ class Reference
                   const size_t seq_size,
                   const std::vector<double> bases,
                   const unsigned long int missing_bases); // For loading from DB
-        
+
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
         void remove_kmer_sketch(const size_t kmer_len);
@@ -72,12 +72,12 @@ class Reference
         size_t _bbits;
         size_t _sketchsize64;
         bool _use_rc;
-        
+
         // Sequence statistics
         size_t _seq_size;
         unsigned long int _missing_bases;
         bool _densified;
-        
+
         // Proportion of each base
         BaseComp<double> _bases;
 
@@ -89,11 +89,11 @@ template <class T>
 arma::mat kmer2mat(const T& kmers);
 
 // Defined in linear_regression.cpp
-std::tuple<float, float> regress_kmers(Reference * r1, 
-                                       Reference * r2, 
+std::tuple<float, float> regress_kmers(Reference * r1,
+                                       Reference * r2,
                                        const arma::mat& kmers,
                                        const std::vector<double>& random);
-std::tuple<float, float> regress_kmers(Reference * r1, 
-                                       Reference * r2, 
+std::tuple<float, float> regress_kmers(Reference * r1,
+                                       Reference * r2,
                                        const arma::mat& kmers,
                                        const RandomMC& random);
