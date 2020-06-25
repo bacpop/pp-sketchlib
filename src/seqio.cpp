@@ -46,13 +46,12 @@ void track_composition(const char c,
 }
 
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
-{
+ :_N_count(0), _reads(false) {
     /*
     *   Reads entire sequence to memory
     */
     BaseComp<size_t> base_counts = BaseComp<size_t>();
 
-    _reads = false; _N_count = 0;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
         // from kseq.h
@@ -99,21 +98,13 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     this->reset();
 }
 
-SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in,
-               const size_t kmer_len)
- :_reads(false) {
-    for (const auto& contig : sequence_in) {
-        if (contig.length() >= kmer_len) {
-            sequence.push_back(contig);
-        }
-    }
-
+SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in)
+ :sequence(sequence_in), _reads(false)  {
     this->reset();
 }
 
 
-void SeqBuf::reset()
-{
+void SeqBuf::reset() {
     /*
     *   Returns to start of sequences
     */
@@ -126,8 +117,7 @@ void SeqBuf::reset()
     end = false;
 }
 
-bool SeqBuf::move_next(size_t word_length)
-{
+bool SeqBuf::move_next(size_t word_length) {
     /*
     *   Moves along to next character in sequence and reverse complement
     *   Loops around to next sequence if end reached

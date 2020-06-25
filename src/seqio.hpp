@@ -32,7 +32,7 @@ class SeqBuf
         // Standard load from fasta/fastq list
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
         // Load from sequence (for randomly generated sequence)
-        SeqBuf(const std::vector<std::string>& sequence_in, const size_t kmer_len);
+        SeqBuf(const std::vector<std::string>& sequence_in);
 
 	    unsigned char getnext() const { return *next_base; }
 	    unsigned char getout() const { return *out_base; }

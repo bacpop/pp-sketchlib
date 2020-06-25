@@ -40,8 +40,9 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 	const unsigned int num_threads);
 std::vector<double> apply_rc(const Reference& ref);
 uint16_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_centroids);
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
-											      const bool use_rc,
+std::vector<std::string> generate_random_sequence(const Eigen::VectorXf& base_f,
+												  const size_t seq_length,
+												  const bool use_rc,
 												  Xoshiro& generator);
 
 RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
@@ -79,9 +80,9 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	size_t kmer_size = min_kmer + 1;
 	const double min_random = static_cast<double>(1)/(sketchsize64 * 64);
 	while (kmer_size <= max_kmer) {
-		double match_chance = default_adjustment.random_match(sketches[representatives_idx[0]],
+		double match_chance = default_adjustment.random_match(sketches[0],
 															  0,
-															  sketches[representatives_idx[0]].seq_length(),
+															  sketches[0].seq_length(),
 															  kmer_size);
 		if (match_chance > min_random) {
 			kmer_lengths.push_back(kmer_size);
@@ -107,8 +108,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				SeqBuf random_seq(
 					generate_random_sequence(_cluster_centroids.row(r_idx),
 											 sketches[0].seq_length(),
-											 use_rc, generator),
-				    kmer_lengths.back());
+											 use_rc, generator));
 				// Sketch it
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies),
@@ -367,7 +367,7 @@ std::vector<std::string> generate_random_sequence(const Eigen::VectorXf& base_f,
 	// draw direction from std::bernoulli_distribution rc_dist(0.5);
 
 	std::ostringstream random_seq_buffer;
-	for (size_t i = 0; i < seq_length); i++) {
+	for (size_t i = 0; i < seq_length; i++) {
 		if (use_rc && i > seq_length / 2) {
 			random_seq_buffer << RCMAP[base_dist(generator)];
 		} else {
