@@ -26,14 +26,13 @@ struct BaseComp {
     size_t total;
 };
 
-class SeqBuf 
+class SeqBuf
 {
     public:
         // Standard load from fasta/fastq list
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
         // Load from sequence (for randomly generated sequence)
-        SeqBuf(const std::vector<std::string>& sequence_in, const std::vector<double>& bases, 
-               const size_t length, const unsigned long int N_count, const size_t kmer_len);
+        SeqBuf(const std::vector<std::string>& sequence_in, const size_t kmer_len);
 
 	    unsigned char getnext() const { return *next_base; }
 	    unsigned char getout() const { return *out_base; }
@@ -47,7 +46,7 @@ class SeqBuf
         bool move_next(size_t word_length);
         void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };
         void reset();
-     
+
 
     private:
         std::vector<std::string> sequence;

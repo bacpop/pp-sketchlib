@@ -84,7 +84,7 @@ int main (int argc, char* argv[])
     }
 
     // Save random matches to db
-    RandomMC random(listeria_sketches, 2, 5, true, 4);
+    RandomMC random(listeria_sketches, 3, 5, true, 4);
     try {
         listeria_db.save_random(random);
     } catch (const std::exception& e) {

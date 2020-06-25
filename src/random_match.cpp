@@ -73,24 +73,6 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
     // Run k-means on the base frequencies, save the results in a hash table
 	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
 
-	// Pick representative sequences, generate random sequence from them
-	unsigned int found = 0;
-	std::vector<size_t> representatives_idx;
-	representatives_idx.reserve(n_clusters);
-	_representatives.resize(n_clusters, "");
-	for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++) {
-		if (sketch_it->sketchsize64() != sketchsize64 || sketch_it->rc() != _use_rc) {
-			throw std::runtime_error("Sketches have incompatible sizes or strand settings");
-		}
-		if (_representatives[_cluster_table[sketch_it->name()]].length() == 0) {
-			_representatives[_cluster_table[sketch_it->name()]] = sketch_it->name();
-			representatives_idx.push_back(sketch_it - sketches.begin());
-			if (++found >= n_clusters) {
-				break;
-			}
-		}
-	}
-
 	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
 	std::vector<size_t> kmer_lengths = {min_kmer};
@@ -122,10 +104,11 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 					generator.jump();
 				}
 				// Make the sequence
-				SeqBuf random_seq(generate_random_sequence(sketches[representatives_idx[r_idx]], use_rc, generator),
-						sketches[representatives_idx[r_idx]].base_composition(),
-						sketches[representatives_idx[r_idx]].seq_length(),
-						0, kmer_lengths.back());
+				SeqBuf random_seq(
+					generate_random_sequence(_cluster_centroids.row(r_idx),
+											 sketches[0].seq_length(),
+											 use_rc, generator),
+				    kmer_lengths.back());
 				// Sketch it
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies),
@@ -371,10 +354,10 @@ std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>,
 }
 
 // Bernoulli random draws - each base independent
-std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
+std::vector<std::string> generate_random_sequence(const Eigen::VectorXf& base_f,
+												  const size_t seq_length,
 												  const bool use_rc,
 												  Xoshiro& generator) {
-	std::vector<double> base_f = ref_seq.base_composition();
 	std::discrete_distribution<int> base_dist {base_f[0], base_f[1], base_f[2], base_f[3]};
 
 	// Better simulation:
@@ -384,8 +367,8 @@ std::vector<std::string> generate_random_sequence(const Reference& ref_seq,
 	// draw direction from std::bernoulli_distribution rc_dist(0.5);
 
 	std::ostringstream random_seq_buffer;
-	for (size_t i = 0; i < ref_seq.seq_length(); i++) {
-		if (use_rc && i > ref_seq.seq_length()/2) {
+	for (size_t i = 0; i < seq_length); i++) {
+		if (use_rc && i > seq_length / 2) {
 			random_seq_buffer << RCMAP[base_dist(generator)];
 		} else {
 			random_seq_buffer << BASEMAP[base_dist(generator)];
