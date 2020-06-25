@@ -16,6 +16,7 @@
 #include "robin_hood.h"
 #include "matrix.hpp"
 
+const unsigned int default_max_k = 101;
 const unsigned int default_n_clusters = 3;
 const unsigned int default_n_MC = 5;
 
@@ -49,6 +50,7 @@ class RandomMC {
 		{}
 
 		// Use in ref v query mode
+		size_t min_supported_k(const size_t seq_length) const;
 		double random_match(const Reference& r1, const uint16_t q_cluster_id,
 						    const size_t q_length, const size_t kmer_len) const;
 		std::vector<double> random_matches(const Reference& r1, const uint16_t q_cluster_id,

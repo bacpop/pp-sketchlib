@@ -166,6 +166,11 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
         throw std::runtime_error("Query with empty ref or query list!");
     }
+    if (kmer_lengths[0] <
+            random_chance.min_supported_k(ref_sketches[0].seq_length())) {
+        throw std::runtime_error("Smallest k-mer has no signal above random "
+                                 "chance; increase minimum k-mer length");
+    }
 
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     NumpyMatrix distMat;

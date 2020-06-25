@@ -45,9 +45,12 @@ std::vector<std::string> generate_random_sequence(const Eigen::VectorXf& base_f,
 												  const bool use_rc,
 												  Xoshiro& generator);
 
-RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false), _use_rc(false) {}
+RandomMC::RandomMC() : _n_clusters(0), _no_adjustment(true), _no_MC(false),
+					   _use_rc(false), _min_k(0), _max_k(default_max_k) {}
 
-RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false), _no_MC(true), _use_rc(use_rc) {}
+RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false),
+				   _no_MC(true), _use_rc(use_rc), _min_k(0),
+				   _max_k(default_max_k) {}
 
 // Constructor - generates random match chances by Monte Carlo, sampling probabilities
 // from the input sketches
@@ -145,6 +148,25 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 		_matches[*kmer_it] = matches;
 	}
 
+}
+
+size_t RandomMC::min_supported_k(const size_t seq_length) const {
+	size_t min_k_signal = _min_k;
+	if (!_no_MC) {
+		for (size_t k = min_k_signal; k < _max_k; k++) {
+			double random = 0;
+			if (_no_adjustment) {
+				random = csrs(k, _use_rc, seq_length, seq_length);
+			} else {
+				random = _matches.at(k).mean();
+			}
+			if (random < 1) {
+				min_k_signal = k;
+				break;
+			}
+		}
+	}
+	return min_k_signal;
 }
 
 // This is used for query v ref, so query lookup is not repeated

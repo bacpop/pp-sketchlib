@@ -47,27 +47,27 @@ static inline uint64_t popcount64(uint64_t x)
 }
 // End of macros and method copied from https://github.com/kimwalisch/libpopcnt
 
-size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
-                      const std::vector<uint64_t> * sketch2, 
-                      const size_t sketchsize64, 
-                      const size_t bbits) 
+size_t calc_intersize(const std::vector<uint64_t> * sketch1,
+                      const std::vector<uint64_t> * sketch2,
+                      const size_t sketchsize64,
+                      const size_t bbits)
 {
 	size_t samebits = 0;
-    for (size_t i = 0; i < sketchsize64; i++) 
+    for (size_t i = 0; i < sketchsize64; i++)
     {
 		uint64_t bits = ~((uint64_t)0ULL);
-		for (size_t j = 0; j < bbits; j++) 
+		for (size_t j = 0; j < bbits; j++)
         {
 			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
 		}
 
-#if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll) 
+#if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll)
 		samebits += __builtin_popcountll(bits);
 #else
 		samebits += popcount64(bits);
 #endif
 	}
-	const size_t maxnbits = sketchsize64 * NBITS(uint64_t); 
+	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> bbits);
 	if (expected_samebits) {
 		return samebits;

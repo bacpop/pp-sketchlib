@@ -24,7 +24,7 @@ auto key_selector = [](auto pair){return pair.first;};
 
 // Initialisation
 Reference::Reference()
-   :_bbits(def_bbits),  
+   :_bbits(def_bbits),
     _sketchsize64(def_sketchsize64),
     _use_rc(true),
     _seq_size(0),
@@ -32,15 +32,15 @@ Reference::Reference()
 {
 }
 
-Reference::Reference(const std::string& name, 
-                     SeqBuf& sequence, 
+Reference::Reference(const std::string& name,
+                     SeqBuf& sequence,
                      const std::vector<size_t>& kmer_lengths,
                      const size_t sketchsize64,
                      const bool use_rc,
                      const uint8_t min_count,
                      const bool exact)
-   :_name(name), 
-    _bbits(def_bbits),  
+   :_name(name),
+    _bbits(def_bbits),
     _sketchsize64(sketchsize64),
     _use_rc(use_rc),
     _seq_size(0),
@@ -56,13 +56,13 @@ Reference::Reference(const std::string& name,
     for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
     {
         double minhash = 0; bool densified;
-        std::tie(usigs[*kmer_it], minhash, densified) = 
+        std::tie(usigs[*kmer_it], minhash, densified) =
             sketch(sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
-        
+
         minhash_sum += minhash;
         _densified |= densified; // Densified at any k-mer length
     }
-    
+
     // 1/N =~ 1/E(Y) where Yi = minhash in [0,1] for k-mer i
     // See https://www.cs.princeton.edu/courses/archive/fall13/cos521/lecnotes/lec4final.pdf
     if (sequence.is_reads()) {
@@ -81,7 +81,7 @@ Reference::Reference(const std::string& name,
                      const size_t seq_size,
                      const std::vector<double> bases,
                      const unsigned long int missing_bases)
-   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true), 
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true),
    _seq_size(seq_size), _missing_bases(missing_bases), _densified(false)
 {
     _bases.a = bases[0];
@@ -91,15 +91,15 @@ Reference::Reference(const std::string& name,
 }
 
 double Reference::jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
-    size_t intersize = calc_intersize(&this->get_sketch(kmer_len), 
-                                      &query.get_sketch(kmer_len), 
-                                      _sketchsize64, 
+    size_t intersize = calc_intersize(&this->get_sketch(kmer_len),
+                                      &query.get_sketch(kmer_len),
+                                      _sketchsize64,
                                       _bbits);
-	size_t unionsize = NBITS(uint64_t) * _sketchsize64;
-    
+    size_t unionsize = NBITS(uint64_t) * _sketchsize64;
+
     double jaccard_obs = intersize/(double)unionsize;
     double jaccard = observed_excess(jaccard_obs, random_jaccard, 1);
-    return(jaccard);    
+    return(jaccard);
 }
 
 double Reference::jaccard_dist(Reference &query, const int kmer_len, const RandomMC& random) {
@@ -115,37 +115,37 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query, const T& ran
         throw std::runtime_error("Incompatible k-mer lengths");
     }
 
-    std::tuple<float, float> core_acc = regress_kmers(this, 
-                                                      &query, 
+    std::tuple<float, float> core_acc = regress_kmers(this,
+                                                      &query,
                                                       kmer2mat(kmers),
-                                                      random); 
+                                                      random);
     return(core_acc);
 }
 
 // Instantiate templates here so they can be used in other files
-template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query, 
+template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query,
                                                   const RandomMC& random);
-template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query, 
+template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query,
                                                   const std::vector<double>& random);
 
 // Without k-mer sizes check
 template <typename T>
-std::tuple<float, float> Reference::core_acc_dist(Reference &query, 
+std::tuple<float, float> Reference::core_acc_dist(Reference &query,
                                                   const arma::mat &kmers,
                                                   const T& random)
 {
-    std::tuple<float, float> core_acc = regress_kmers(this, 
-                                                      &query, 
+    std::tuple<float, float> core_acc = regress_kmers(this,
+                                                      &query,
                                                       kmers,
-                                                      random); 
+                                                      random);
     return(core_acc);
 }
 
 // Instantiate templates here so they can be used in other files
-template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query, 
+template std::tuple<float, float> Reference::core_acc_dist<RandomMC>(Reference &query,
                                                   const arma::mat &kmers,
                                                   const RandomMC& random);
-template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query, 
+template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(Reference &query,
                                                   const arma::mat &kmers,
                                                   const std::vector<double>& random);
 
@@ -171,7 +171,7 @@ void Reference::remove_kmer_sketch(const size_t kmer_len)
     usigs.erase(kmer_len);
 }
 
-std::vector<size_t> Reference::kmer_lengths() const 
+std::vector<size_t> Reference::kmer_lengths() const
 {
     std::vector<size_t> keys(usigs.size());
     std::transform(usigs.begin(), usigs.end(), keys.begin(), key_selector);
@@ -190,4 +190,5 @@ arma::mat kmer2mat(const T& kmers)
     return X;
 }
 
-template arma::mat kmer2mat<std::vector<size_t>>(const std::vector<size_t>& kmers); 
+template arma::mat
+    kmer2mat<std::vector<size_t>>(const std::vector<size_t>& kmers);

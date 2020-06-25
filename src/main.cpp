@@ -89,7 +89,7 @@ int main (int argc, char* argv[])
         listeria_db.save_random(random);
     } catch (const std::exception& e) {
         std::cerr << "Not writing random matches" << std::endl;
-        std::cout << e.what();
+        std::cout << e.what() << std::endl;
     }
     RandomMC random_retrived = listeria_db.load_random(true);
     if (random_retrived != random) {
@@ -101,7 +101,7 @@ int main (int argc, char* argv[])
                             kmer_lengths,
                             random,
                             false,
-                            4); 
+                            4);
     std::cout << listeria_dists << std::endl;
 
 

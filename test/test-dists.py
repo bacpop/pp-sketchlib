@@ -28,6 +28,7 @@ for sample_name in list(ref['sketches'].keys()):
     rList.append(sample_name)
 
 db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
+ref.close()
 
 distMat = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList, db_kmers)
 jaccard_dists = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList, db_kmers, jaccard = True) 
@@ -41,7 +42,12 @@ oldJaccardDistMat = np.load(old_results + "_jaccard.npy")
 oldDistMat = np.hstack((oldDistMat, oldJaccardDistMat))
 
 # Check both match
-assert(rList_old == rList)
+if (rList_old != rList):
+    sys.stderr.write("Genome order mismatching\n")
+    print(rList)
+    print(rList_old)
+    sys.exit(1)
+
 names = iterDistRows(rList, rList, True)
 for i, (ref, query) in enumerate(names):
     for j, (dist) in enumerate(['core', 'accessory'] + [str(x) for x in db_kmers]):

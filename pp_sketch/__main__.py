@@ -294,8 +294,8 @@ def main():
 
         if args.sparse:
             sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers,
-                                                         ~args.no_correction, args.threshold, args.kNN,
-                                                         ~args.accessory, args.cpus, args.use_gpu, args.gpu_id)
+                                                         not args.no_correction, args.threshold, args.kNN,
+                                                         not args.accessory, args.cpus, args.use_gpu, args.gpu_id)
             if args.print:
                 if args.accessory:
                     distName = 'Accessory'
@@ -313,7 +313,7 @@ def main():
 
         else:
             distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers,
-                                                 ~args.no_correction, args.jaccard, args.cpus, args.use_gpu,
+                                                 not args.no_correction, args.jaccard, args.cpus, args.use_gpu,
                                                  args.gpu_id)
 
             # get names order
