@@ -104,7 +104,17 @@ int main (int argc, char* argv[])
                             4);
     std::cout << listeria_dists << std::endl;
 
-
+    // Check ref v query works
+    std::vector<Reference> query_sketches(2);
+    std::copy(listeria_sketches.begin(), listeria_sketches.begin() + 2,
+              query_sketches.begin());
+    NumpyMatrix query_dists = query_db(listeria_sketches,
+                            query_sketches,
+                            kmer_lengths,
+                            random,
+                            false,
+                            4);
+    std::cout << query_dists << std::endl;
 
     return 0;
 }

@@ -413,7 +413,8 @@ void sketch_block(std::vector<Reference>& sketches,
     for (unsigned int i = start; i < end; i++)
     {
         SeqBuf seq_in(files[i], kmer_lengths.back());
-        sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64, use_rc, min_count, exact);
+        sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
+                                use_rc, min_count, exact);
     }
 }
 
@@ -439,10 +440,16 @@ void self_dist_block(NumpyMatrix& distMat,
             {
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                        distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx], random_chance);
+                        distMat(pos, kmer_idx) =
+                            sketches[i].jaccard_dist(sketches[j],
+                                                     kmer_lengths[kmer_idx],
+                                                     random_chance);
                     }
                 } else {
-                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist<RandomMC>(sketches[j], kmer_mat, random_chance);
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) =
+                        sketches[i].core_acc_dist<RandomMC>(sketches[j],
+                                                            kmer_mat,
+                                                            random_chance);
                 }
                 done_calcs++;
                 if (done_calcs >= calcs)
@@ -471,20 +478,30 @@ void query_dist_row(NumpyMatrix& distMat,
 {
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     const size_t query_length = query_sketch_ptr->seq_length();
-    const uint16_t query_random_idx = random_chance.closest_cluster(*query_sketch_ptr);
+    const uint16_t query_random_idx =
+        random_chance.closest_cluster(*query_sketch_ptr);
 
     size_t current_row = row_start;
     for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
         if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                double jaccard_random = random_chance.random_match(*ref_it, query_random_idx, query_length, kmer_lengths[kmer_idx]);
-                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx], jaccard_random);
+                double jaccard_random =
+                    random_chance.random_match(*ref_it, query_random_idx,
+                                                query_length, kmer_lengths[kmer_idx]);
+                distMat(current_row, kmer_idx) =
+                    query_sketch_ptr->jaccard_dist(*ref_it,
+                                                    kmer_lengths[kmer_idx],
+                                                    jaccard_random);
             }
         } else {
-            std::vector<double> jaccard_random = random_chance.random_matches(*ref_it, query_random_idx, query_length, kmer_lengths);
+            std::vector<double> jaccard_random =
+                random_chance.random_matches(*ref_it, query_random_idx,
+                                             query_length, kmer_lengths);
             std::tie(distMat(current_row, 0), distMat(current_row, 1)) =
-                     query_sketch_ptr->core_acc_dist<std::vector<double>>(*ref_it, kmer_mat, jaccard_random);
+                     query_sketch_ptr->core_acc_dist<std::vector<double>>(*ref_it,
+                                                                          kmer_mat,
+                                                                          jaccard_random);
         }
         current_row++;
     }

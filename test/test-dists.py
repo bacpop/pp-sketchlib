@@ -6,8 +6,10 @@ import pickle
 
 ref_db = "test_db"
 old_results = "ppsketch_ref"
-warn_diff = 0.02
-max_diff = 0.05
+warn_diff = 0.01
+warn_diff_fraction = 0.02
+max_diff = 0.001
+max_diff_fraction = 0.05
 
 def iterDistRows(refSeqs, querySeqs, self=True):
     if self:
@@ -52,11 +54,13 @@ names = iterDistRows(rList, rList, True)
 for i, (ref, query) in enumerate(names):
     for j, (dist) in enumerate(['core', 'accessory'] + [str(x) for x in db_kmers]):
         if oldDistMat[i, j] != 0 and distMat[i, j] != 0:
-            diff = 2*(distMat[i, j] - oldDistMat[i, j])/(oldDistMat[i, j] + distMat[i, j]) 
-            if (abs(diff) > warn_diff):
+            diff = distMat[i, j] - oldDistMat[i, j]
+            diff_fraction = 2*(diff)/(oldDistMat[i, j] + distMat[i, j])
+            if (abs(diff) > warn_diff and abs(diff_fraction) > warn_diff_fraction):
                 sys.stderr.write(dist + " mismatches for " + ref + "," + query + "\n")
                 sys.stderr.write("expected: " + str(oldDistMat[i, j]) + "; calculated: " + str(distMat[i, j]) + "\n")
-            if (abs(diff) > max_diff):
+            if (abs(diff) > max_diff and abs(diff_fraction) > max_diff_fraction):
+                sys.stderr.write("Difference outside tolerance")
                 sys.exit(1)
 
 sys.exit(0)

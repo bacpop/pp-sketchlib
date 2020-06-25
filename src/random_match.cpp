@@ -76,6 +76,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
     // Run k-means on the base frequencies, save the results in a hash table
 	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
+	std::cout << _cluster_centroids << std::endl;
 
 	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
@@ -183,7 +184,8 @@ double RandomMC::random_match(const Reference& r1, const uint16_t q_cluster_id,
 	return(random_chance);
 }
 
-double RandomMC::random_match(const Reference& r1, const Reference& r2, const size_t kmer_len) const {
+double RandomMC::random_match(const Reference& r1, const Reference& r2,
+						      const size_t kmer_len) const {
 	uint16_t q_cluster_id = 0;
 	if (!_no_MC && !_no_adjustment) {
 		q_cluster_id = _cluster_table.at(r2.name());
@@ -191,9 +193,11 @@ double RandomMC::random_match(const Reference& r1, const Reference& r2, const si
 	return random_match(r1, q_cluster_id, r2.seq_length(), kmer_len);
 }
 
-std::vector<double> RandomMC::random_matches(const Reference& r1, const uint16_t q_cluster_id,
-						    const size_t q_length, const std::vector<size_t>& kmer_lengths) const {
-    std::vector<double> random;
+std::vector<double> RandomMC::random_matches(const Reference& r1,
+	const uint16_t q_cluster_id, const size_t q_length,
+	const std::vector<size_t>& kmer_lengths) const {
+
+	std::vector<double> random;
 	for (auto kmer_len = kmer_lengths.cbegin(); kmer_len != kmer_lengths.cend(); ++kmer_len) {
 		random.push_back(random_match(r1, q_cluster_id, q_length, *kmer_len));
 	}
@@ -315,7 +319,7 @@ uint16_t nearest_neighbour(const Reference& ref, const NumpyMatrix& cluster_cent
 	Eigen::MatrixXf::Index index;
 	Eigen::Map<Eigen::VectorXd> vd(bases.data(), bases.size());
 	Eigen::RowVectorXf vf = vd.cast<float>();
-  	(cluster_centroids.rowwise() - vf).colwise().squaredNorm().minCoeff(&index);
+	(cluster_centroids.rowwise() - vf).rowwise().squaredNorm().minCoeff(&index);
 	return((uint16_t)index);
 }
 
