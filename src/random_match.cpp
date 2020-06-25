@@ -76,7 +76,6 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 
     // Run k-means on the base frequencies, save the results in a hash table
 	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
-	std::cout << _cluster_centroids << std::endl;
 
 	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
