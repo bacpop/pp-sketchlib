@@ -324,7 +324,12 @@ void calculate_self_dists(const uint64_t * ref,
 												  ref_idx_lookup[i] * random_strides.cluster_inner_stride +
 												  ref_idx_lookup[j] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			// printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", i, j, kmer_idx, r1, r2, jaccard_obs, y);
+			//printf("i:%ld j:%ld k:%d r_idx:%ld r:%f jac_obs:%f jac_adj:%f y:%f\n", 
+			//  i, j, kmer_idx,
+			//	kmer_idx * random_strides.kmer_stride +
+			//	ref_idx_lookup[i] * random_strides.cluster_inner_stride +
+			//	ref_idx_lookup[j] * random_strides.cluster_outer_stride,
+			//  jaccard_expected, jaccard_obs, jaccard_expected, y);
 
 			// Running totals for regression
 			xsum += kmers[kmer_idx];
@@ -455,38 +460,47 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  long long dist_rows,
 					  const bool self) {
 	DeviceMemory loaded;
+	try {
+		// Set up reference sketches, flatten and copy to device
+		thrust::host_vector<uint64_t> flat_ref =
+			flatten_by_samples(ref_sketches,
+								kmer_lengths,
+								ref_strides,
+								sample_slice.ref_offset,
+								sample_slice.ref_offset + sample_slice.ref_size);
+		loaded.ref_sketches = flat_ref; // copies to device
 
-	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches,
-																kmer_lengths,
-																ref_strides,
-																sample_slice.ref_offset,
-																sample_slice.ref_offset + sample_slice.ref_size);
-	loaded.ref_sketches = flat_ref; // copies to device
+		// Preload random match chances, which have already been flattened
+		loaded.random_table = std::get<1>(flat_random);
+		loaded.ref_random.resize(sample_slice.ref_size);
+		thrust::copy(ref_random_idx.begin() + sample_slice.ref_offset,
+					ref_random_idx.begin() + sample_slice.ref_offset + sample_slice.ref_size,
+					loaded.ref_random.begin());
 
-	// Preload random match chances, which have already been flattened
-	loaded.random_table = std::get<1>(flat_random);
-	thrust::copy(ref_random_idx.begin() + sample_slice.ref_offset,
-				 ref_random_idx.begin() + sample_slice.ref_offset + sample_slice.ref_size,
-				 loaded.ref_random.begin());
+		// If ref v query mode, also flatten query vector and copy to device
+		if (!self) {
+			thrust::host_vector<uint64_t> flat_query =
+				flatten_by_bins(query_sketches,
+								kmer_lengths,
+								query_strides,
+								sample_slice.query_offset,
+								sample_slice.query_offset + sample_slice.query_size);
+			loaded.query_sketches = flat_query;
 
-	// If ref v query mode, also flatten query vector and copy to device
-	if (!self) {
-		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches,
-																   kmer_lengths,
-																   query_strides,
-																   sample_slice.query_offset,
-																   sample_slice.query_offset + sample_slice.query_size);
-        loaded.query_sketches = flat_query;
+			loaded.query_random.resize(sample_slice.query_size);
+			thrust::copy(query_random_idx.begin() + sample_slice.query_offset,
+					     query_random_idx.begin() + sample_slice.query_offset + sample_slice.query_size,
+						 loaded.query_random.begin());
+		}
 
-		thrust::copy(query_random_idx.begin() + sample_slice.query_offset,
-					 query_random_idx.begin() + sample_slice.query_offset + sample_slice.query_size,
-					 loaded.query_random.begin());
+		// Copy other arrays needed on device (kmers and distance output)
+		loaded.kmers = kmer_lengths;
+		loaded.dist_mat.resize(dist_rows*2, 0);
+	} catch (thrust::system_error &e) {
+		std::cerr << "Error loading sketches onto GPU: " << std::endl;
+		std::cerr << e.what() << std::endl;
+		exit(1);
 	}
-
-	// Copy other arrays needed on device (kmers and distance output)
-	loaded.kmers = kmer_lengths;
-	loaded.dist_mat.resize(dist_rows*2, 0);
 
 	return(loaded);
 }
@@ -538,7 +552,6 @@ void reportProgress(volatile int * blocks_complete,
 // Upper dist memory access is hard to predict, so try and cache as much
 // as possible
 // Query uses on-chip cache (__shared__) to store query sketch
-// std::chrono::steady_clock::time_point b;
 std::vector<float> dispatchDists(
 	std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
@@ -665,7 +678,7 @@ std::vector<float> dispatchDists(
 
 	cudaDeviceSynchronize();
 	// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
-	fprintf(stderr, "%cProgress (GPU): 100.0%%", 13);
+	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	return(dist_results);
 }
