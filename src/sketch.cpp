@@ -20,7 +20,7 @@
 #include "bitfuncs.hpp"
 #include "countmin.hpp"
 
-const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL; 
+const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
 
@@ -35,15 +35,15 @@ std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
 });
 
 // Universal hashing function for densifybin
-uint64_t univhash(uint64_t s, uint64_t t) 
+uint64_t univhash(uint64_t s, uint64_t t)
 {
 	uint64_t x = (1009) * s + (1000*1000+3) * t;
 	return (48271 * x + 11) % ((1ULL << 31) - 1);
 }
 
-void binsign(std::vector<uint64_t> &signs, 
-             const uint64_t sign, 
-             const uint64_t binsize) 
+void binsign(std::vector<uint64_t> &signs,
+             const uint64_t sign,
+             const uint64_t binsize)
 {
 	uint64_t binidx = sign / binsize;
 	signs[binidx] = MIN(signs[binidx], sign);
@@ -55,13 +55,13 @@ double inverse_minhash(std::vector<uint64_t> &signs)
     return(minhash / (double)SIGN_MOD);
 }
 
-void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits) 
+void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits)
 {
-	for (size_t signidx = 0; signidx < signs.size(); signidx++) 
+	for (size_t signidx = 0; signidx < signs.size(); signidx++)
     {
 		uint64_t sign = signs[signidx];
 		int leftshift = (signidx % NBITS(uint64_t));
-		for (size_t i = 0; i < bbits; i++) 
+		for (size_t i = 0; i < bbits; i++)
         {
 			uint64_t orval = (BITATPOS(sign, i) << leftshift);
 			usigs[signidx/NBITS(uint64_t) * bbits + i] |= orval;
@@ -69,21 +69,21 @@ void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs,
 	}
 }
 
-int densifybin(std::vector<uint64_t> &signs) 
+int densifybin(std::vector<uint64_t> &signs)
 {
 	uint64_t minval = UINT64_MAX;
 	uint64_t maxval = 0;
-	for (auto sign : signs) { 
+	for (auto sign : signs) {
 		minval = MIN(minval, sign);
 		maxval = MAX(maxval, sign);
 	}
 	if (UINT64_MAX != maxval) { return 0; }
 	if (UINT64_MAX == minval) { return -1; }
-	for (uint64_t i = 0; i < signs.size(); i++) 
+	for (uint64_t i = 0; i < signs.size(); i++)
     {
 		uint64_t j = i;
 		uint64_t nattempts = 0;
-		while (UINT64_MAX == signs[j]) 
+		while (UINT64_MAX == signs[j])
         {
 			j = univhash(i, nattempts) % signs.size();
 			nattempts++;
@@ -94,8 +94,8 @@ int densifybin(std::vector<uint64_t> &signs)
 }
 
 std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
-                                                        const uint64_t sketchsize, 
-                                                        const size_t kmer_len, 
+                                                        const uint64_t sketchsize,
+                                                        const size_t kmer_len,
                                                         const size_t bbits,
                                                         const bool use_canonical,
                                                         const uint8_t min_count,
@@ -130,9 +130,9 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
     }
 
     // Rolling hash through string
-    while (!seq.eof()) 
+    while (!seq.eof())
     {
-        stHashIterator hashIt(*(seq.getseq()), kmer_seeds[kmer_len], kmer_seeds[kmer_len].size(), 
+        stHashIterator hashIt(*(seq.getseq()), kmer_seeds[kmer_len], kmer_seeds[kmer_len].size(),
                               h, seed_length, use_canonical, ss);
         while (hashIt != hashIt.end())
         {
@@ -153,7 +153,7 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
     // Apply densifying function
     int densified = densifybin(signs);
     fillusigs(usigs, signs, bbits);
-    
+
     seq.reset();
 
     return(std::make_tuple(usigs, inv_minhash, densified != 0));

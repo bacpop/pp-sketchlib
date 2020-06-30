@@ -22,7 +22,7 @@ const long table_width = (long)mask; // 2^24 + 1 = 16777216
 const unsigned int hash_per_hash = (int)floor(64/table_width_bits); // This should be 2, or the table is likely too narrow
 const size_t table_rows = 4; // Number of hashes, should be a multiple of hash_per_hash
 
-class KmerCounter 
+class KmerCounter
 {
     public:
         KmerCounter(const uint8_t min_count, const size_t num_hashes);
@@ -40,22 +40,22 @@ class KmerCounter
 
 };
 
-class CountMin : public KmerCounter 
+class CountMin : public KmerCounter
 {
     public:
         CountMin(const uint8_t min_count);
 
         uint8_t add_count(stHashIterator& hash) override;
-    
+
     private:
         std::array<std::array<uint8_t, table_width>, table_rows> hash_table;
 };
 
-class HashCounter : public KmerCounter 
+class HashCounter : public KmerCounter
 {
     public:
         HashCounter(const uint8_t min_count);
-        
+
         uint8_t add_count(stHashIterator& hash) override;
         uint8_t probe(stHashIterator& hash);
 
