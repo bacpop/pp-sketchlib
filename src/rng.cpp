@@ -63,9 +63,9 @@ void Xoshiro::jump() {
 				s2 ^= _state[2];
 				s3 ^= _state[3];
 			}
-			this->operator()();	
+			this->operator()();
 		}
-		
+
 	_state[0] = s0;
 	_state[1] = s1;
 	_state[2] = s2;
@@ -92,9 +92,9 @@ void Xoshiro::long_jump() {
 				s2 ^= _state[2];
 				s3 ^= _state[3];
 			}
-			this->operator()();	
+			this->operator()();
 		}
-		
+
 	_state[0] = s0;
 	_state[1] = s1;
 	_state[2] = s2;

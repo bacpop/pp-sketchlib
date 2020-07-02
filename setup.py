@@ -115,6 +115,7 @@ setup(
             ]
     },
     install_requires=['numpy',
+                      'scipy',
                       'h5py'],
     ext_modules=[CMakeExtension('pp_sketchlib')],
     cmdclass=dict(build_ext=CMakeBuild),

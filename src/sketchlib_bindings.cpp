@@ -277,7 +277,7 @@ void addRandomToDb(const std::string& db_name,
                                        db_name,
                                        default_n_clusters,
                                        default_n_MC,
-                                       ref_sketches[0].rc(),
+                                       use_rc,
                                        num_threads);
 }
 

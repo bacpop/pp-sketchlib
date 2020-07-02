@@ -33,7 +33,7 @@ CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-devic
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
 # python specific options
-python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.2.0\" $(shell python3 -m pybind11 --includes)
+python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.4.0\" $(shell python3 -m pybind11 --includes)
 
 PROGRAMS=sketch_test matrix_test read_test
 
