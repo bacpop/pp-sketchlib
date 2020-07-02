@@ -3,12 +3,12 @@ project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
 # Set sketch version
-execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.hpp 
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/ntHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash.hpp 
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp 
+execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.hpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/ntHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash.hpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp
                 COMMAND openssl sha1
                 COMMAND cut -d " " -f 2
-                OUTPUT_VARIABLE sketch_hash) 
+                OUTPUT_VARIABLE sketch_hash)
 string(REGEX REPLACE "\n$" "" sketch_hash "${sketch_hash}")
 file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"\n")
 
@@ -23,7 +23,7 @@ IF(CMAKE_COMPILER_IS_GNUCC)
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 if(UNIX AND NOT APPLE)
-    if(CMAKE_CXX_COMPILER STREQUAL "icpc")  
+    if(CMAKE_CXX_COMPILER STREQUAL "icpc")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
@@ -56,7 +56,7 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     message(STATUS "CUDA found, compiling both GPU and CPU code")
     enable_language(CUDA)
-    
+
     # PIC/relocatable-device-code needed as this is linked by gcc later
     # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
     # --cudart static: static linking of the CUDA libraries
@@ -65,11 +65,11 @@ if(CMAKE_CUDA_COMPILER)
     string(APPEND CUDA_OPTS " -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=sm_50")
     string(APPEND CUDA_OPTS " -gencode arch=compute_75,code=sm_75")
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
-    
+
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
     target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
-    set_property(TARGET "${TARGET_NAME}_CUDA" 
+    set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
@@ -93,7 +93,7 @@ target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/linear_regression.cpp
                                     src/rng.cpp
                                     src/random_match.cpp)
-set_target_properties("${TARGET_NAME}" PROPERTIES 
+set_target_properties("${TARGET_NAME}" PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
     INTERPROCEDURAL_OPTIMIZATION TRUE
     PREFIX "${PYTHON_MODULE_PREFIX}"
@@ -104,7 +104,7 @@ set_target_properties("${TARGET_NAME}" PROPERTIES
 if(CMAKE_CUDA_COMPILER)
     target_link_libraries("${TARGET_NAME}" PRIVATE "${TARGET_NAME}_CUDA")
 endif()
-target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen 
+target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
                                                z hdf5_cpp hdf5 openblas lapack gfortran m dl)
 if(OpenMP_CXX_FOUND)
     target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
