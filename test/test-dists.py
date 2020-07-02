@@ -33,15 +33,20 @@ db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
 ref.close()
 
 distMat = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList, db_kmers)
-jaccard_dists = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList, db_kmers, jaccard = True) 
-distMat = np.hstack((distMat, jaccard_dists))
+jaccard_dists = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList,
+                                           db_kmers, jaccard = True)
+jaccard_dists_raw = pp_sketchlib.queryDatabase(ref_db, ref_db, rList, rList,
+                                           db_kmers, jaccard = True,
+                                           random_correct = False)
+distMat = np.hstack((distMat, jaccard_dists, jaccard_dists_raw))
 
 # Read old distances
 with open(old_results + ".pkl", 'rb') as pickle_file:
     rList_old, qList_old, self = pickle.load(pickle_file)
 oldDistMat = np.load(old_results + ".npy")
 oldJaccardDistMat = np.load(old_results + "_jaccard.npy")
-oldDistMat = np.hstack((oldDistMat, oldJaccardDistMat))
+oldRawJaccardDistMat = np.load(old_results + "_raw_jaccard.npy")
+oldDistMat = np.hstack((oldDistMat, oldJaccardDistMat, oldRawJaccardDistMat))
 
 # Check both match
 if (rList_old != rList):
