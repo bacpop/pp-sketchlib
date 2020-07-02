@@ -244,7 +244,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	}
 	else
 	{
-		std::vector<uint16_t> query_random_idx = random_match.lookup_array(ref_sketches);
+		std::vector<uint16_t> query_random_idx =
+			random_match.lookup_array(query_sketches);
 
 		sketch_subsample.ref_size = ref_sketches.size();
 		sketch_subsample.query_size = query_sketches.size();

@@ -203,8 +203,13 @@ std::vector<double> RandomMC::random_matches(const Reference& r1,
 	return random;
 }
 
+// Returns zero if there are no clusters defined
 uint16_t RandomMC::closest_cluster(const Reference& ref) const {
-	return(nearest_neighbour(ref, _cluster_centroids));
+	uint16_t closest_cluster_id = 0;
+	if (!_no_MC && !_no_adjustment) {
+		closest_cluster_id = nearest_neighbour(ref, _cluster_centroids);
+	}
+	return(closest_cluster_id);
 }
 
 /*
@@ -225,7 +230,7 @@ std::vector<uint16_t> RandomMC::lookup_array(const std::vector<Reference>& sketc
 	lookup.reserve(sketches.size());
 	for (auto &sketch : sketches) {
 		if (_no_adjustment || _no_MC) {
-			lookup.push_back(0); // If no MC, look tables have only one index (0)
+			lookup.push_back(0); // If no MC, lookup tables have only one index (0)
 		} else {
 			auto in_table = _cluster_table.find(sketch.name());
 			if (in_table == _cluster_table.end()) {

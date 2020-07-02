@@ -426,18 +426,14 @@ void self_dist_block(NumpyMatrix& distMat,
                      const RandomMC& random_chance,
                      const bool jaccard,
                      const size_t start_pos,
-                     const size_t calcs)
-{
+                     const size_t calcs) {
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     // Iterate upper triangle
     size_t done_calcs = 0;
     size_t pos = 0;
-    for (size_t i = 0; i < sketches.size(); i++)
-    {
-        for (size_t j = i + 1; j < sketches.size(); j++)
-        {
-            if (pos >= start_pos)
-            {
+    for (size_t i = 0; i < sketches.size(); i++) {
+        for (size_t j = i + 1; j < sketches.size(); j++) {
+            if (pos >= start_pos) {
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
                         distMat(pos, kmer_idx) =
@@ -452,15 +448,13 @@ void self_dist_block(NumpyMatrix& distMat,
                                                             random_chance);
                 }
                 done_calcs++;
-                if (done_calcs >= calcs)
-                {
+                if (done_calcs >= calcs) {
                     break;
                 }
             }
             pos++;
         }
-        if (done_calcs >= calcs)
-        {
+        if (done_calcs >= calcs) {
             break;
         }
     }
