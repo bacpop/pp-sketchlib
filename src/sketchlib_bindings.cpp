@@ -63,12 +63,14 @@ void constructDatabase(const std::string& db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
-    RandomMC random = calculate_random(ref_sketches,
-                                       db_name,
-                                       default_n_clusters,
-                                       default_n_MC,
-                                       use_rc,
-                                       num_threads);
+    if (ref_sketches.size() >= default_n_clusters) {
+        RandomMC random = calculate_random(ref_sketches,
+                                        db_name,
+                                        default_n_clusters,
+                                        default_n_MC,
+                                        use_rc,
+                                        num_threads);
+    }
 }
 
 NumpyMatrix queryDatabase(const std::string& ref_db_name,
@@ -225,29 +227,28 @@ NumpyMatrix constructAndQuery(const std::string& db_name,
                                                             min_count,
                                                             exact,
                                                             num_threads);
-    RandomMC random = calculate_random(ref_sketches,
+    RandomMC random;
+    if (!random_correct || ref_sketches.size() < default_n_clusters) {
+        random = RandomMC();
+    } else {
+        random = calculate_random(ref_sketches,
                                        db_name,
                                        default_n_clusters,
                                        default_n_MC,
                                        use_rc,
                                        num_threads);
-    if (!random_correct) {
-        random = RandomMC();
     }
 
     NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
-    if (use_gpu)
-    {
+    if (use_gpu) {
         dists = query_db_cuda(ref_sketches,
                              ref_sketches,
                              kmer_lengths,
                              random,
                              device_id,
                              num_threads);
-    }
-    else
-    {
+    } else {
         dists = query_db(ref_sketches,
                 ref_sketches,
                 kmer_lengths,

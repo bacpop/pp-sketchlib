@@ -408,10 +408,8 @@ void sketch_block(std::vector<Reference>& sketches,
                   const uint8_t min_count,
                   const bool exact,
                   const size_t start,
-                  const size_t end)
-{
-    for (unsigned int i = start; i < end; i++)
-    {
+                  const size_t end) {
+    for (unsigned int i = start; i < end; i++) {
         SeqBuf seq_in(files[i], kmer_lengths.back());
         sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
                                 use_rc, min_count, exact);
