@@ -46,20 +46,19 @@ void track_composition(const char c,
 }
 
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
-{
-    /* 
+ :_N_count(0), _reads(false) {
+    /*
     *   Reads entire sequence to memory
     */
     BaseComp<size_t> base_counts = BaseComp<size_t>();
 
-    _reads = false; _N_count = 0;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
         // from kseq.h
         gzFile fp = gzopen(name_it->c_str(), "r");
         kseq_t *seq = kseq_init(fp);
         int l;
-        while ((l = kseq_read(seq)) >= 0) 
+        while ((l = kseq_read(seq)) >= 0)
         {
             if (strlen(seq->seq.s) >= kmer_len)
             {
@@ -69,39 +68,44 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                     c = ascii_toupper_char(c);
                     base_counts.total++;
                     if (base_counts.total < max_composition_sample) {
-                        track_composition(c, base_counts); 
+                        track_composition(c, base_counts);
                     }
                     if (c == 'N') {
                         _N_count++;
                     }
                 }
             }
-            
+
             // Presence of any quality scores - assume reads as input
             if (!_reads && seq->qual.l)
             {
                 _reads = true;
             }
         }
-        
+
         // If put back into object, move this to destructor below
         kseq_destroy(seq);
         gzclose(fp);
     }
     double total = (double)(MIN(base_counts.total, max_composition_sample));
-    
+
     _bases.a = base_counts.a / (double)total;
     _bases.c = base_counts.c / (double)total;
     _bases.g = base_counts.g / (double)total;
     _bases.t = base_counts.t / (double)total;
-    _bases.total = base_counts.total; 
+    _bases.total = base_counts.total;
 
     this->reset();
 }
 
-void SeqBuf::reset()
-{
-    /* 
+SeqBuf::SeqBuf(const std::vector<std::string>& sequence_in)
+ :sequence(sequence_in), _reads(false)  {
+    this->reset();
+}
+
+
+void SeqBuf::reset() {
+    /*
     *   Returns to start of sequences
     */
     if (sequence.size() > 0)
@@ -113,18 +117,17 @@ void SeqBuf::reset()
     end = false;
 }
 
-bool SeqBuf::move_next(size_t word_length)
-{
-    /* 
+bool SeqBuf::move_next(size_t word_length) {
+    /*
     *   Moves along to next character in sequence and reverse complement
     *   Loops around to next sequence if end reached
-    *   Keeps track of base before k-mer length 
+    *   Keeps track of base before k-mer length
     */
     bool next_seq = false;
     if (!end)
     {
         next_base++;
-        
+
         if (next_base == current_seq->end())
         {
             current_seq++;

@@ -12,6 +12,7 @@
 #include <string>
 
 #include "matrix.hpp"
+#include "random_match.hpp"
 #include "reference.hpp"
 
 std::vector<Reference> create_sketches(const std::string& db_name,
@@ -27,6 +28,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    RandomMC& random_chance,
                     const bool jaccard,
                     const size_t num_threads);
 
@@ -35,6 +37,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,
+  RandomMC& random_chance,
 	const int device_id = 0,
   const unsigned int num_cpu_threads = 1);
 #endif
@@ -47,3 +50,12 @@ std::vector<Reference> load_sketches(const std::string& db_name,
                                      std::vector<size_t> kmer_lengths,
                                      const bool messages = true);
 
+RandomMC calculate_random(const std::vector<Reference>& sketches,
+                      const std::string& db_name,
+                      const unsigned int n_clusters,
+                      const unsigned int n_MC,
+                      const bool use_rc,
+                      const int num_threads);
+
+RandomMC get_random(const std::string& db_name,
+                    const bool use_rc_default);

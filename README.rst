@@ -137,6 +137,7 @@ See ``main.cpp`` for examples::
 
     #include "reference.hpp"
     #include "database.hpp"
+    #include "random_match.hpp"
     #include "api.hpp"
 
     // Set k-mer lengths
@@ -146,12 +147,15 @@ See ``main.cpp`` for examples::
     Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, true, 0, false);
     Reference query(argv[3], {argv[4]}, kmer_lengths, 156, true, 0, false);
 
+    // Use default random match chances
+    RandomMC random(true);
+
     // Output some distances at a single k-mer length
-    std::cout << ref.jaccard_dist(query, 15) << std::endl;
-    std::cout << ref.jaccard_dist(query, 29) << std::endl;
+    std::cout << ref.jaccard_dist(query, 15, random) << std::endl;
+    std::cout << ref.jaccard_dist(query, 29, random) << std::endl;
 
     // Calculate core and accessory distances between two sketches
-    auto core_acc = ref.core_acc_dist(query); 
+    auto core_acc = ref.core_acc_dist<RandomMC>(query, random); 
     std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
 
     // Save sketches to file
@@ -178,6 +182,7 @@ See ``main.cpp`` for examples::
     MatrixXf dists = query_db(ref_sketches,
                               ref_sketches,
                               kmer_lengths,
+                              random,
                               false,
                               2);
 

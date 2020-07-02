@@ -28,22 +28,23 @@
 #include "gpu.hpp"
 
 const int selfBlockSize = 32;
-const int progressBitshift = 10; // Update every 1024 dists
+const int progressBitshift = 10; // Update every 2^10 = 1024 dists
 
 // Memory on device for each operation
 struct DeviceMemory {
-	thrust::device_vector<uint64_t> ref_sketches;	
-	thrust::device_vector<uint64_t> query_sketches;	
-	thrust::device_vector<float> ref_random;	
-	thrust::device_vector<float> query_random;	
-	thrust::device_vector<int> kmers;	
-	thrust::device_vector<float> dist_mat;	
+	thrust::device_vector<uint64_t> ref_sketches;
+	thrust::device_vector<uint64_t> query_sketches;
+	thrust::device_vector<float> random_table;
+	thrust::device_vector<uint16_t> ref_random;
+	thrust::device_vector<uint16_t> query_random;
+	thrust::device_vector<int> kmers;
+	thrust::device_vector<float> dist_mat;
 };
 
 /******************
 *			      *
 *	Device code   *
-*			      *	
+*			      *
 *******************/
 
 // Error checking of dynamic memory allocation on device
@@ -75,16 +76,16 @@ T observed_excess(T obs, T exp, T max) {
 
 // CUDA version of bindash dist function (see dist.cpp)
 __device__
-float jaccard_dist(const uint64_t * sketch1, 
-                   const uint64_t * sketch2, 
-				   const SketchStrides& s1_strides, 
-				   const SketchStrides& s2_strides) 
+float jaccard_dist(const uint64_t * sketch1,
+                   const uint64_t * sketch2,
+				   const SketchStrides& s1_strides,
+				   const SketchStrides& s2_strides)
 {
 	size_t samebits = 0;
-    for (int i = 0; i < s1_strides.sketchsize64; i++) 
+    for (int i = 0; i < s1_strides.sketchsize64; i++)
     {
 		uint64_t bits = ~((uint64_t)0ULL);
-		for (int j = 0; j < s1_strides.bbits; j++) 
+		for (int j = 0; j < s1_strides.bbits; j++)
         {
 			long long bin_index = i * s1_strides.bbits + j;
 			bits &= ~(sketch1[bin_index * s1_strides.bin_stride] ^ sketch2[bin_index * s2_strides.bin_stride]);
@@ -92,10 +93,10 @@ float jaccard_dist(const uint64_t * sketch1,
 
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
 	}
-	const size_t maxnbits = s1_strides.sketchsize64 * NBITS(uint64_t); 
+	const size_t maxnbits = s1_strides.sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> s1_strides.bbits);
 	size_t intersize = samebits;
-	if (!expected_samebits) 
+	if (!expected_samebits)
 	{
 		size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
 	}
@@ -119,7 +120,7 @@ void simple_linear_regression(float * const &core_dist,
 {
 	// Here I use CUDA fast-math intrinsics on floats, which give comparable accuracy
 	// --use-fast-math compile option also possible, but gives less control
-	// __fmul_ru(x, y) = x * y and rounds up. 
+	// __fmul_ru(x, y) = x * y and rounds up.
 	// __fpow(x, a) = x^a give 0 for x<0, so not using here (and it is slow)
 	// could also replace add / subtract, but becomes less readable
 	float xbar = xsum / n;
@@ -167,12 +168,12 @@ long long square_to_condensed(long i, long j, long n) {
 // Use atomic add to update a counter, so progress works regardless of
 // dispatch order
 __device__
-void update_progress(long long dist_idx, 
-					 long long dist_n, 
+void update_progress(long long dist_idx,
+					 long long dist_n,
 					 volatile int * blocks_complete) {
 	// Progress indicator
 	// The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
-	if (dist_idx % (dist_n >> progressBitshift) == 0) 
+	if (dist_idx % (dist_n >> progressBitshift) == 0)
 	{
 		atomicAdd((int *)blocks_complete, 1);
 		__threadfence_system();
@@ -182,10 +183,10 @@ void update_progress(long long dist_idx,
 /******************
 *			      *
 *	Global code   *
-*			      *	
+*			      *
 *******************/
 
-// Main kernel functions run on the device, 
+// Main kernel functions run on the device,
 // but callable from the host
 
 // To calculate distance of query sketches from a panel
@@ -199,10 +200,12 @@ void calculate_query_dists(const uint64_t * ref,
 					 const int kmer_n,
 					 float * dists,
 					 const long long dist_n,
-					 const float * random_match_ref,
-					 const float * random_match_query,
+					 const float * random_table,
+					 const uint16_t * ref_idx_lookup,
+					 const uint16_t * query_idx_lookup,
 					 const SketchStrides ref_strides,
 					 const SketchStrides query_strides,
+					 const RandomStrides random_strides,
 					 volatile int * blocks_complete) {
 	// Calculate indices for query, ref and results
 	long blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
@@ -211,7 +214,7 @@ void calculate_query_dists(const uint64_t * ref,
 	long dist_idx = query_idx * ref_n + ref_idx;
 	const uint64_t* ref_start = ref + ref_idx * ref_strides.sample_stride;
 	const uint64_t* query_start = query + query_idx * query_strides.sample_stride;
-	
+
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
 	float xsquaresum = 0; float ysquaresum = 0;
@@ -230,7 +233,7 @@ void calculate_query_dists(const uint64_t * ref,
 			}
 		}
 		__syncthreads();
-	
+
 		// Some threads at the end of the last block will have nothing to do
 		// Need to have conditional here to avoid block on __syncthreads() above
 		if (ref_idx < ref_n)
@@ -239,15 +242,15 @@ void calculate_query_dists(const uint64_t * ref,
 			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, query_strides);
 
 			// Adjust for random matches
-			float r1 = random_match_ref[kmer_idx * ref_n + ref_idx];
-			float r2 = random_match_query[kmer_idx * query_n + query_idx];
-			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
+												  ref_idx_lookup[ref_idx] * random_strides.cluster_inner_stride +
+												  query_idx_lookup[query_idx] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			//printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, r1, r2, jaccard_obs, y);	
+			//printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, r1, r2, jaccard_obs, y);
 
 			// Running totals for regression
-			xsum += kmers[kmer_idx]; 
-			ysum += y; 
+			xsum += kmers[kmer_idx];
+			ysum += y;
 			xysum += kmers[kmer_idx] * y;
 			xsquaresum += kmers[kmer_idx] * kmers[kmer_idx];
 			ysquaresum += y * y;
@@ -284,8 +287,10 @@ void calculate_self_dists(const uint64_t * ref,
 					      const int kmer_n,
 					      float * dists,
 						  const long long dist_n,
-						  const float * random_match,
+						  const float * random_table,
+						  const uint16_t * ref_idx_lookup,
 						  const SketchStrides ref_strides,
+						  const RandomStrides random_strides,
 						  volatile int * blocks_complete)
 {
 	// Grid-stride loop
@@ -300,7 +305,7 @@ void calculate_self_dists(const uint64_t * ref,
 		{
 			continue;
 		}
-		
+
 		// Set pointers to start of sketch i, j
 		const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
 		const uint64_t* query_start = ref + j * ref_strides.sample_stride;
@@ -310,25 +315,30 @@ void calculate_self_dists(const uint64_t * ref,
 		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx)
 		{
 			// Get Jaccard distance and move pointers to next k-mer
-			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, ref_strides); 
+			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, ref_strides);
 			ref_start += ref_strides.kmer_stride;
 			query_start += ref_strides.kmer_stride;
 
 			// Adjust for random matches
-			float r1 = random_match[kmer_idx * ref_n + i];
-			float r2 = random_match[kmer_idx * ref_n + j];
-			float jaccard_expected = (r1 * r2) / (r1 + r2 - r1 * r2);
+			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
+												  ref_idx_lookup[i] * random_strides.cluster_inner_stride +
+												  ref_idx_lookup[j] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			// printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", i, j, kmer_idx, r1, r2, jaccard_obs, y);	
-			
+			//printf("i:%ld j:%ld k:%d r_idx:%ld r:%f jac_obs:%f jac_adj:%f y:%f\n", 
+			//  i, j, kmer_idx,
+			//	kmer_idx * random_strides.kmer_stride +
+			//	ref_idx_lookup[i] * random_strides.cluster_inner_stride +
+			//	ref_idx_lookup[j] * random_strides.cluster_outer_stride,
+			//  jaccard_expected, jaccard_obs, jaccard_expected, y);
+
 			// Running totals for regression
-			xsum += kmers[kmer_idx]; 
-			ysum += y; 
+			xsum += kmers[kmer_idx];
+			ysum += y;
 			xysum += kmers[kmer_idx] * y;
 			xsquaresum += kmers[kmer_idx] * kmers[kmer_idx];
 			ysquaresum += y * y;
 		}
-		
+
 		// Run the regression, and store results in dists
 		simple_linear_regression(dists + dist_idx,
 								 dists + dist_n + dist_idx,
@@ -346,7 +356,7 @@ void calculate_self_dists(const uint64_t * ref,
 /***************
 *			   *
 *	Host code  *
-*			   *	
+*			   *
 ***************/
 
 // Initialise device and return info on its memory
@@ -376,12 +386,12 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	strides.bin_stride = 1;
 	strides.kmer_stride = strides.bin_stride * num_bins;
 	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
-	
+
 	// Iterate over each dimension to flatten
 	thrust::host_vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
 	auto flat_ref_it = flat_ref.begin();
-	for (auto sample_it = sketches.cbegin() + start_sample_idx; 
-		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx); 
+	for (auto sample_it = sketches.cbegin() + start_sample_idx;
+		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx);
 		 sample_it++)
 	{
 		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
@@ -413,13 +423,13 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	strides.kmer_stride = strides.bin_stride * num_bins;
 
 	// Stride by bins then restride by samples
-	// This is 4x faster than striding by samples by looping over References vector, 
+	// This is 4x faster than striding by samples by looping over References vector,
 	// presumably because many fewer dereferences are being used
 	SketchStrides old_strides = strides;
-	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches, 
-															  kmer_lengths, 
-															  old_strides, 
-															  start_sample_idx, 
+	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches,
+															  kmer_lengths,
+															  old_strides,
+															  start_sample_idx,
 															  end_sample_idx);
 	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
 	auto flat_ref_it = flat_ref.begin();
@@ -429,28 +439,12 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 				*flat_ref_it = flat_bins[sample_idx * old_strides.sample_stride + \
 										 bin_idx * old_strides.bin_stride + \
 										 kmer_idx * old_strides.kmer_stride];
-				flat_ref_it++; 
+				flat_ref_it++;
 			}
 		}
 	}
 
 	return flat_ref;
-}
-
-// Calculates the random match probability for all sketches at all k-mer lengths
-thrust::host_vector<float> preloadRandom(std::vector<Reference>& sketches, 
-										  const std::vector<size_t>& kmer_lengths,
-										  const size_t start_sample_idx,
-										  const size_t end_sample_idx) {
-	size_t sketch_size = end_sample_idx - start_sample_idx; 
-	thrust::host_vector<float> random_sample_strided(sketch_size * kmer_lengths.size());
-	for (unsigned int sketch_idx = 0; sketch_idx < sketch_size; sketch_idx++) {
-		for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-			random_sample_strided[kmer_idx * sketch_size + sketch_idx] = 
-				(float)sketches[sketch_idx + start_sample_idx].random_match(kmer_lengths[kmer_idx]);
-		}
-	}
-	return random_sample_strided;
 }
 
 // Sets up data structures and loads them onto the device
@@ -459,43 +453,54 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  std::vector<Reference>& ref_sketches,
 					  std::vector<Reference>& query_sketches,
 					  const SketchSlice& sample_slice,
+					  const FlatRandom& flat_random,
+					  const std::vector<uint16_t>& ref_random_idx,
+					  const std::vector<uint16_t>& query_random_idx,
 					  const std::vector<size_t>& kmer_lengths,
 					  long long dist_rows,
 					  const bool self) {
 	DeviceMemory loaded;
+	try {
+		// Set up reference sketches, flatten and copy to device
+		thrust::host_vector<uint64_t> flat_ref =
+			flatten_by_samples(ref_sketches,
+								kmer_lengths,
+								ref_strides,
+								sample_slice.ref_offset,
+								sample_slice.ref_offset + sample_slice.ref_size);
+		loaded.ref_sketches = flat_ref; // copies to device
 
-	// Set up reference sketches, flatten and copy to device
-	thrust::host_vector<uint64_t> flat_ref = flatten_by_samples(ref_sketches, 
-																kmer_lengths, 
-																ref_strides,
-																sample_slice.ref_offset,
-																sample_slice.ref_offset + sample_slice.ref_size);
-	loaded.ref_sketches = flat_ref; // copies to device
+		// Preload random match chances, which have already been flattened
+		loaded.random_table = std::get<1>(flat_random);
+		loaded.ref_random.resize(sample_slice.ref_size);
+		thrust::copy(ref_random_idx.begin() + sample_slice.ref_offset,
+					ref_random_idx.begin() + sample_slice.ref_offset + sample_slice.ref_size,
+					loaded.ref_random.begin());
 
-	// Preload random match chances
-	loaded.ref_random = preloadRandom(ref_sketches, 
-									  kmer_lengths, 
-									  sample_slice.ref_offset, 
-									  sample_slice.ref_offset + sample_slice.ref_size);
+		// If ref v query mode, also flatten query vector and copy to device
+		if (!self) {
+			thrust::host_vector<uint64_t> flat_query =
+				flatten_by_bins(query_sketches,
+								kmer_lengths,
+								query_strides,
+								sample_slice.query_offset,
+								sample_slice.query_offset + sample_slice.query_size);
+			loaded.query_sketches = flat_query;
 
-	// If ref v query mode, also flatten query vector and copy to device
-	if (!self) {
-		thrust::host_vector<uint64_t> flat_query = flatten_by_bins(query_sketches, 
-																   kmer_lengths, 
-																   query_strides, 
-																   sample_slice.query_offset, 
-																   sample_slice.query_offset + sample_slice.query_size);
-        loaded.query_sketches = flat_query;
-		
-		loaded.query_random = preloadRandom(query_sketches, 
-											kmer_lengths, 
-											sample_slice.query_offset, 
-											sample_slice.query_offset + sample_slice.query_size);
+			loaded.query_random.resize(sample_slice.query_size);
+			thrust::copy(query_random_idx.begin() + sample_slice.query_offset,
+					     query_random_idx.begin() + sample_slice.query_offset + sample_slice.query_size,
+						 loaded.query_random.begin());
+		}
+
+		// Copy other arrays needed on device (kmers and distance output)
+		loaded.kmers = kmer_lengths;
+		loaded.dist_mat.resize(dist_rows*2, 0);
+	} catch (thrust::system_error &e) {
+		std::cerr << "Error loading sketches onto GPU: " << std::endl;
+		std::cerr << e.what() << std::endl;
+		exit(1);
 	}
-
-	// Copy other arrays needed on device (kmers and distance output)
-	loaded.kmers = kmer_lengths;
-	loaded.dist_mat.resize(dist_rows*2, 0);
 
 	return(loaded);
 }
@@ -521,11 +526,11 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 		blockCount = blocksPerQuery * query_samples;
 	}
 	return(std::make_tuple(blockSize, blockCount));
-} 
+}
 
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportProgress(volatile int * blocks_complete, 
+void reportProgress(volatile int * blocks_complete,
 					long long dist_rows) {
 	long long progress_blocks = 1 << progressBitshift;
 	int now_completed = 0; float kern_progress = 0;
@@ -547,42 +552,48 @@ void reportProgress(volatile int * blocks_complete,
 // Upper dist memory access is hard to predict, so try and cache as much
 // as possible
 // Query uses on-chip cache (__shared__) to store query sketch
-// std::chrono::steady_clock::time_point b;
 std::vector<float> dispatchDists(
 	std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	SketchStrides& ref_strides,
 	SketchStrides& query_strides,
+	const FlatRandom& flat_random,
+	const std::vector<uint16_t>& ref_random_idx,
+	const std::vector<uint16_t>& query_random_idx,
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
 	const bool self) {
-	
+
 	// Progress meter
 	volatile int *blocks_complete;
 	cdpErrchk( cudaMallocManaged(&blocks_complete, sizeof(int)) );
 	*blocks_complete = 0;
-	
+
+	RandomStrides random_strides = std::get<0>(flat_random);
 	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
 		// square 'self' block
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeDefault);
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-		
+
 		dist_rows = static_cast<long long>(
-										0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
+						0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
 		device_arrays = loadDeviceMemory(
 			ref_strides,
 			query_strides,
 			ref_sketches,
 			query_sketches,
 			sketch_subsample,
+			flat_random,
+			ref_random_idx,
+			query_random_idx,
 			kmer_lengths,
 			dist_rows,
 			self);
 
 		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size,
 													   sketch_subsample.ref_size,
 													   dist_rows,
 													   self);
@@ -594,14 +605,16 @@ std::vector<float> dispatchDists(
 				kmer_lengths.size(),
 				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
 				dist_rows,
+				thrust::raw_pointer_cast(&device_arrays.random_table[0]),
 				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 				ref_strides,
+				random_strides,
 				blocks_complete
 			);
-		reportProgress(blocks_complete, dist_rows);	
+		reportProgress(blocks_complete, dist_rows);
 	} else {
 		// 'query' block
-		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte); 
+		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 
 		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
@@ -611,19 +624,22 @@ std::vector<float> dispatchDists(
 			ref_sketches,
 			query_sketches,
 			sketch_subsample,
+			flat_random,
+			ref_random_idx,
+			query_random_idx,
 			kmer_lengths,
 			dist_rows,
 			self);
 
 		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size, 
+		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size,
 													   sketch_subsample.query_size,
 													   dist_rows,
 													   self);
-		
+
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_query_dists<<<blockCount, blockSize, 
+		calculate_query_dists<<<blockCount, blockSize,
 								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
 			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
@@ -634,10 +650,12 @@ std::vector<float> dispatchDists(
 			kmer_lengths.size(),
 			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
 			dist_rows,
+			thrust::raw_pointer_cast(&device_arrays.random_table[0]),
 			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
 			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
 			ref_strides,
 			query_strides,
+			random_strides,
 			blocks_complete
 		);
 		reportProgress(blocks_complete, dist_rows);
@@ -650,7 +668,7 @@ std::vector<float> dispatchDists(
 	} catch (thrust::system_error &e) {
 		// output a non-threatening but likely inaccurate error message and exit
 		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
-		// error will have occurred elsewhere as launch is async, but better to catch 
+		// error will have occurred elsewhere as launch is async, but better to catch
 		// and deal with it here
 		std::cerr << "Error getting result: " << std::endl;
 		std::cerr << e.what() << std::endl;
@@ -660,7 +678,7 @@ std::vector<float> dispatchDists(
 
 	cudaDeviceSynchronize();
 	// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
-	fprintf(stderr, "%cProgress (GPU): 100.0%%", 13);
+	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	return(dist_results);
 }

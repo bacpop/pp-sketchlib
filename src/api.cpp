@@ -20,14 +20,15 @@
 using namespace Eigen;
 
 inline bool file_exists (const std::string& name) {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
+  struct stat buffer;
+  return (stat (name.c_str(), &buffer) == 0);
 }
 
 // Internal function definitions
 void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const RandomMC& random_chance,
                      const bool jaccard,
                      const size_t start_pos,
                      const size_t calcs);
@@ -35,13 +36,14 @@ void self_dist_block(NumpyMatrix& distMat,
 void query_dist_row(NumpyMatrix& distMat,
                     Reference * ref_sketch_ptr,
                     std::vector<Reference>& query_sketches,
+                    const RandomMC& random_chance,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
                     const size_t row_start);
 
 void sketch_block(std::vector<Reference>& sketches,
-                                    const std::vector<std::string>& names, 
-                                    const std::vector<std::vector<std::string>>& files, 
+                                    const std::vector<std::string>& names,
+                                    const std::vector<std::vector<std::string>>& files,
                                     const std::vector<size_t>& kmer_lengths,
                                     const size_t sketchsize64,
                                     const bool use_rc,
@@ -64,8 +66,8 @@ bool same_db_version(const std::string& db1_name,
 
 // Create sketches, save to file
 std::vector<Reference> create_sketches(const std::string& db_name,
-                   const std::vector<std::string>& names, 
-                   const std::vector<std::vector<std::string>>& files, 
+                   const std::vector<std::string>& names,
+                   const std::vector<std::vector<std::string>>& files,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    const bool use_rc,
@@ -95,15 +97,15 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         // Truncate min_count if above 8 bit range
         if (min_count > std::numeric_limits<uint8_t>::max())
         {
-            min_count = std::numeric_limits<uint8_t>::max(); 
+            min_count = std::numeric_limits<uint8_t>::max();
         }
-        
+
         // Create threaded queue for distance calculations
         size_t num_sketch_threads = num_threads;
         if (sketches.size() < num_threads)
         {
-            num_sketch_threads = sketches.size(); 
-        } 
+            num_sketch_threads = sketches.size();
+        }
         size_t calc_per_thread = (size_t)sketches.size() / num_sketch_threads;
         unsigned int num_big_threads = sketches.size() % num_sketch_threads;
         std::vector<std::thread> sketch_threads;
@@ -145,7 +147,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         {
             sketch_db.add_sketch(*sketch_it);
             if (sketch_it->densified()) {
-                std::cerr << "NOTE: " << sketch_it->name() << " required densification" << std::endl; 
+                std::cerr << "NOTE: " << sketch_it->name() << " required densification" << std::endl;
             }
         }
     }
@@ -158,14 +160,18 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     std::vector<Reference>& query_sketches,
                     const std::vector<size_t>& kmer_lengths,
+                    RandomMC& random_chance,
                     const bool jaccard,
-                    const size_t num_threads) 
-{
-    if (ref_sketches.size() < 1 or query_sketches.size() < 1)
-    {
+                    const size_t num_threads) {
+    if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
         throw std::runtime_error("Query with empty ref or query list!");
     }
-    
+    if (kmer_lengths[0] <
+            random_chance.min_supported_k(ref_sketches[0].seq_length())) {
+        throw std::runtime_error("Smallest k-mer has no signal above random "
+                                 "chance; increase minimum k-mer length");
+    }
+
     std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
     NumpyMatrix distMat;
     size_t dist_cols;
@@ -174,26 +180,26 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     } else {
         dist_cols = 2;
     }
-    
+
     // Check if ref = query, then run as self mode
-    // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere 
+    // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere
     std::sort(ref_sketches.begin(), ref_sketches.end());
     std::sort(query_sketches.begin(), query_sketches.end());
 
-    if (ref_sketches == query_sketches)
-    {
+    if (ref_sketches == query_sketches) {
+
         // calculate dists
         size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
         distMat.resize(dist_rows, dist_cols);
-        
+
         size_t num_dist_threads = num_threads;
         if (dist_rows < num_threads)
         {
-            num_dist_threads = dist_rows; 
+            num_dist_threads = dist_rows;
         }
         size_t calc_per_thread = (size_t)dist_rows / num_dist_threads;
-        unsigned int num_big_threads = dist_rows % num_dist_threads; 
-        
+        unsigned int num_big_threads = dist_rows % num_dist_threads;
+
         // Loop over threads
         std::vector<std::thread> dist_threads;
         size_t start = 0;
@@ -210,10 +216,11 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                                             std::ref(distMat),
                                             std::cref(kmer_lengths),
                                             std::ref(ref_sketches),
+                                            std::cref(random_chance),
                                             jaccard,
                                             start,
                                             thread_jobs));
-            start += thread_jobs; 
+            start += thread_jobs;
         }
         // Wait for threads to complete
         for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
@@ -227,13 +234,13 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         // calculate dists
         size_t dist_rows = ref_sketches.size() * query_sketches.size();
         distMat.resize(dist_rows, dist_cols);
-        
+
         size_t num_dist_threads = num_threads;
         if (dist_rows < num_threads)
         {
-            num_dist_threads = dist_rows; 
+            num_dist_threads = dist_rows;
         }
-        
+
         // Loop over threads, one per query, with FIFO queue
         std::queue<std::thread> dist_threads;
         size_t row_start = 0;
@@ -243,13 +250,14 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
             if (dist_threads.size() == num_dist_threads)
             {
                 dist_threads.front().join();
-                dist_threads.pop();            
+                dist_threads.pop();
             }
 
             dist_threads.push(std::thread(&query_dist_row,
                               std::ref(distMat),
                               &(*query_it),
                               std::ref(ref_sketches),
+                              std::cref(random_chance),
                               std::cref(kmer_lengths),
                               jaccard,
                               row_start));
@@ -260,9 +268,9 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         {
             dist_threads.front().join();
             dist_threads.pop();
-        } 
+        }
     }
-    
+
     return(distMat);
 }
 
@@ -288,9 +296,10 @@ std::vector<Reference> load_sketches(const std::string& db_name,
 
     try
     {
+        // Open as read only
         HighFive::File h5_db(db_name + ".h5");
         Database prev_db(h5_db);
-        
+
         if (messages)
         {
             std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
@@ -322,7 +331,7 @@ std::vector<Reference> load_sketches(const std::string& db_name,
                 std::stringstream old_kmers, new_kmers;
                 std::copy(loaded_sizes.begin(), loaded_sizes.end(), std::ostream_iterator<size_t>(old_kmers, ","));
                 std::copy(kmer_lengths.begin(), kmer_lengths.end(), std::ostream_iterator<size_t>(new_kmers, ","));
-                
+
                 std::string err_message = "k-mer lengths in old database (";
                 err_message += old_kmers.str() + ") do not match those requested (" + new_kmers.str() + ")";
                 throw std::runtime_error(err_message);
@@ -358,28 +367,52 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     return(sketches);
 }
 
-/* 
+RandomMC calculate_random(const std::vector<Reference>& sketches,
+                      const std::string& db_name,
+                      const unsigned int n_clusters,
+                      const unsigned int n_MC,
+                      const bool use_rc,
+                      const int num_threads) {
+	RandomMC random(sketches, n_clusters, n_MC, use_rc, num_threads);
+
+    // Save to the database provided
+    HighFive::File h5_db = open_h5(db_name + ".h5");
+    Database db(h5_db);
+    db.save_random(random);
+
+    return(random);
+}
+
+RandomMC get_random(const std::string& db_name,
+                    const bool use_rc_default) {
+    HighFive::File h5_db = open_h5(db_name + ".h5");
+    Database db(h5_db);
+    RandomMC random = db.load_random(use_rc_default);
+    return(random);
+}
+
+/*
  * Internal functions used by main exported functions above
  * Loading from file
  * Simple in thread function definitions
  */
 
-// Creates sketches 
+// Creates sketches
 // (run this function in a thread)
 void sketch_block(std::vector<Reference>& sketches,
-                  const std::vector<std::string>& names, 
-                  const std::vector<std::vector<std::string>>& files, 
+                  const std::vector<std::string>& names,
+                  const std::vector<std::vector<std::string>>& files,
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
                   const bool use_rc,
                   const uint8_t min_count,
                   const bool exact,
                   const size_t start,
-                  const size_t end)
-{
-    for (unsigned int i = start; i < end; i++)
-    {
-        sketches[i] = Reference(names[i], files[i], kmer_lengths, sketchsize64, use_rc, min_count, exact);
+                  const size_t end) {
+    for (unsigned int i = start; i < end; i++) {
+        SeqBuf seq_in(files[i], kmer_lengths.back());
+        sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
+                                use_rc, min_count, exact);
     }
 }
 
@@ -388,62 +421,79 @@ void sketch_block(std::vector<Reference>& sketches,
 void self_dist_block(NumpyMatrix& distMat,
                      const std::vector<size_t>& kmer_lengths,
                      std::vector<Reference>& sketches,
+                     const RandomMC& random_chance,
                      const bool jaccard,
                      const size_t start_pos,
-                     const size_t calcs)
-{
-    arma::mat kmer_mat = kmer2mat(kmer_lengths);
+                     const size_t calcs) {
+    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     // Iterate upper triangle
     size_t done_calcs = 0;
     size_t pos = 0;
-    for (size_t i = 0; i < sketches.size(); i++)
-    {
-        for (size_t j = i + 1; j < sketches.size(); j++)
-        {
-            if (pos >= start_pos)
-            {
+    for (size_t i = 0; i < sketches.size(); i++) {
+        for (size_t j = i + 1; j < sketches.size(); j++) {
+            if (pos >= start_pos) {
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                        distMat(pos, kmer_idx) = sketches[i].jaccard_dist(sketches[j], kmer_lengths[kmer_idx]);
+                        distMat(pos, kmer_idx) =
+                            sketches[i].jaccard_dist(sketches[j],
+                                                     kmer_lengths[kmer_idx],
+                                                     random_chance);
                     }
                 } else {
-                    std::tie(distMat(pos, 0), distMat(pos, 1)) = sketches[i].core_acc_dist(sketches[j], kmer_mat);
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) =
+                        sketches[i].core_acc_dist<RandomMC>(sketches[j],
+                                                            kmer_mat,
+                                                            random_chance);
                 }
                 done_calcs++;
-                if (done_calcs >= calcs)
-                {
+                if (done_calcs >= calcs) {
                     break;
                 }
             }
             pos++;
         }
-        if (done_calcs >= calcs)
-        {
+        if (done_calcs >= calcs) {
             break;
         }
     }
 }
 
 // Calculates dists ref v query
-// (run this function in a thread) 
+// (run this function in a thread)
 void query_dist_row(NumpyMatrix& distMat,
                     Reference * query_sketch_ptr,
                     std::vector<Reference>& ref_sketches,
+                    const RandomMC& random_chance,
                     const std::vector<size_t>& kmer_lengths,
                     const bool jaccard,
                     const size_t row_start)
 {
-    arma::mat kmer_mat = kmer2mat(kmer_lengths);
+    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+    const size_t query_length = query_sketch_ptr->seq_length();
+    const uint16_t query_random_idx =
+        random_chance.closest_cluster(*query_sketch_ptr);
+
     size_t current_row = row_start;
     for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
     {
         if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                distMat(current_row, kmer_idx) = query_sketch_ptr->jaccard_dist(*ref_it, kmer_lengths[kmer_idx]);
+                double jaccard_random =
+                    random_chance.random_match(*ref_it, query_random_idx,
+                                                query_length, kmer_lengths[kmer_idx]);
+                distMat(current_row, kmer_idx) =
+                    query_sketch_ptr->jaccard_dist(*ref_it,
+                                                    kmer_lengths[kmer_idx],
+                                                    jaccard_random);
             }
         } else {
-            std::tie(distMat(current_row, 0), distMat(current_row, 1)) = 
-                     query_sketch_ptr->core_acc_dist(*ref_it, kmer_mat);
+            std::vector<double> jaccard_random =
+                random_chance.random_matches(*ref_it, query_random_idx,
+                                             query_length, kmer_lengths);
+            std::tie(distMat(current_row, 0), distMat(current_row, 1)) =
+                     query_sketch_ptr->core_acc_dist<std::vector<double>>(*ref_it,
+                                                                          kmer_mat,
+                                                                          jaccard_random);
         }
         current_row++;
     }
