@@ -135,6 +135,8 @@ const uint32_t table_width = (uint32_t)mask; // 2^27 + 1 = 134217729 =~ 134M
 const int hash_per_hash = 2; // This should be 2, or the table is likely too narrow
 const int table_rows = 4; // Number of hashes, should be a multiple of hash_per_hash
 
+// See countmin.cpp
+__device__
 uint16_t add_count_min(uint64_t hash_val, uint16_t * hash_table, const int k) {
     uint16_t min_count = std::numeric_limits<uint16_t>::max();
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
@@ -143,7 +145,7 @@ uint16_t add_count_min(uint64_t hash_val, uint16_t * hash_table, const int k) {
         {
             uint32_t hash_val_masked = current_hash & mask;
             uint16_t cell_count = atomicInc(hash_table + (hash_nr + i) * table_width + hash_val_masked,
-                                            std::numeric_limits<uint16_t>::max());
+                                            std::numeric_limits<uint16_t>::max()) + 1;
             if (cell_count < min_count) {
                 min_count = cell_count;
             }
@@ -161,13 +163,15 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 __device__
 void binhash(uint64_t *& signs,
              uint16_t *& countmin_table,
-             uint64_t sign,
+             const uint64_t hash,
              const uint64_t binsize,
              const int k) {
-    sign = sign % SIGN_MOD;
+    uint64_t sign = hash % SIGN_MOD;
     uint64_t binidx = sign / binsize;
+
+    // Only consider if the bin is yet to be filled, or is min in bin
     if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
-        if (add_count_min(sign, countmin_table, k) >= min_count) {
+        if (add_count_min(hash, countmin_table, k) >= min_count) {
             signs[binidx] = sign;
         }
     }
@@ -205,6 +209,7 @@ void process_reads(const unsigned char * read_seq,
             binhash(signs, hVal, binsize);
         }
 
+        // Roll through remaining k-mers in the read
         while (pos < read_length - k + 1) {
             fhVal = NTF64(fhVal, k,
                 read_start + (pos - 1) * read_strides.base_stride
@@ -228,7 +233,7 @@ void process_reads(const unsigned char * read_seq,
 // bindash/sketchlib
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
-std::vector<uint64_t> get_signs() {
+std::vector<uint64_t> get_signs(const uint64_t binsize, const uint64_t nbins) {
     // Progress meter
 	volatile int *blocks_complete;
 	cdpErrchk( cudaMallocManaged(&blocks_complete, sizeof(int)) );
@@ -239,9 +244,7 @@ std::vector<uint64_t> get_signs() {
     //      Remove any reads with Ns
     // Create a flattened countmin filter
     // Copy these onto device
-    const uint64_t nbins = sketchsize * NBITS(uint64_t);
-    const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
-    std::vector<uint64_t> signs(sketchsize * NBITS(uint64_t), UINT64_MAX);
+    std::vector<uint64_t> signs(nbins, UINT64_MAX);
     thrust::device_vector<uint64_t> d_signs = signs;
 
     // Run process_read kernel
@@ -250,20 +253,19 @@ std::vector<uint64_t> get_signs() {
     //      (get this working for a single k-mer length first)
     const size_t blockSize = selfBlockSize;
     const size_t blockCount = (n_reads + blockSize - 1) / blockSize;
-    process_reads<<<blockCount, blockSize>>>
-			(
-				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
-				sketch_subsample.ref_size,
-				thrust::raw_pointer_cast(&device_arrays.kmers[0]),
-				kmer_lengths.size(),
-				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-				dist_rows,
-				thrust::raw_pointer_cast(&device_arrays.random_table[0]),
-				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
-				ref_strides,
-				random_strides,
-				blocks_complete
-            );
+    process_reads<<<blockCount, blockSize>>> (
+        thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
+        sketch_subsample.ref_size,
+        thrust::raw_pointer_cast(&device_arrays.kmers[0]),
+        kmer_lengths.size(),
+        thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
+        dist_rows,
+        thrust::raw_pointer_cast(&device_arrays.random_table[0]),
+        thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+        ref_strides,
+        random_strides,
+        blocks_complete
+    );
 
     // TODO - add these to separate .cu file and header
     reportProgress(blocks_complete, dist_rows);

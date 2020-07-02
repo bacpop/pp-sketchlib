@@ -324,7 +324,7 @@ void calculate_self_dists(const uint64_t * ref,
 												  ref_idx_lookup[i] * random_strides.cluster_inner_stride +
 												  ref_idx_lookup[j] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			//printf("i:%ld j:%ld k:%d r_idx:%ld r:%f jac_obs:%f jac_adj:%f y:%f\n", 
+			//printf("i:%ld j:%ld k:%d r_idx:%ld r:%f jac_obs:%f jac_adj:%f y:%f\n",
 			//  i, j, kmer_idx,
 			//	kmer_idx * random_strides.kmer_stride +
 			//	ref_idx_lookup[i] * random_strides.cluster_inner_stride +
