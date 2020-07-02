@@ -4,6 +4,8 @@
 
 # test files
 *.h5
+!small_mass.h5
+!small_mass_plus1.h5
 *.fa
 
 # C++
