@@ -46,7 +46,7 @@ void track_composition(const char c,
 }
 
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
- :_N_count(0), _reads(false) {
+ :_N_count(0), _reads(false), _max_length(0) {
     /*
     *   Reads entire sequence to memory
     */
@@ -58,11 +58,17 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         gzFile fp = gzopen(name_it->c_str(), "r");
         kseq_t *seq = kseq_init(fp);
         int l;
+        size_t seq_idx = 0;
         while ((l = kseq_read(seq)) >= 0)
         {
-            if (strlen(seq->seq.s) >= kmer_len)
+            size_t seq_len = strlen(seq->seq.s);
+            if (seq_len < _max_length) {
+                _max_length = seq_len;
+            }
+            if (seq_len >= kmer_len)
             {
                 sequence.push_back(seq->seq.s);
+                bool has_N = false;
                 for (char & c : sequence.back())
                 {
                     c = ascii_toupper_char(c);
@@ -72,8 +78,13 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                     }
                     if (c == 'N') {
                         _N_count++;
+                        has_N |= true;
                     }
                 }
+                if (!has_N) {
+                    _full_index.push_back(seq_idx);
+                }
+                seq_idx++;
             }
 
             // Presence of any quality scores - assume reads as input
@@ -115,6 +126,26 @@ void SeqBuf::reset() {
         out_base = current_seq->end();
     }
     end = false;
+}
+
+std::vector<char> SeqBuf::as_square_array() const {
+    if (!_reads) {
+        throw std::runtime_error(
+        "Square arrays (for GPU sketches) only supported with reads as input");
+    }
+
+    std::vector<char> read_array(_max_length * _full_index.size());
+    #pragma omp parallel for simd schedule(static)
+    for (long int read_idx = 0; read_idx < _full_index.size(); read_idx++) {
+        std::string seq = sequence[_full_index[read_idx]];
+        for (int base_idx = 0; base_idx < seq.size(); base_idx++) {
+            read_array[read_idx + base_idx * _max_length] = seq[base_idx];
+        }
+        for (int base_idx = seq.size(); base_idx < _max_length; base_idx++) {
+            read_array[read_idx + base_idx * _max_length] = 'N';
+        }
+    }
+    return read_array;
 }
 
 bool SeqBuf::move_next(size_t word_length) {

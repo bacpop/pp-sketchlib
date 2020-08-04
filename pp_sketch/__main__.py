@@ -80,7 +80,7 @@ def get_options():
 
     description = 'Run poppunk sketching/distances'
     parser = argparse.ArgumentParser(description=description,
-                                     prog='pp_sketch')
+                                     prog='poppunk_sketch')
 
     modeGroup = parser.add_argument_group('Mode of operation')
     mode = modeGroup.add_mutually_exclusive_group(required=True)

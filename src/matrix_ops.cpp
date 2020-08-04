@@ -52,7 +52,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
     } else if (kNN < 1 && distCutoff < 0) {
         throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
-    
+
     // ijv vectors
     std::vector<float> dists;
     std::vector<long> i_vec;
@@ -64,8 +64,8 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
         {
             std::vector<float> dists_private;
             std::vector<long> i_vec_private;
-            std::vector<long> j_vec_private; 
-            #pragma omp for simd schedule(guided, 1) nowait 
+            std::vector<long> j_vec_private;
+            #pragma omp for simd schedule(guided, 1) nowait
             // This loop is 'backwards' to try and get better scheduling
             for (long i = denseDists.rows() - 1; i >= 0; i--) {
                 for (long j = i + 1; j < denseDists.cols(); j++) {
@@ -88,7 +88,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
         {
             std::vector<float> dists_private;
             std::vector<long> i_vec_private;
-            std::vector<long> j_vec_private; 
+            std::vector<long> j_vec_private;
             #pragma omp for simd schedule(guided, 1) nowait
             for (long i = 0; i < denseDists.rows(); i++) {
                 unsigned long unique_neighbors = 0;
@@ -112,10 +112,10 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             #pragma omp critical
             dists.insert(dists.end(), dists_private.begin(), dists_private.end());
             i_vec.insert(i_vec.end(), i_vec_private.begin(), i_vec_private.end());
-            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end()); 
+            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end());
         }
     }
-    
+
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
@@ -207,17 +207,17 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
     if (squareDists.rows() != squareDists.cols()) {
         throw std::runtime_error("square_to_long input must be a square matrix");
     }
-    
-    long n = squareDists.rows(); 
+
+    long n = squareDists.rows();
     Eigen::VectorXf longDists((n * (n - 1)) >> 1);
-    
+
     // Each inner loop increases in size linearly with outer index
     // due to reverse direction
     // guided schedules inversely proportional to outer index
     #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
     for (long i = n - 2; i >= 0; i--) {
         for (long j = i + 1; j < n; j++) {
-            longDists(square_to_condensed(i, j, n)) = squareDists(i, j); 
+            longDists(square_to_condensed(i, j, n)) = squareDists(i, j);
         }
     }
 

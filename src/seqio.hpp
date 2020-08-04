@@ -38,6 +38,8 @@ class SeqBuf
 	    unsigned char getout() const { return *out_base; }
         std::vector<std::string>::iterator getseq() const { return current_seq; }
 	    size_t nseqs() const { return sequence.size(); }
+	    size_t n_full_seqs() const { return _full_index.size(); }
+	    size_t max_length() const { return _max_length; }
         bool eof() const { return end; }
         bool is_reads() const { return _reads; }
         BaseComp<double> get_composition() const { return _bases; }
@@ -46,6 +48,7 @@ class SeqBuf
         bool move_next(size_t word_length);
         void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };
         void reset();
+        std::vector<char> as_square_array() const;
 
 
     private:
@@ -57,6 +60,8 @@ class SeqBuf
 
         BaseComp<double> _bases;
         unsigned long int _N_count;
+        std::vector<size_t> _full_index; // Index in sequence of items with no Ns
+        size_t _max_length;
 
         bool end;
         bool _reads;

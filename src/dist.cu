@@ -24,6 +24,7 @@
 #include <thrust/copy.h>
 
 // internal headers
+#include "cuda.cuh"
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
 
@@ -46,18 +47,6 @@ struct DeviceMemory {
 *	Device code   *
 *			      *
 *******************/
-
-// Error checking of dynamic memory allocation on device
-// https://stackoverflow.com/a/14038590
-#define cdpErrchk(ans) { cdpAssert((ans), __FILE__, __LINE__); }
-__host__ __device__ void cdpAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess)
-   {
-      printf("GPU kernel assert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) assert(0);
-   }
-}
 
 // Ternary used in observed_excess
 template <class T>
@@ -163,21 +152,6 @@ __device__
 long long square_to_condensed(long i, long j, long n) {
     assert(j > i);
 	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
-}
-
-// Use atomic add to update a counter, so progress works regardless of
-// dispatch order
-__device__
-void update_progress(long long dist_idx,
-					 long long dist_n,
-					 volatile int * blocks_complete) {
-	// Progress indicator
-	// The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
-	if (dist_idx % (dist_n >> progressBitshift) == 0)
-	{
-		atomicAdd((int *)blocks_complete, 1);
-		__threadfence_system();
-	}
 }
 
 /******************
@@ -358,16 +332,6 @@ void calculate_self_dists(const uint64_t * ref,
 *	Host code  *
 *			   *
 ***************/
-
-// Initialise device and return info on its memory
-std::tuple<size_t, size_t> initialise_device(const int device_id) {
-	cudaSetDevice(device_id);
-	cudaDeviceReset();
-
-	size_t mem_free = 0; size_t mem_total = 0;
-	cudaMemGetInfo(&mem_free, &mem_total);
-	return(std::make_tuple(mem_free, mem_total));
-}
 
 // Turn a vector of references into a flattened vector of
 // uint64 with strides bins * kmers * samples
@@ -566,7 +530,7 @@ std::vector<float> dispatchDists(
 
 	// Progress meter
 	volatile int *blocks_complete;
-	cdpErrchk( cudaMallocManaged(&blocks_complete, sizeof(int)) );
+	CUDA_CALL( cudaMallocManaged(&blocks_complete, sizeof(int)) );
 	*blocks_complete = 0;
 
 	RandomStrides random_strides = std::get<0>(flat_random);
