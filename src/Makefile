@@ -39,7 +39,7 @@ PROGRAMS=sketch_test matrix_test read_test
 
 SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o rng.o random_match.o
 GPU_SKETCH_OBJS=gpu_api.o
-CUDA_OBJS=dist.cu.o
+CUDA_OBJS=dist.cu.o sketch.cu.o
 
 all: $(PROGRAMS)
 
@@ -76,5 +76,8 @@ install_python: python
 
 dist.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c dist.cu -o $@
+
+sketch.cu.o:
+	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c sketch.cu -o $@
 
 .PHONY: all clean install python install_python

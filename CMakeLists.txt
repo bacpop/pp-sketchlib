@@ -67,7 +67,7 @@ if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
-    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu)
+    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu src/sketch.cu)
     target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
