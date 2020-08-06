@@ -15,8 +15,18 @@
 #include "nthash_tables.hpp"
 
 // Tables on device
-__constant__ uint64_t d_msTab33r[256];
-__constant__ uint64_t d_msTab31l[256];
+__constant__ uint64_t d_A33r[33];
+__constant__ uint64_t d_A31l[31];
+__constant__ uint64_t d_C33r[33];
+__constant__ uint64_t d_C31l[31];
+__constant__ uint64_t d_G33r[33];
+__constant__ uint64_t d_G31l[31];
+__constant__ uint64_t d_T33r[33];
+__constant__ uint64_t d_T31l[31];
+__constant__ uint64_t d_N33r[33];
+__constant__ uint64_t d_N31l[31];
+__constant__ uint64_t * d_msTab33r[256];
+__constant__ uint64_t * d_msTab31l[256];
 
 // main nthash functions - see nthash.hpp
 // All others are built from calling these
@@ -220,7 +230,7 @@ void process_reads(char * read_seq,
         uint64_t fhVal, rhVal, hVal;
 
         // Set pointers to start of read
-        const char* read_start = read_seq + read_idx;
+        char* read_start = read_seq + read_idx;
 
         // Get first valid k-mer
         if (use_rc) {
@@ -293,8 +303,18 @@ DeviceReads::~DeviceReads() {
 }
 
 void copyNtHashTablesToDevice() {
-    cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_A33r, A33r, 33 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_A31l, A31l, 31 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_C33r, C33r, 33 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_C31l, C31l, 31 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_G33r, G33r, 33 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_G31l, G31l, 31 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_T33r, T33r, 33 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_T31l, T31l, 31 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(*uint64_t));
+    cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(*uint64_t));
 }
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
