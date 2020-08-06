@@ -97,6 +97,8 @@ class DeviceReads {
         size_t read_length;
 };
 
+void copyNtHashTablesToDevice();
+
 std::vector<uint64_t> get_signs(DeviceReads& reads,
                                 GPUCountMin& countmin,
                                 const int k,

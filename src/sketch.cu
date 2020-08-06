@@ -14,6 +14,10 @@
 // nthash
 #include "nthash_tables.hpp"
 
+// Tables on device
+__constant__ uint64_t[256] d_msTab33r;
+__constant__ uint64_t[256] d_msTab31l;
+
 // main nthash functions - see nthash.hpp
 // All others are built from calling these
 
@@ -106,7 +110,7 @@ inline uint64_t NTF64(const uint64_t fhVal, const unsigned k,
     uint64_t hVal = rol1(fhVal);
     hVal = swapbits033(hVal);
     hVal ^= seedTab[charIn];
-    hVal ^= (msTab31l[charOut][k%31] | msTab33r[charOut][k%33]);
+    hVal ^= (d_msTab31l[charOut][k%31] | d_msTab33r[charOut][k%33]);
     return hVal;
 }
 
@@ -114,7 +118,7 @@ inline uint64_t NTF64(const uint64_t fhVal, const unsigned k,
 __device__
 inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
                       const unsigned char charOut, const unsigned char charIn) {
-    uint64_t hVal = rhVal ^ (msTab31l[charIn&cpOff][k%31] | msTab33r[charIn&cpOff][k%33]);
+    uint64_t hVal = rhVal ^ (d_msTab31l[charIn&cpOff][k%31] | d_msTab33r[charIn&cpOff][k%33]);
     hVal ^= seedTab[charOut&cpOff];
     hVal = ror1(hVal);
     hVal = swapbits3263(hVal);
@@ -123,7 +127,8 @@ inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
 
 // Create a new hash from an nthash
 __device__
-inline uint64_t shifthash(const uint64_t hVal, const unsigned k) {
+inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
+                          const unsigned i) {
     uint64_t tVal = hVal * (i ^ k * multiSeed);
     tVal ^= tVal >> multiShift;
     return(tVal);
@@ -156,14 +161,14 @@ uint8_t GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
             uint32_t hash_val_masked = current_hash & mask;
             uint8_t cell_count =
                 atomicInc(d_countmin_table + (hash_nr + i) * table_width +
-                        hash_val_masked, UINT16_MAX) + 1;
+                          hash_val_masked, UINT8_MAX) + 1;
             if (cell_count < min_count) {
                 min_count = cell_count;
             }
             __syncwarp();
             current_hash = current_hash >> table_width_bits;
         }
-        hash_val = shifthash(hash_val, k);
+        hash_val = shifthash(hash_val, k, i);
     }
     return(min_count);
 }
@@ -197,11 +202,11 @@ void binhash(uint64_t * signs,
 
 // hash iterator object
 __global__
-void process_reads(const unsigned char * read_seq,
+void process_reads(char * read_seq,
                    const size_t n_reads,
                    const size_t read_length,
                    const int k,
-                   const uint64_t * signs,
+                   uint64_t * signs,
                    const uint64_t binsize,
                    GPUCountMin& countmin_table,
                    const bool use_rc,
@@ -209,35 +214,34 @@ void process_reads(const unsigned char * read_seq,
                    volatile int * blocks_complete) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
-	for (long long read_idx = index; dist_idx < n_reads; dist_idx += stride)
+	for (long long read_idx = index; dist_idx < n_reads; read_idx += stride)
 	{
         unsigned pos = 0;
         uint64_t fhVal, rhVal, hVal;
 
         // Set pointers to start of read
-        const unsigned char* read_start =
-            read_seq + read_idx * read_strides.sample_stride;
+        const unsigned char* read_start = read_seq + read_idx;
 
         // Get first valid k-mer
         if (use_rc) {
-            NTC64(read_start + pos * read_strides.base_stride,
-                  k, fhVal, rhVal, hVal, read_strides.base_stride);
+            NTC64(read_start[pos * n_reads],
+                  k, fhVal, rhVal, hVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         } else {
-            NT64(read_start + pos * read_strides.base_stride,
-                k, fhVal, read_strides.base_stride);
+            NT64(read_start[pos * n_reads],
+                 k, fhVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         }
 
         // Roll through remaining k-mers in the read
         while (pos < read_length - k + 1) {
             fhVal = NTF64(fhVal, k,
-                read_start + (pos - 1) * read_strides.base_stride
-                read_start + (pos - 1 + k) * read_strides.base_stride);
+                read_start[(pos - 1) * n_reads],
+                read_start[(pos - 1 + k) * n_reads]);
             if (use_rc) {
                 rhVal = NTR64(rhVal, k,
-                    read_start + (pos - 1) * read_strides.base_stride
-                    read_start + (pos - 1 + k) * read_strides.base_stride);
+                    read_start[(pos - 1) * n_reads],
+                    read_start[(pos - 1 + k) * n_reads]);
                 hVal = (rhVal<fhVal) ? rhVal : fhVal;
                 binhash(signs, countmin_table, hVal, binsize, k, min_count);
             } else {
@@ -280,12 +284,17 @@ DeviceReads::DeviceReads(const SeqBuf& seq_in,
     n_reads = seq_in.n_full_seqs();
     read_length = seq_in.max_length();
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
-    CUDA_CALL( cudaMemCpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
+    CUDA_CALL( cudaMemcpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
                             cudaMemcpyDefault));
 }
 
 DeviceReads::~DeviceReads() {
     CUDA_CALL(cudaFree(d_reads));
+}
+
+void copyNtHashTablesToDevice() {
+    cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(uint64_t));
+    cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(uint64_t));
 }
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
@@ -301,11 +310,14 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
 	CUDA_CALL( cudaMallocManaged(&blocks_complete, sizeof(int)) );
     *blocks_complete = 0;
 
+    // Set countmin to zero (already on device)
     countmin.reset();
+
+    // Signs
     std::vector<uint64_t> signs(nbins, UINT64_MAX);
     uint64_t * d_signs;
     CUDA_CALL( cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
-    CUDA_CALL( cudaMemCpy(d_signs, signs.data(), nbins * sizeof(uint64_t),
+    CUDA_CALL( cudaMemcpy(d_signs, signs.data(), nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
 
     // Run process_read kernel
@@ -313,7 +325,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     //      Check vs signs and countmin on whether to add each
     //      (get this working for a single k-mer length first)
     const size_t blockSize = 32;
-    const size_t blockCount = (n_reads + blockSize - 1) / blockSize;
+    const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount, blockSize>>> (
         reads.read_ptr(),
         reads.count(),

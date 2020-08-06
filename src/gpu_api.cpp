@@ -66,7 +66,8 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 		std::tie(mem_free, mem_total) = initialise_device(device_id);
 		std::cerr << "Sketching reads on GPU device " << device_id << std::endl;
 
-		// memory for filter only needs to be allocated once
+		// memory for filter and nthash only need to be allocated once
+		copyNtHashTablesToDevice();
 		GPUCountMin countmin_filter();
         if (min_count > std::numeric_limits<uint8_t>::max()) {
             min_count = std::numeric_limits<uint8_t>::max();
