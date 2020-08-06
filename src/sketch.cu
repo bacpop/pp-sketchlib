@@ -15,8 +15,8 @@
 #include "nthash_tables.hpp"
 
 // Tables on device
-__constant__ uint64_t[256] d_msTab33r;
-__constant__ uint64_t[256] d_msTab31l;
+__constant__ uint64_t d_msTab33r[256];
+__constant__ uint64_t d_msTab31l[256];
 
 // main nthash functions - see nthash.hpp
 // All others are built from calling these
@@ -143,7 +143,7 @@ GPUCountMin::GPUCountMin() :
          hash_per_hash(2), // This should be 2, or the table is likely too narrow
          table_rows(4), // Number of hashes, should be a multiple of hash_per_hash
          table_cells(table_rows * table_width) {
-    CUDA_CALL(cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(uint8_t)));
+    CUDA_CALL(cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(unsigned int)));
     reset();
 }
 
@@ -152,14 +152,14 @@ GPUCountMin::~GPUCountMin() {
 }
 
 __device__
-uint8_t GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
-    uint8_t min_count = UINT8_MAX;
+unsigned int GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
+    unsigned int min_count = UINT8_MAX;
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
         uint64_t current_hash = hash_val;
         for (uint i = 0; i < hash_per_hash; i++)
         {
             uint32_t hash_val_masked = current_hash & mask;
-            uint8_t cell_count =
+            unsigned int cell_count =
                 atomicInc(d_countmin_table + (hash_nr + i) * table_width +
                           hash_val_masked, UINT8_MAX) + 1;
             if (cell_count < min_count) {
@@ -168,13 +168,13 @@ uint8_t GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
             __syncwarp();
             current_hash = current_hash >> table_width_bits;
         }
-        hash_val = shifthash(hash_val, k, i);
+        hash_val = shifthash(hash_val, k, hash_nr / 2);
     }
     return(min_count);
 }
 
 void GPUCountMin::reset() {
-    CUDA_CALL(cudaMemset(d_countmin_table, 0, table_cells * sizeof(uint8_t)));
+    CUDA_CALL(cudaMemset(d_countmin_table, 0, table_cells * sizeof(unsigned int)));
 }
 
 // bindash functions
@@ -214,13 +214,13 @@ void process_reads(char * read_seq,
                    volatile int * blocks_complete) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
-	for (long long read_idx = index; dist_idx < n_reads; read_idx += stride)
+	for (long long read_idx = index; read_idx < n_reads; read_idx += stride)
 	{
         unsigned pos = 0;
         uint64_t fhVal, rhVal, hVal;
 
         // Set pointers to start of read
-        const unsigned char* read_start = read_seq + read_idx;
+        const char* read_start = read_seq + read_idx;
 
         // Get first valid k-mer
         if (use_rc) {
@@ -342,7 +342,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     reportProgress(blocks_complete, reads.count());
 
     // Copy signs back from device
-    CUDA_CALL( cudaMemCpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
+    CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
 
