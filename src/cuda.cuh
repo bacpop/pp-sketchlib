@@ -5,7 +5,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include <cpp11/protect.hpp>
 
 const int progressBitshift = 10; // Update every 2^10 = 1024 dists
 
