@@ -234,11 +234,11 @@ void process_reads(char * read_seq,
 
         // Get first valid k-mer
         if (use_rc) {
-            NTC64(read_start[pos * n_reads],
+            NTC64(read_start + pos * n_reads,
                   k, fhVal, rhVal, hVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         } else {
-            NT64(read_start[pos * n_reads],
+            NT64(read_start + pos * n_reads,
                  k, fhVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         }
@@ -303,18 +303,18 @@ DeviceReads::~DeviceReads() {
 }
 
 void copyNtHashTablesToDevice() {
-    cudaMemcpyToSymbol(d_A33r, A33r, 33 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_A31l, A31l, 31 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_C33r, C33r, 33 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_C31l, C31l, 31 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_G33r, G33r, 33 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_G31l, G31l, 31 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_T33r, T33r, 33 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_T31l, T31l, 31 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t));
-    cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(*uint64_t));
-    cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(*uint64_t));
+    CUDA_CALL(cudaMemcpyToSymbol(d_A33r, A33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_A31l, A31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_C33r, C33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_C31l, C31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_G33r, G33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_G31l, G31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_T33r, T33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_T31l, T31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(uint64_t*)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(uint64_t*)));
 }
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
