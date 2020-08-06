@@ -70,9 +70,6 @@ Reference::Reference(const std::string& name,
     } else {
         _seq_size = _bases.total;
     }
-
-    // SeqBuf containing sequences will get deleted here
-    // usigs (the sketch) will be retained
 }
 
 Reference::Reference(const std::string& name,

@@ -59,8 +59,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
     }
 
     // If not found or not matching, sketch from scratch
-    if (resketch)
-    {
+    if (resketch) {
         sketches.resize(names.size());
 
         // Truncate min_count if above 8 bit range

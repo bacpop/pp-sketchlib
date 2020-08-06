@@ -51,5 +51,58 @@ std::vector<float> dispatchDists(
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self);
+
+// defined in sketch.cu
+class GPUCountMin {
+    public:
+        GPUCountMin();
+        ~GPUCountMin();
+
+#ifdef __NVCC__
+		___device__
+#endif
+        uint8_t add_count_min(uint64_t hash_val, const int k);
+
+        void reset();
+
+    private:
+        uint8_t * d_countmin_table;
+
+        // parameters - these are currently hard coded based on a short bacterial genome
+        const unsigned int table_width_bits;
+        const uint64_t mask;
+        const uint32_t table_width;
+        const int hash_per_hash = 2;
+        const int table_rows = 4;
+        const size_t table_cells;
+};
+
+class DeviceReads {
+    public:
+        DeviceReads(const SeqBuf& seq_in);
+        ~DeviceReads();
+
+        char * read_ptr() { return d_reads; }
+        size_t count() const { return n_reads; }
+        size_t length() const { return read_length; }
+
+    private:
+        // delete move and copy to avoid accidentally using them
+        DeviceReads ( const DeviceReads & ) = delete;
+        DeviceReads ( DeviceReads && ) = delete;
+
+        char * d_reads;
+        size_t n_reads;
+        size_t read_length;
+};
+
+std::vector<uint64_t> get_signs(DeviceReads& reads,
+                                GPUCountMin& countmin,
+                                const int k,
+                                const bool use_rc,
+                                const uint16_t min_count,
+                                const uint64_t binsize,
+                                const uint64_t nbins);
+
 #endif
 

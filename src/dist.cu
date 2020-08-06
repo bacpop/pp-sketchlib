@@ -324,6 +324,7 @@ void calculate_self_dists(const uint64_t * ref,
 								 kmer_n);
 
 		update_progress(dist_idx, dist_n, blocks_complete);
+		__syncwarp();
 	}
 }
 

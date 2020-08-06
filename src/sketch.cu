@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "cuda.cuh"
+#include "gpu.hpp"
 
 // nthash
 #include "nthash_tables.hpp"
@@ -129,33 +130,46 @@ inline uint64_t shifthash(const uint64_t hVal, const unsigned k) {
 }
 
 // Countmin
-// parameters - these are currently hard coded based on a short bacterial genome
-const unsigned int table_width_bits = 27;
-constexpr uint64_t mask{ 0x3FFFFFF }; // 27 lowest bits ON
-const uint32_t table_width = (uint32_t)mask; // 2^27 + 1 = 134217729 =~ 134M
-const int hash_per_hash = 2; // This should be 2, or the table is likely too narrow
-const int table_rows = 4; // Number of hashes, should be a multiple of hash_per_hash
-constexpr size_t table_cells = table_rows * table_width;
-
 // See countmin.cpp
+GPUCountMin::GPUCountMin() :
+         table_width_bits(27),
+         mask(0x3FFFFFF), // 27 lowest bits ON
+         table_width(static_cast<uint32_t>(mask)), // 2^27 + 1 = 134217729 =~ 134M
+         hash_per_hash(2), // This should be 2, or the table is likely too narrow
+         table_rows(4), // Number of hashes, should be a multiple of hash_per_hash
+         table_cells(table_rows * table_width) {
+    CUDA_CALL(cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(uint8_t)));
+    reset();
+}
+
+GPUCountMin::~GPUCountMin() {
+    CUDA_CALL( cudaFree(d_countmin_table));
+}
+
 __device__
-uint16_t add_count_min(uint64_t hash_val, uint16_t * hash_table, const int k) {
-    uint16_t min_count = UINT16_MAX;
+uint8_t GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
+    uint8_t min_count = UINT8_MAX;
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
         uint64_t current_hash = hash_val;
         for (uint i = 0; i < hash_per_hash; i++)
         {
             uint32_t hash_val_masked = current_hash & mask;
-            uint16_t cell_count = atomicInc(hash_table + (hash_nr + i) * table_width + hash_val_masked,
-                                            UINT16_MAX) + 1;
+            uint8_t cell_count =
+                atomicInc(d_countmin_table + (hash_nr + i) * table_width +
+                        hash_val_masked, UINT16_MAX) + 1;
             if (cell_count < min_count) {
                 min_count = cell_count;
             }
+            __syncwarp();
             current_hash = current_hash >> table_width_bits;
         }
         hash_val = shifthash(hash_val, k);
     }
     return(min_count);
+}
+
+void GPUCountMin::reset() {
+    CUDA_CALL(cudaMemset(d_countmin_table, 0, table_cells * sizeof(uint8_t)));
 }
 
 // bindash functions
@@ -164,7 +178,7 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 // countmin and binsign
 __device__
 void binhash(uint64_t * signs,
-             uint16_t * countmin_table,
+             GPUCountMin& countmin_table,
              const uint64_t hash,
              const uint64_t binsize,
              const int k,
@@ -174,10 +188,11 @@ void binhash(uint64_t * signs,
 
     // Only consider if the bin is yet to be filled, or is min in bin
     if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
-        if (add_count_min(hash, countmin_table, k) >= min_count) {
+        if (countmin_table.add_count_min(hash,  k) >= min_count) {
             signs[binidx] = sign;
         }
     }
+    __syncwarp();
 }
 
 // hash iterator object
@@ -188,7 +203,7 @@ void process_reads(const unsigned char * read_seq,
                    const int k,
                    const uint64_t * signs,
                    const uint64_t binsize,
-                   uint16_t * countmin_table,
+                   GPUCountMin& countmin_table,
                    const bool use_rc,
                    const uint16_t min_count,
                    volatile int * blocks_complete) {
@@ -256,46 +271,25 @@ void reportProgress(volatile int * blocks_complete,
 	}
 }
 
-class DeviceReads {
-    public:
-        DeviceReads(const SeqBuf& seq_in): d_reads(nullptr) {
-            CUDA_CALL(cudaFree(d_reads));
 
-            std::vector<char> flattened_reads = seq_in.as_square_array();
-            n_reads = seq_in.n_full_seqs();
-            read_length = seq_in.max_length();
-            CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
-            CUDA_CALL( cudaMemCpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
-                                  cudaMemcpyDefault));
-        }
+DeviceReads::DeviceReads(const SeqBuf& seq_in): d_reads(nullptr) {
+    CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
-        ~DeviceReads() {
-            CUDA_CALL(cudaFree(d_reads));
-        }
+    std::vector<char> flattened_reads = seq_in.as_square_array();
+    n_reads = seq_in.n_full_seqs();
+    read_length = seq_in.max_length();
+    CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
+    CUDA_CALL( cudaMemCpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
+                            cudaMemcpyDefault));
+}
 
-        char * read_ptr() { return d_reads; }
-        size_t count() const { return n_reads; }
-        size_t length() const { return read_length; }
-
-    private:
-        // delete move and copy to avoid accidentally using them
-        DeviceReads ( const DeviceReads & ) = delete;
-        DeviceReads ( DeviceReads && ) = delete;
-
-        char * d_reads;
-        size_t n_reads;
-        size_t read_length;
-};
-
-// TODO make multi k wrapper here
-// create a device reads
-// run get signs at each k
-// return a vector of signs
-// make a new function in sketch to transform sign vector to unsigned vector
-// plug that into reference
+DeviceReads::~DeviceReads() {
+    CUDA_CALL(cudaFree(d_reads));
+}
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
 std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_array() to get this
+                                GPUCountMin& countmin,
                                 const int k,
                                 const bool use_rc,
                                 const uint16_t min_count,
@@ -306,16 +300,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
 	CUDA_CALL( cudaMallocManaged(&blocks_complete, sizeof(int)) );
     *blocks_complete = 0;
 
-    // TODO
-    // Make sure reads are only copied over once
-    // Create a flattened countmin filter
-    // Copy these onto device
-    std::vector<uint16_t> countmin(table_cells, 0);
-    uint16_t * d_countmin_table;
-    CUDA_CALL( cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(uint16_t)));
-    CUDA_CALL( cudaMemCpy(d_countmin_table, countmin.data(), table_cells * sizeof(uint16_t),
-                          cudaMemcpyDefault));
-
+    countmin.reset();
     std::vector<uint64_t> signs(nbins, UINT64_MAX);
     uint64_t * d_signs;
     CUDA_CALL( cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
@@ -335,19 +320,17 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
         k,
         d_signs,
         binsize,
-        d_countmin_table,
+        countmin,
         use_rc,
         min_count,
         blocks_complete
     );
 
-    reportProgress(blocks_complete, dist_rows);
+    reportProgress(blocks_complete, reads.count());
 
     // Copy signs back from device
     CUDA_CALL( cudaMemCpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
-
-    CUDA_CALL( cudaFree(d_countmin_table));
     CUDA_CALL( cudaFree(d_signs));
 
     fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);

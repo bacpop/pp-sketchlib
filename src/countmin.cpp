@@ -75,7 +75,7 @@ uint8_t HashCounter::add_count(stHashIterator& hash)
     else if (table_val->second < std::numeric_limits<uint8_t>::max())
     {
         (table_val->second)++;
-        count = table_val->second; 
+        count = table_val->second;
     }
     return(count);
 }

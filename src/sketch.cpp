@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <iostream>
 
+#include "gpu.hpp"
 #include "stHashIterator.hpp"
 
 #include "sketch.hpp"
@@ -159,4 +160,38 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
     return(std::make_tuple(usigs, inv_minhash, densified != 0));
 }
 
+#ifdef GPU_AVAILABLE
+std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
+   sketch_gpu(
+        SeqBuf &seq,
+        GPUCountMin &countmin,
+        const uint64_t sketchsize,
+        const std::vector<size_t>& kmer_lengths,
+        const size_t bbits,
+        const bool use_canonical,
+        const uint8_t min_count
+    ) {
+    const uint64_t nbins = sketchsize * NBITS(uint64_t);
+    const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
+    std::unordered_map<int, std::vector<uint64_t>> sketch;
 
+    DeviceReads reads(seq);
+
+    double minhash_sum = 0;
+    bool densified = false;
+    for (auto k : kmer_lengths) {
+        std::vector<uint64_t> usigs(sketchsize * bbits, 0);
+        std::vector<uint64_t> signs = get_signs(reads, k, use_canonical, min_count,
+                                                binsize, nbins);
+
+        minhash_sum += inverse_minhash(signs);
+
+        // Apply densifying function
+        densified |= densifybin(signs);
+        fillusigs(usigs, signs, bbits);
+        sketch[k] = usigs;
+    }
+    size_t seq_size = static_cast<size_t>((double)kmer_lengths.size() / minhash_sum);
+    return(std::tie(sketch, seq_size, densified));
+}
+#endif
