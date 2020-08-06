@@ -15,6 +15,7 @@
 #include "nthash_tables.hpp"
 
 // Tables on device
+__constant__ uint64_t d_seedTab[256];
 __constant__ uint64_t d_A33r[33];
 __constant__ uint64_t d_A31l[31];
 __constant__ uint64_t d_C33r[33];
@@ -81,7 +82,7 @@ inline void NT64(const char *kmerSeq, const unsigned k,
         */
         fhVal = rol1(fhVal);
         fhVal = swapbits033(fhVal);
-        fhVal ^= seedTab[(unsigned char)kmerSeq[(k - 1 - i) * baseStride]];
+        fhVal ^= d_seedTab[(unsigned char)kmerSeq[(k - 1 - i) * baseStride]];
     }
     //return true;
 }
@@ -103,11 +104,11 @@ inline void NTC64(const char *kmerSeq, const unsigned k,
         */
         fhVal = rol1(fhVal);
         fhVal = swapbits033(fhVal);
-        fhVal ^= seedTab[(unsigned char)kmerSeq[(k - 1 - i) * baseStride]];
+        fhVal ^= d_seedTab[(unsigned char)kmerSeq[(k - 1 - i) * baseStride]];
 
         rhVal = rol1(rhVal);
         rhVal = swapbits033(rhVal);
-        rhVal ^= seedTab[(unsigned char)kmerSeq[i * baseStride]&cpOff];
+        rhVal ^= d_seedTab[(unsigned char)kmerSeq[i * baseStride]&cpOff];
     }
     hVal = (rhVal<fhVal) ? rhVal : fhVal;
     //return true;
@@ -119,7 +120,7 @@ inline uint64_t NTF64(const uint64_t fhVal, const unsigned k,
                       const unsigned char charOut, const unsigned char charIn) {
     uint64_t hVal = rol1(fhVal);
     hVal = swapbits033(hVal);
-    hVal ^= seedTab[charIn];
+    hVal ^= d_seedTab[charIn];
     hVal ^= (d_msTab31l[charOut][k%31] | d_msTab33r[charOut][k%33]);
     return hVal;
 }
@@ -129,7 +130,7 @@ __device__
 inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
                       const unsigned char charOut, const unsigned char charIn) {
     uint64_t hVal = rhVal ^ (d_msTab31l[charIn&cpOff][k%31] | d_msTab33r[charIn&cpOff][k%33]);
-    hVal ^= seedTab[charOut&cpOff];
+    hVal ^= d_seedTab[charOut&cpOff];
     hVal = ror1(hVal);
     hVal = swapbits3263(hVal);
     return hVal;
@@ -303,6 +304,7 @@ DeviceReads::~DeviceReads() {
 }
 
 void copyNtHashTablesToDevice() {
+    CUDA_CALL(cudaMemcpyToSymbol(d_seedTab, seedTab, 256 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_A33r, A33r, 33 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_A31l, A31l, 31 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_C33r, C33r, 33 * sizeof(uint64_t)));
@@ -313,8 +315,79 @@ void copyNtHashTablesToDevice() {
     CUDA_CALL(cudaMemcpyToSymbol(d_T31l, T31l, 31 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_msTab31l, msTab31l, 256 * sizeof(uint64_t*)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_msTab33r, msTab33r, 256 * sizeof(uint64_t*)));
+
+    static const uint64_t *d_addr_msTab33r[256] = {
+        d_N33r, d_T33r, d_N33r, d_G33r, d_A33r, d_A33r, d_N33r, d_C33r, // 0..7
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 8..15
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 16..23
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 24..31
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 32..39
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 40..47
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 48..55
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 56..63
+        d_N33r, d_A33r, d_N33r, d_C33r, d_N33r, d_N33r, d_N33r, d_G33r, // 64..71
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 72..79
+        d_N33r, d_N33r, d_N33r, d_N33r, d_T33r, d_T33r, d_N33r, d_N33r, // 80..87
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 88..95
+        d_N33r, d_A33r, d_N33r, d_C33r, d_N33r, d_N33r, d_N33r, d_G33r, // 96..103
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 104..111
+        d_N33r, d_N33r, d_N33r, d_N33r, d_T33r, d_T33r, d_N33r, d_N33r, // 112..119
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 120..127
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 128..135
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 136..143
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 144..151
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 152..159
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 160..167
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 168..175
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 176..183
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 184..191
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 192..199
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 200..207
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 208..215
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 216..223
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 224..231
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 232..239
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 240..247
+        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r  // 248..255
+    };
+
+    static const uint64_t *d_addr_msTab31l[256] = {
+        d_N31l, d_T31l, d_N31l, d_G31l, d_A31l, d_A31l, d_N31l, d_C31l, // 0..7
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 8..15
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 16..23
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 24..31
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 32..39
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 40..47
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 48..55
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 56..63
+        d_N31l, d_A31l, d_N31l, d_C31l, d_N31l, d_N31l, d_N31l, d_G31l, // 64..71
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 72..79
+        d_N31l, d_N31l, d_N31l, d_N31l, d_T31l, d_T31l, d_N31l, d_N31l, // 80..87
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 88..95
+        d_N31l, d_A31l, d_N31l, d_C31l, d_N31l, d_N31l, d_N31l, d_G31l, // 96..103
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 104..111
+        d_N31l, d_N31l, d_N31l, d_N31l, d_T31l, d_T31l, d_N31l, d_N31l, // 112..119
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 120..127
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 128..135
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 136..143
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 144..151
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 152..159
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 160..167
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 168..175
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 176..183
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 184..191
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 192..199
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 200..207
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 208..215
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 216..223
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 224..231
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 232..239
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 240..247
+        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l  // 248..255
+    };
+
+    CUDA_CALL(cudaMemcpyToSymbol(d_msTab31l, d_addr_msTab31l, 256 * sizeof(uint64_t*)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_msTab33r, d_addr_msTab33r, 256 * sizeof(uint64_t*)));
 }
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
