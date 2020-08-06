@@ -14,9 +14,6 @@
 #include "dist.hpp"
 #include "random_match.hpp"
 
-const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
-const size_t def_sketchsize64 = 156;
-
 #include "bitfuncs.hpp"
 
 auto key_selector = [](auto pair){return pair.first;};
@@ -81,6 +78,25 @@ Reference::Reference(const std::string& name,
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true),
    _seq_size(seq_size), _missing_bases(missing_bases), _densified(false)
 {
+    _bases.a = bases[0];
+    _bases.c = bases[1];
+    _bases.g = bases[2];
+    _bases.t = bases[3];
+}
+
+// Initialise from GPU sketch
+Reference::Reference(const std::string& name,
+                     std::unordered_map<int, std::vector<uint64_t>>& sketch,
+                     const size_t bbits,
+                     const size_t sketchsize64,
+                     const size_t seq_size,
+                     const std::vector<double> bases,
+                     const unsigned long int missing_bases,
+                     const bool use_rc,
+                     const bool densified)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(use_rc),
+   _seq_size(seq_size), _missing_bases(missing_bases), _densified(densified),
+   usigs(sketch) {
     _bases.a = bases[0];
     _bases.c = bases[1];
     _bases.g = bases[2];

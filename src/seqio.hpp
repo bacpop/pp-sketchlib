@@ -48,7 +48,7 @@ class SeqBuf
         bool move_next(size_t word_length);
         void move_next_seq() { ++current_seq; end = current_seq == sequence.end() ? true : false; };
         void reset();
-        std::vector<char> as_square_array() const;
+        std::vector<char> as_square_array(const size_t n_threads = 1) const;
 
 
     private:

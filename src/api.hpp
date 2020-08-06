@@ -16,8 +16,8 @@
 #include "reference.hpp"
 
 std::vector<Reference> create_sketches(const std::string& db_name,
-                   const std::vector<std::string>& names, 
-                   const std::vector<std::vector<std::string>>& files, 
+                   const std::vector<std::string>& names,
+                   const std::vector<std::vector<std::string>>& files,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
                    const bool use_rc,
@@ -34,6 +34,16 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 
 #ifdef GPU_AVAILABLE
 // defined in gpu_api.cpp
+std::vector<Reference> create_sketches_cuda(const std::string& db_name,
+                   const std::vector<std::string>& names,
+                   const std::vector<std::vector<std::string>>& files,
+                   const std::vector<size_t>& kmer_lengths,
+                   const size_t sketchsize64,
+                   const bool use_rc,
+                   size_t min_count,
+                   const size_t cpu_threads = 1,
+                   const int device_id = 0);
+
 NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	std::vector<Reference>& query_sketches,
 	const std::vector<size_t>& kmer_lengths,

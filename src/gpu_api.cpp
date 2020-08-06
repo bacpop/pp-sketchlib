@@ -31,6 +31,92 @@ inline T samples_to_rows(const T samples) {
     return ((samples * (samples - 1)) >> 1);
 }
 
+/*
+*
+*  Sketch functions
+*
+*/
+
+std::vector<Reference> create_sketches_cuda(const std::string& db_name,
+                   const std::vector<std::string>& names,
+                   const std::vector<std::vector<std::string>>& files,
+                   const std::vector<size_t>& kmer_lengths,
+                   const size_t sketchsize64,
+                   const bool use_rc,
+                   size_t min_count,
+				   const size_t cpu_threads,
+                   const int device_id = 0) {
+	// Try loading sketches from file
+	std::vector<Reference> sketches;
+    bool resketch = true;
+    if (file_exists(db_name + ".h5"))
+    {
+        sketches = load_sketches(db_name, names, kmer_lengths);
+        if (sketches.size() == names.size())
+        {
+            resketch = false;
+        }
+    }
+
+	if (resketch) {
+		Database sketch_db(db_name + ".h5");
+		sketches.resize(names.size());
+
+		size_t mem_free, mem_total;
+		std::tie(mem_free, mem_total) = initialise_device(device_id);
+		std::cerr << "Sketching reads on GPU device " << device_id << std::endl;
+
+		// memory for filter only needs to be allocated once
+		GPUCountMin countmin_filter();
+        if (min_count > std::numeric_limits<uint8_t>::max()) {
+            min_count = std::numeric_limits<uint8_t>::max();
+        }
+
+		for (int i = 0; i < files.size(); i++) {
+			std::cerr << "Sketching: " << names[i] << std::endl;
+
+			// Read in sequence data
+			SeqBuf seq_in(files[i], kmer_lengths.back());
+
+			// Run the sketch on the GPU
+			std::unordered_map<int, std::vector<uint64_t>> usigs;
+			size_t seq_length;
+			bool densified;
+			std::tie(usigs, seq_length, densified) =
+			   sketch_gpu(
+        		seq_in,
+				countmin_filter,
+        		sketchsize64,
+        		kmer_lengths,
+        		def_bbits,
+        		use_rc,
+ 				min_count,
+				cpu_threads
+    		  );
+
+			// Make Reference object, and save in HDF5 DB
+			sketches[i] = Reference(names[i], usigs, def_bbits, sketchsize64,
+									seq_length, seq_in.get_composition,
+									seq_in.missing_bases, use_rc, densified);
+			sketch_db.add_sketch(sketches[i]);
+            if (densified) {
+                std::cerr << "NOTE: "
+						  << names[i]
+				 		  << " required densification"
+						  << std::endl;
+            }
+		}
+
+	}
+	return(sketches);
+}
+
+/*
+*
+*  Distance functions
+*
+*/
+
 // Checks bbits, sketchsize and k-mer lengths are identical in
 // all sketches
 // throws runtime_error if mismatches (should be ensured in passing

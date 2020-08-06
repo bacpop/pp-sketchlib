@@ -16,6 +16,8 @@
 #define ARMA_DONT_USE_WRAPPER
 #include <armadillo>
 
+const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
+const size_t def_sketchsize64 = 156;
 
 #include "seqio.hpp"
 
@@ -25,20 +27,33 @@ class Reference
 {
     public:
         Reference();
+        // Read and run sketch
         Reference(const std::string& name,
                   SeqBuf& sequence,
                   const std::vector<size_t>& kmer_lengths,
                   const size_t sketchsize64,
                   const bool use_rc,
                   const uint8_t min_count,
-                  const bool exact); // read and run sketch
+                  const bool exact);
 
+        // For loading from DB
         Reference(const std::string& name,
                   const size_t bbits,
                   const size_t sketchsize64,
                   const size_t seq_size,
                   const std::vector<double> bases,
-                  const unsigned long int missing_bases); // For loading from DB
+                  const unsigned long int missing_bases);
+
+        // Initialise from GPU sketch
+        Reference(const std::string& name,
+                     std::unordered_map<int, std::vector<uint64_t>>& sketch,
+                     const size_t bbits,
+                     const size_t sketchsize64,
+                     const size_t seq_size,
+                     const std::vector<double> bases,
+                     const unsigned long int missing_bases,
+                     const bool use_rc,
+                     const bool densified)
 
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);

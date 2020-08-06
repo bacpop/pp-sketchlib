@@ -37,9 +37,10 @@ struct SketchSlice {
 	size_t query_size;
 };
 
-// defined in dist.cu
+// defined in cuda.cuh
 std::tuple<size_t, size_t> initialise_device(const int device_id);
 
+// defined in dist.cu
 std::vector<float> dispatchDists(
 				   std::vector<Reference>& ref_sketches,
 				   std::vector<Reference>& query_sketches,
@@ -79,7 +80,7 @@ class GPUCountMin {
 
 class DeviceReads {
     public:
-        DeviceReads(const SeqBuf& seq_in);
+        DeviceReads(const SeqBuf& seq_in, const size_t n_threads);
         ~DeviceReads();
 
         char * read_ptr() { return d_reads; }

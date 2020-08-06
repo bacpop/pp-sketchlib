@@ -7,6 +7,8 @@
 #include <device_launch_parameters.h>
 #include <cpp11/protect.hpp>
 
+const int progressBitshift = 10; // Update every 2^10 = 1024 dists
+
 static void HandleCUDAError(const char *file, int line,
                             cudaError_t status = cudaGetLastError()) {
 #ifdef _DEBUG

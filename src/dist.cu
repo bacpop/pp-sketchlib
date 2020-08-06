@@ -24,12 +24,11 @@
 #include <thrust/copy.h>
 
 // internal headers
-#include "cuda.cuh"
 #include "bitfuncs.hpp"
 #include "gpu.hpp"
+#include "cuda.cuh"
 
 const int selfBlockSize = 32;
-const int progressBitshift = 10; // Update every 2^10 = 1024 dists
 
 // Memory on device for each operation
 struct DeviceMemory {

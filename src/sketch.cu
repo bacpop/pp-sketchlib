@@ -8,8 +8,8 @@
 
 #include <stdint.h>
 
-#include "cuda.cuh"
 #include "gpu.hpp"
+#include "cuda.cuh"
 
 // nthash
 #include "nthash_tables.hpp"
@@ -272,10 +272,11 @@ void reportProgress(volatile int * blocks_complete,
 }
 
 
-DeviceReads::DeviceReads(const SeqBuf& seq_in): d_reads(nullptr) {
+DeviceReads::DeviceReads(const SeqBuf& seq_in,
+                         const size_t n_threads): d_reads(nullptr) {
     CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
-    std::vector<char> flattened_reads = seq_in.as_square_array();
+    std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
     n_reads = seq_in.n_full_seqs();
     read_length = seq_in.max_length();
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));

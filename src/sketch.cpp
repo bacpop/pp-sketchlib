@@ -169,17 +169,19 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
         const std::vector<size_t>& kmer_lengths,
         const size_t bbits,
         const bool use_canonical,
-        const uint8_t min_count
+        const uint8_t min_count,
+        const size_t cpu_threads
     ) {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::unordered_map<int, std::vector<uint64_t>> sketch;
 
-    DeviceReads reads(seq);
+    DeviceReads reads(seq, cpu_threads);
 
     double minhash_sum = 0;
     bool densified = false;
     for (auto k : kmer_lengths) {
+        std::cerr << "at k = " << k << std::endl;
         std::vector<uint64_t> usigs(sketchsize * bbits, 0);
         std::vector<uint64_t> signs = get_signs(reads, k, use_canonical, min_count,
                                                 binsize, nbins);
@@ -192,6 +194,6 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
         sketch[k] = usigs;
     }
     size_t seq_size = static_cast<size_t>((double)kmer_lengths.size() / minhash_sum);
-    return(std::tie(sketch, seq_size, densified));
+    return(std::make_tuple(sketch, seq_size, densified));
 }
 #endif

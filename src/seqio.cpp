@@ -128,14 +128,14 @@ void SeqBuf::reset() {
     end = false;
 }
 
-std::vector<char> SeqBuf::as_square_array() const {
+std::vector<char> SeqBuf::as_square_array(const size_t n_threads) const {
     if (!_reads) {
         throw std::runtime_error(
         "Square arrays (for GPU sketches) only supported with reads as input");
     }
 
     std::vector<char> read_array(_max_length * _full_index.size());
-    #pragma omp parallel for simd schedule(static)
+    #pragma omp parallel for simd schedule(static) num_threads(n_threads)
     for (long int read_idx = 0; read_idx < _full_index.size(); read_idx++) {
         std::string seq = sequence[_full_index[read_idx]];
         for (int base_idx = 0; base_idx < seq.size(); base_idx++) {
@@ -144,6 +144,10 @@ std::vector<char> SeqBuf::as_square_array() const {
         for (int base_idx = seq.size(); base_idx < _max_length; base_idx++) {
             read_array[read_idx + base_idx * _max_length] = 'N';
         }
+    }
+
+    if (n_full_seqs() == 0) {
+        throw std::runtime_error("Input contains no sequence!");
     }
     return read_array;
 }
