@@ -60,7 +60,7 @@ class GPUCountMin {
         ~GPUCountMin();
 
 #ifdef __NVCC__
-		___device__
+		__device__
 #endif
         uint8_t add_count_min(uint64_t hash_val, const int k);
 

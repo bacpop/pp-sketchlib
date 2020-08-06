@@ -53,7 +53,7 @@ class Reference
                      const std::vector<double> bases,
                      const unsigned long int missing_bases,
                      const bool use_rc,
-                     const bool densified)
+                     const bool densified);
 
         const std::vector<uint64_t> & get_sketch(const int kmer_len) const;
         void add_kmer_sketch(const std::vector<uint64_t>& sketch, const int kmer_len);
