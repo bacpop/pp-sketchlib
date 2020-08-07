@@ -176,20 +176,25 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
             num_dist_threads = dist_rows;
         }
 
+        // Prepare objects used in distance calculations
         arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+        std::vector<size_t> query_lengths(query_sketches.size());
+        std::vector<uint16_t> query_random_idxs(query_sketches.size());
+        #pragma omp parallel for simd schedule(static) num_threads(num_threads)
+        for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
+            query_lengths[q_idx] = query_sketches[q_idx].seq_length();
+            query_random_idxs[q_idx] = random_chance.closest_cluster(query_sketches[q_idx]);
+        }
 
         #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
         for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
-            const size_t query_length = query_sketches[q_idx].seq_length();
-            const uint16_t query_random_idx =
-                random_chance.closest_cluster(query_sketches[q_idx]);
             for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
                 const long dist_row = q_idx * ref_sketches.size() + r_idx;
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
                         double jaccard_random =
-                            random_chance.random_match(ref_sketches[r_idx], query_random_idx,
-                                                        query_length, kmer_lengths[kmer_idx]);
+                            random_chance.random_match(ref_sketches[r_idx], query_random_idxs[q_idx],
+                                                        query_lengths[q_idx], kmer_lengths[kmer_idx]);
                         distMat(dist_row, kmer_idx) =
                             query_sketches[q_idx].jaccard_dist(ref_sketches[r_idx],
                                                             kmer_lengths[kmer_idx],
@@ -197,8 +202,8 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                     }
                 } else {
                     std::vector<double> jaccard_random =
-                        random_chance.random_matches(ref_sketches[r_idx], query_random_idx,
-                                                    query_length, kmer_lengths);
+                        random_chance.random_matches(ref_sketches[r_idx], query_random_idxs[q_idx],
+                                                    query_lengths[q_idx], kmer_lengths);
                     std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
                             query_sketches[q_idx].core_acc_dist<std::vector<double>>(ref_sketches[r_idx],
                                                                                 kmer_mat,
