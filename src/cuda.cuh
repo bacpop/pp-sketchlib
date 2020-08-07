@@ -28,7 +28,7 @@ static void HandleCUDAError(const char *file, int line,
 // Use atomic add to update a counter, so progress works regardless of
 // dispatch order
 __device__
-void update_progress(long long dist_idx,
+inline void update_progress(long long dist_idx,
 					 long long dist_n,
 					 volatile int * blocks_complete) {
 	// Progress indicator
@@ -41,7 +41,7 @@ void update_progress(long long dist_idx,
 }
 
 // Initialise device and return info on its memory
-std::tuple<size_t, size_t> initialise_device(const int device_id) {
+inline std::tuple<size_t, size_t> initialise_device(const int device_id) {
 	cudaSetDevice(device_id);
 	cudaDeviceReset();
 

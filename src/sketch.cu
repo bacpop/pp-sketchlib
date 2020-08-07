@@ -269,11 +269,11 @@ void process_reads(char * read_seq,
 // TODO: make this work with multiple samples and k-mers
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportProgress(volatile int * blocks_complete,
-					long long dist_rows) {
+void reportSketchProgress(volatile int * blocks_complete,
+					      long long n_reads) {
 	long long progress_blocks = 1 << progressBitshift;
 	int now_completed = 0; float kern_progress = 0;
-	if (dist_rows > progress_blocks) {
+	if (n_reads > progress_blocks) {
 		while (now_completed < progress_blocks - 1) {
 			if (*blocks_complete > now_completed) {
 				now_completed = *blocks_complete;
@@ -432,7 +432,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
         blocks_complete
     );
 
-    reportProgress(blocks_complete, reads.count());
+    reportSketchProgress(blocks_complete, reads.count());
 
     // Copy signs back from device
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),

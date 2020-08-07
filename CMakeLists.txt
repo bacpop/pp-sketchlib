@@ -63,6 +63,9 @@ if(CMAKE_CUDA_COMPILER)
     # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
     string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=compute_70 -gencode arch=compute_75,code=sm_75")
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
+        string(APPEND CUDA_OPTS " -dlto") # turn on link time optimisation
+    endif()
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)

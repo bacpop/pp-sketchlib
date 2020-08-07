@@ -494,7 +494,7 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportProgress(volatile int * blocks_complete,
+void reportDistProgress(volatile int * blocks_complete,
 					long long dist_rows) {
 	long long progress_blocks = 1 << progressBitshift;
 	int now_completed = 0; float kern_progress = 0;
@@ -577,7 +577,7 @@ std::vector<float> dispatchDists(
 				random_strides,
 				blocks_complete
 			);
-		reportProgress(blocks_complete, dist_rows);
+		reportDistProgress(blocks_complete, dist_rows);
 	} else {
 		// 'query' block
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
@@ -624,7 +624,7 @@ std::vector<float> dispatchDists(
 			random_strides,
 			blocks_complete
 		);
-		reportProgress(blocks_complete, dist_rows);
+		reportDistProgress(blocks_complete, dist_rows);
 	}
 
 	// Copy results back to host
