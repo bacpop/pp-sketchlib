@@ -22,7 +22,9 @@
 
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
-inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) { return (hash1 + hash2) % SIGN_MOD; }
+inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) {
+    return (hash1 + hash2) % SIGN_MOD;
+}
 
 // Seeds for small k-mers
 // Make sure they are symmetric so RC works
@@ -162,8 +164,8 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
 #ifdef GPU_AVAILABLE
 std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
    sketch_gpu(
-        SeqBuf &seq,
-        GPUCountMin &countmin,
+        SeqBuf& seq,
+        GPUCountMin& countmin,
         const uint64_t sketchsize,
         const std::vector<size_t>& kmer_lengths,
         const size_t bbits,
@@ -182,7 +184,8 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
     for (auto k : kmer_lengths) {
         std::cerr << "at k = " << k << std::endl;
         std::vector<uint64_t> usigs(sketchsize * bbits, 0);
-        std::vector<uint64_t> signs = get_signs(reads, k, use_canonical, min_count,
+        std::vector<uint64_t> signs = get_signs(reads, countmin, k,
+                                                use_canonical, min_count,
                                                 binsize, nbins);
 
         minhash_sum += inverse_minhash(signs);
