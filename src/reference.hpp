@@ -50,7 +50,7 @@ class Reference
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size,
-                     const std::vector<double> bases,
+                     const BaseComp<double>& bases,
                      const unsigned long int missing_bases,
                      const bool use_rc,
                      const bool densified);

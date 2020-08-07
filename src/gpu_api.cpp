@@ -71,7 +71,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 		// memory for filter and nthash only need to be allocated once
 		copyNtHashTablesToDevice();
-		GPUCountMin countmin_filter();
+		GPUCountMin countmin_filter = GPUCountMin();
         if (min_count > std::numeric_limits<unsigned int>::max()) {
             min_count = std::numeric_limits<unsigned int>::max();
         }

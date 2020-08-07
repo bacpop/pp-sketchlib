@@ -90,18 +90,13 @@ Reference::Reference(const std::string& name,
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size,
-                     const std::vector<double> bases,
+                     const BaseComp<double>& bases,
                      const unsigned long int missing_bases,
                      const bool use_rc,
                      const bool densified)
    :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(use_rc),
    _seq_size(seq_size), _missing_bases(missing_bases), _densified(densified),
-   usigs(sketch) {
-    _bases.a = bases[0];
-    _bases.c = bases[1];
-    _bases.g = bases[2];
-    _bases.t = bases[3];
-}
+   _bases(bases), usigs(sketch) {}
 
 double Reference::jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len),

@@ -41,7 +41,7 @@ public:
     {
         init();
     }
-    
+
     /** Copy constructor */
     ntHashIterator(const ntHashIterator &nth)
     {
@@ -55,7 +55,7 @@ public:
         m_fhVal = nth.m_fhVal;
         m_rhVal = nth.m_rhVal;
     }
-    
+
 
     /** Initialize internal state of iterator */
     void init()
@@ -95,10 +95,10 @@ public:
             {
                 NTM64(m_seq.at(m_pos-1), m_seq.at(m_pos-1+m_k), m_k, m_h, m_hVec);
             }
-            
+
         }
     }
-    
+
     size_t pos() const{
     	return m_pos;
     }

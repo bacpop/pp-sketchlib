@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <sys/stat.h>
 
 #include <H5Cpp.h>
 

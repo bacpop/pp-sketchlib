@@ -3,7 +3,7 @@
  * database.hpp
  * Header file for database.cpp
  * Interface between sketches and HDF5 store
- * 
+ *
  */
 #pragma once
 
@@ -22,12 +22,12 @@
 const std::string DEFAULT_VERSION = "ca0b581b852cc70a474fbcc0b38be80cf8538ad0";
 const size_t DEFAULT_LENGTH = 3000000;
 
-class Database 
+class Database
 {
     public:
         Database(const std::string& filename); // Overwrite or create new H5 file
         Database(HighFive::File& _h5_file); // Open a H5 file
-        
+
         void add_sketch(const Reference& ref); // Write a new sketch to the HDF5
         Reference load_sketch(const std::string& name); // Retrieve a sketch
         void save_random(const RandomMC& random);
