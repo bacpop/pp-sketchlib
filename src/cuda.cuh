@@ -39,13 +39,3 @@ inline void update_progress(long long dist_idx,
 		__threadfence_system();
 	}
 }
-
-// Initialise device and return info on its memory
-inline std::tuple<size_t, size_t> initialise_device(const int device_id) {
-	cudaSetDevice(device_id);
-	cudaDeviceReset();
-
-	size_t mem_free = 0; size_t mem_total = 0;
-	cudaMemGetInfo(&mem_free, &mem_total);
-	return(std::make_tuple(mem_free, mem_total));
-}
