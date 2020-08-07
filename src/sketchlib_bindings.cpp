@@ -56,38 +56,39 @@ void constructDatabase(const std::string& db_name,
                        const size_t num_threads = 1,
                        const bool use_gpu = false,
                        const int device_id = 0) {
+    std::vector<Reference> ref_sketches;
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
-        std::vector<Reference> ref_sketches = create_sketches_cuda(db_name,
-                                                        sample_names,
-                                                        file_names,
-                                                        kmer_lengths,
-                                                        sketch_size,
-                                                        use_rc,
-                                                        min_count,
-                                                        num_threads,
-                                                        device_id);
+        ref_sketches = create_sketches_cuda(db_name,
+                                            sample_names,
+                                            file_names,
+                                            kmer_lengths,
+                                            sketch_size,
+                                            use_rc,
+                                            min_count,
+                                            num_threads,
+                                            device_id);
     } else {
-        std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                        sample_names,
-                                                        file_names,
-                                                        kmer_lengths,
-                                                        sketch_size,
-                                                        use_rc,
-                                                        min_count,
-                                                        exact,
-                                                        num_threads);
+        ref_sketches = create_sketches(db_name,
+                                        sample_names,
+                                        file_names,
+                                        kmer_lengths,
+                                        sketch_size,
+                                        use_rc,
+                                        min_count,
+                                        exact,
+                                        num_threads);
     }
 #else
-    std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                        sample_names,
-                                                        file_names,
-                                                        kmer_lengths,
-                                                        sketch_size,
-                                                        use_rc,
-                                                        min_count,
-                                                        exact,
-                                                        num_threads);
+    ref_sketches = create_sketches(db_name,
+                                    sample_names,
+                                    file_names,
+                                    kmer_lengths,
+                                    sketch_size,
+                                    use_rc,
+                                    min_count,
+                                    exact,
+                                    num_threads);
 #endif
     if (calc_random && ref_sketches.size() >= default_n_clusters) {
         RandomMC random = calculate_random(ref_sketches,

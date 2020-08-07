@@ -20,7 +20,6 @@
 
 // internal headers
 #include "bitfuncs.hpp"
-#include "files.hpp"
 #include "gpu.hpp"
 #include "api.hpp"
 #include "database.hpp"
@@ -47,7 +46,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
                    const bool use_rc,
                    size_t min_count,
 				   const size_t cpu_threads,
-                   const int device_id = 0) {
+                   const int device_id) {
 	// Try loading sketches from file
 	std::vector<Reference> sketches;
     bool resketch = true;
