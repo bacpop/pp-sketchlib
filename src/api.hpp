@@ -10,10 +10,17 @@
 #include <cstdint>
 #include <cstddef>
 #include <string>
+#include <sys/stat.h>
 
 #include "matrix.hpp"
 #include "random_match.hpp"
 #include "reference.hpp"
+
+
+inline bool file_exists (const std::string& name) {
+  struct stat buffer;
+  return (stat (name.c_str(), &buffer) == 0);
+}
 
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names,

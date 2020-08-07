@@ -22,8 +22,7 @@
 #include "bitfuncs.hpp"
 #include "files.hpp"
 #include "gpu.hpp"
-#include "matrix.hpp"
-#include "random_match.hpp"
+#include "api.hpp"
 #include "database.hpp"
 #include "sketch.hpp"
 

@@ -10,7 +10,6 @@
 #include <H5Cpp.h>
 
 #include "api.hpp"
-#include "files.hpp"
 #include "gpu.hpp"
 #include "reference.hpp"
 #include "database.hpp"
