@@ -20,9 +20,12 @@
 
 // internal headers
 #include "bitfuncs.hpp"
+#include "files.hpp"
 #include "gpu.hpp"
 #include "matrix.hpp"
 #include "random_match.hpp"
+#include "database.hpp"
+#include "sketch.hpp"
 
 const float mem_epsilon = 0.05;
 
@@ -97,8 +100,8 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 			// Make Reference object, and save in HDF5 DB
 			sketches[i] = Reference(names[i], usigs, def_bbits, sketchsize64,
-									seq_length, seq_in.get_composition,
-									seq_in.missing_bases, use_rc, densified);
+									seq_length, seq_in.get_composition(),
+									seq_in.missing_bases(), use_rc, densified);
 			sketch_db.add_sketch(sketches[i]);
             if (densified) {
                 std::cerr << "NOTE: "

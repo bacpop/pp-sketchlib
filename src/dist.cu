@@ -543,18 +543,20 @@ std::vector<float> dispatchDists(
 
 		dist_rows = static_cast<long long>(
 						0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
-		device_arrays = loadDeviceMemory(
-			ref_strides,
-			query_strides,
-			ref_sketches,
-			query_sketches,
-			sketch_subsample,
-			flat_random,
-			ref_random_idx,
-			query_random_idx,
-			kmer_lengths,
-			dist_rows,
-			self);
+		device_arrays =
+			loadDeviceMemory(
+				ref_strides,
+				query_strides,
+				ref_sketches,
+				query_sketches,
+				sketch_subsample,
+				flat_random,
+				ref_random_idx,
+				query_random_idx,
+				kmer_lengths,
+				dist_rows,
+				self
+			);
 
 		size_t blockSize, blockCount;
 		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size,
