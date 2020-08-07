@@ -8,9 +8,7 @@
 #include "matrix.hpp"
 
 #include "robin_hood.h"
-#include <highfive/H5Group.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
+#include <highfive/H5File.hpp>
 
 // HighFive does have support for reading/writing Eigen::Matrix
 // (and std::vector<Eigen::Matrix>) which is turned on with a compile

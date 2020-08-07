@@ -12,9 +12,6 @@
 #include "random_match.hpp"
 
 #include "robin_hood.h"
-#include <highfive/H5Group.hpp>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5DataSpace.hpp>
 
 // const int deflate_level = 9;
 
@@ -145,30 +142,29 @@ Reference Database::load_sketch(const std::string& name)
 // Save a RandomMC object to the database
 void Database::save_random(const RandomMC& random) {
     // Open or create the random group
-    HighFive::Group random_group;
-    if (_h5_file.exist("random")) {
-        throw std::runtime_error("Random matches already exist in " + _filename);
+    if (!_h5_file.exist("random")) {
+        HighFive::Group random_group = _h5_file.createGroup("random");
+
+        // Save the cluster table
+        save_hash<std::string, uint16_t>(random.cluster_table(), random_group, "table");
+        // Save the match matrices
+        save_hash<size_t, NumpyMatrix>(random.matches(), random_group, "matches");
+
+        // Save the cluster centroid matrix
+        save_eigen(random.cluster_centroids(), random_group, "centroids");
+
+        // Save attributes
+        unsigned int k_min, k_max;
+        std::tie(k_min, k_max) = random.k_range();
+        HighFive::Attribute k_min_a = random_group.createAttribute<unsigned int>("k_min", HighFive::DataSpace::From(k_min));
+        k_min_a.write(k_min);
+        HighFive::Attribute k_max_a = random_group.createAttribute<unsigned int>("k_max", HighFive::DataSpace::From(k_max));
+        k_max_a.write(k_max);
+        HighFive::Attribute rc_a = random_group.createAttribute<bool>("use_rc", HighFive::DataSpace::From(random.use_rc()));
+        rc_a.write(random.use_rc());
     } else {
-        random_group = _h5_file.createGroup("random");
+        throw std::runtime_error("Random matches already exist in " + _filename);
     }
-
-    // Save the cluster table
-    save_hash<std::string, uint16_t>(random.cluster_table(), random_group, "table");
-    // Save the match matrices
-    save_hash<size_t, NumpyMatrix>(random.matches(), random_group, "matches");
-
-    // Save the cluster centroid matrix
-    save_eigen(random.cluster_centroids(), random_group, "centroids");
-
-    // Save attributes
-    unsigned int k_min, k_max;
-    std::tie(k_min, k_max) = random.k_range();
-    HighFive::Attribute k_min_a = random_group.createAttribute<unsigned int>("k_min", HighFive::DataSpace::From(k_min));
-    k_min_a.write(k_min);
-    HighFive::Attribute k_max_a = random_group.createAttribute<unsigned int>("k_max", HighFive::DataSpace::From(k_max));
-    k_max_a.write(k_max);
-    HighFive::Attribute rc_a = random_group.createAttribute<bool>("use_rc", HighFive::DataSpace::From(random.use_rc()));
-    rc_a.write(random.use_rc());
 }
 
 // Retrive a RandomMC object from the database

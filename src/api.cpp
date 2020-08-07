@@ -147,21 +147,21 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         // Iterate upper triangle
         size_t done_calcs = 0;
         #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
-        for (size_t i = 0; i < sketches.size(); i++) {
-            for (size_t j = i + 1; j < sketches.size(); j++) {
-                size_t pos = square_to_condensed(i, j, sketches.size());
+        for (size_t i = 0; i < ref_sketches.size(); i++) {
+            for (size_t j = i + 1; j < ref_sketches.size(); j++) {
+                size_t pos = square_to_condensed(i, j, ref_sketches.size());
                 if (jaccard) {
                     for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
                         distMat(pos, kmer_idx) =
-                            sketches[i].jaccard_dist(sketches[j],
-                                                     kmer_lengths[kmer_idx],
-                                                     random_chance);
+                            ref_sketches[i].jaccard_dist(ref_sketches[j],
+                                                        kmer_lengths[kmer_idx],
+                                                        random_chance);
                     }
                 } else {
                     std::tie(distMat(pos, 0), distMat(pos, 1)) =
-                        sketches[i].core_acc_dist<RandomMC>(sketches[j],
-                                                            kmer_mat,
-                                                            random_chance);
+                        ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j],
+                                                                kmer_mat,
+                                                                random_chance);
                 }
             }
         }
@@ -187,8 +187,9 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
             // Try to improve cache hit by giving each thread its own query
             collapse_level = 1;
         }
+        const int collapse = collapse_level;
 
-        #pragma omp parallel for collapse(collapse_level) schedule(static) num_threads(num_threads)
+        #pragma omp parallel for collapse(collapse) schedule(static) num_threads(num_threads)
         for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
             const size_t query_length = query_sketches[q_idx].seq_length();
             const uint16_t query_random_idx =
