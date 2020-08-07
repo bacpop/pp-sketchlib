@@ -16,6 +16,12 @@
 typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
 typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<float>> sparse_coo;
 
+template<class T>
+inline size_t rows_to_samples(const T& longMat);
+inline long calc_row_idx(const long long k, const long n);
+inline long calc_col_idx(const long long k, const long i, const long n);
+inline long long square_to_condensed(long i, long j, long n);
+
 NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists, 
                             const Eigen::VectorXf& qrDists,
                             const Eigen::VectorXf& qqDists,
