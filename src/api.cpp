@@ -178,18 +178,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
 
         arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
-        // Set OpenMP schedule
-        int collapse_level;
-        if (query_sketches.size() < num_threads) {
-            // Small numbers of queries - parallelise both query and ref
-            collapse_level = 2;
-        } else {
-            // Try to improve cache hit by giving each thread its own query
-            collapse_level = 1;
-        }
-        const int collapse = collapse_level;
-
-        #pragma omp parallel for collapse(collapse) schedule(static) num_threads(num_threads)
+        #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
         for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
             const size_t query_length = query_sketches[q_idx].seq_length();
             const uint16_t query_random_idx =
