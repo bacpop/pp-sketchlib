@@ -13,10 +13,9 @@
 #include <unordered_map>
 #include <iostream>
 
+#include "sketch.hpp"
 #include "gpu.hpp"
 #include "stHashIterator.hpp"
-
-#include "sketch.hpp"
 
 #include "bitfuncs.hpp"
 #include "countmin.hpp"
