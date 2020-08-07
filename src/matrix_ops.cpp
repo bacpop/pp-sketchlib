@@ -195,8 +195,8 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     for (size_t distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
         unsigned long i = calc_row_idx(distIdx, nrrSamples);
         unsigned long j = calc_col_idx(distIdx, i, nrrSamples);
-        squareMatrix(i, j) = rrDists[distIdx];
-        squareMatrix(j, i) = rrDists[distIdx];
+        squareDists(i, j) = rrDists[distIdx];
+        squareDists(j, i) = rrDists[distIdx];
     }
 
     if (qqDists.size() > 0) {
@@ -204,8 +204,8 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
         for (size_t distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
             unsigned long i = calc_row_idx(distIdx, nqqSamples) + nrrSamples;
             unsigned long j = calc_col_idx(distIdx, i - nrrSamples, nqqSamples) + nrrSamples;
-            squareMatrix(i, j) = qqDists[distIdx];
-            squareMatrix(j, i) = qqDists[distIdx];
+            squareDists(i, j) = qqDists[distIdx];
+            squareDists(j, i) = qqDists[distIdx];
         }
     }
 
@@ -215,8 +215,8 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
         for (size_t distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
             unsigned long i = static_cast<size_t>(distIdx / (float)nqqSamples + 0.001f);
             unsigned long j = distIdx % nqqSamples + nrrSamples;
-            squareMatrix(i, j) = qrDists[distIdx];
-            squareMatrix(j, i) = qrDists[distIdx];
+            squareDists(i, j) = qrDists[distIdx];
+            squareDists(j, i) = qrDists[distIdx];
         }
     }
 
