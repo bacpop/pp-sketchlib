@@ -59,7 +59,7 @@ class GPUCountMin {
         GPUCountMin();
         ~GPUCountMin();
 
-        unsigned int * get_table() { return d_countmin_table };
+        unsigned int * get_table() { return _d_countmin_table; }
 
         void reset();
 
