@@ -182,6 +182,7 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
     double minhash_sum = 0;
     bool densified = false;
     for (auto k : kmer_lengths) {
+        fprintf(stderr, "%c%ck = %d (%.1lf%%)", 13, 9, k, 0);
         std::cerr << "at k = " << k << std::endl;
         std::vector<uint64_t> usigs(sketchsize * bbits, 0);
         std::vector<uint64_t> signs = get_signs(reads, countmin, k,

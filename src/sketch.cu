@@ -279,7 +279,8 @@ void process_reads(char * read_seq,
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
 void reportSketchProgress(volatile int * blocks_complete,
-					      long long n_reads) {
+                          int k,
+                          long long n_reads) {
 	long long progress_blocks = 1 << progressBitshift;
 	int now_completed = 0; float kern_progress = 0;
 	if (n_reads > progress_blocks) {
@@ -287,7 +288,7 @@ void reportSketchProgress(volatile int * blocks_complete,
 			if (*blocks_complete > now_completed) {
 				now_completed = *blocks_complete;
 				kern_progress = now_completed / (float)progress_blocks;
-				fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, kern_progress * 100);
+                fprintf(stderr, "%c%ck = %d (%.1lf%%)", 13, 9, k, kern_progress * 100);
 			} else {
 				usleep(1000);
 			}
@@ -457,7 +458,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
         blocks_complete
     );
 
-    reportSketchProgress(blocks_complete, reads.count());
+    reportSketchProgress(blocks_complete, k, reads.count());
 
     // Copy signs back from device
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),

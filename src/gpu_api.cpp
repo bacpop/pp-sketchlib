@@ -76,6 +76,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 		for (int i = 0; i < files.size(); i++) {
 			std::cerr << "Sketching: " << names[i] << std::endl;
+			fprintf(stderr, "%cReading data...", 13);
 
 			// Read in sequence data
 			SeqBuf seq_in(files[i], kmer_lengths.back());
