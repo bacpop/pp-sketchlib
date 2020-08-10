@@ -7,7 +7,6 @@
 #include <vector>
 #include <numeric>
 #include <algorithm>
-#include <thread>
 #include <cstdint>
 #include <cstddef>
 #include <cmath>
@@ -30,39 +29,6 @@ void rectangle_block(const Eigen::VectorXf& longDists,
                   const size_t nqqSamples,
                   const size_t start,
                   const size_t max_elems);
-
-template<class T>
-inline size_t rows_to_samples(const T& longMat) {
-    return 0.5*(1 + sqrt(1 + 8*(longMat.rows())));
-}
-
-// These are inlined partially to avoid conflicting with the cuda
-// versions which have the same prototype
-inline long calc_row_idx(const long long k, const long n) {
-	return n - 2 - floor(sqrt((double)(-8*k + 4*n*(n-1)-7))/2 - 0.5);
-}
-
-inline long calc_col_idx(const long long k, const long i, const long n) {
-	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
-}
-
-inline long long square_to_condensed(long i, long j, long n) {
-    assert(j > i);
-	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
-}
-
-std::tuple<size_t, unsigned int, unsigned int> 
-   jobs_per_thread(const size_t num_jobs, 
-                   const unsigned int num_threads) {
-    size_t used_threads = num_threads;
-    if (num_jobs < used_threads) {
-        used_threads = num_jobs; 
-    }
-    size_t calc_per_thread = (size_t)num_jobs / used_threads;
-    unsigned int num_big_threads = num_jobs % used_threads;
-
-    return(std::make_tuple(calc_per_thread, used_threads, num_big_threads)); 
-}
 
 //https://stackoverflow.com/a/12399290
 std::vector<size_t> sort_indexes(const Eigen::VectorXf &v) {
@@ -160,8 +126,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
                                  unsigned int num_threads) {
     Eigen::VectorXf boundary_test(distMat.rows());
     
-    omp_set_num_threads(num_threads);
-    #pragma omp parallel for simd schedule(static)
+    #pragma omp parallel for simd schedule(static) num_threads(num_threads)
     for (long row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
         if (slope == 2) {
@@ -184,7 +149,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
     return(boundary_test);
 }
 
-NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists, 
+NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
                             const Eigen::VectorXf& qrDists,
                             const Eigen::VectorXf& qqDists,
                             unsigned int num_threads) {
@@ -197,7 +162,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
             throw std::runtime_error("Shape of reference, query and ref vs query matrices mismatches");
         }
     }
-    
+
     // Initialise matrix and set diagonal to zero
     NumpyMatrix squareDists(nrrSamples + nqqSamples, nrrSamples + nqqSamples);
     for (size_t diag_idx = 0; diag_idx < nrrSamples + nqqSamples; diag_idx++) {
@@ -205,119 +170,36 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     }
 
     // Loop over threads for ref v ref square
-    size_t calc_per_thread; unsigned int used_threads; unsigned int num_big_threads; 
-    std::tie(calc_per_thread, used_threads, num_big_threads) = jobs_per_thread(rrDists.rows(), num_threads); 
-    size_t start = 0;
-    std::vector<std::thread> copy_threads;
-    for (unsigned int thread_idx = 0; thread_idx < used_threads; ++thread_idx) {
-        size_t thread_jobs = calc_per_thread;
-        if (thread_idx < num_big_threads) {
-            thread_jobs++;
-        }
-
-        copy_threads.push_back(std::thread(&square_block,
-                                        std::cref(rrDists),
-                                        std::ref(squareDists),
-                                        nrrSamples,
-                                        start,
-                                        0,
-                                        thread_jobs));
-        start += thread_jobs; 
-    }
-    // Wait for threads to complete
-    for (auto it = copy_threads.begin(); it != copy_threads.end(); it++) {
-        it->join();
+    #pragma omp parallel for simd schedule(static) num_threads(num_threads)
+    for (size_t distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
+        unsigned long i = calc_row_idx(distIdx, nrrSamples);
+        unsigned long j = calc_col_idx(distIdx, i, nrrSamples);
+        squareDists(i, j) = rrDists[distIdx];
+        squareDists(j, i) = rrDists[distIdx];
     }
 
-    // Query v query block
     if (qqDists.size() > 0) {
-        std::tie(calc_per_thread, used_threads, num_big_threads) = jobs_per_thread(qqDists.rows(), num_threads); 
-        start = 0;
-        copy_threads.clear();
-        for (unsigned int thread_idx = 0; thread_idx < used_threads; ++thread_idx) {
-            size_t thread_jobs = calc_per_thread;
-            if (thread_idx < num_big_threads) {
-                thread_jobs++;
-            }
-
-            copy_threads.push_back(std::thread(&square_block,
-                                            std::cref(qqDists),
-                                            std::ref(squareDists),
-                                            nrrSamples,
-                                            start,
-                                            nrrSamples,
-                                            thread_jobs));
-            start += thread_jobs; 
-        }
-        // Wait for threads to complete
-        for (auto it = copy_threads.begin(); it != copy_threads.end(); it++) {
-            it->join();
+        #pragma omp parallel for simd schedule(static) num_threads(num_threads)
+        for (size_t distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
+            unsigned long i = calc_row_idx(distIdx, nqqSamples) + nrrSamples;
+            unsigned long j = calc_col_idx(distIdx, i - nrrSamples, nqqSamples) + nrrSamples;
+            squareDists(i, j) = qqDists[distIdx];
+            squareDists(j, i) = qqDists[distIdx];
         }
     }
 
     // Query vs ref rectangles
     if (qrDists.size() > 0) {
-        std::tie(calc_per_thread, used_threads, num_big_threads) = jobs_per_thread(qrDists.rows(), num_threads); 
-        start = 0;
-        copy_threads.clear();
-        for (unsigned int thread_idx = 0; thread_idx < used_threads; ++thread_idx) {
-            size_t thread_jobs = calc_per_thread;
-            if (thread_idx < num_big_threads) {
-                thread_jobs++;
-            }
-
-            copy_threads.push_back(std::thread(&rectangle_block,
-                                            std::cref(qrDists),
-                                            std::ref(squareDists),
-                                            nrrSamples,
-                                            nqqSamples,
-                                            start,
-                                            thread_jobs));
-            start += thread_jobs; 
-        }
-        // Wait for threads to complete
-        for (auto it = copy_threads.begin(); it != copy_threads.end(); it++) {
-            it->join();
+        #pragma omp parallel for simd schedule(static) num_threads(num_threads)
+        for (size_t distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
+            unsigned long i = static_cast<size_t>(distIdx / (float)nqqSamples + 0.001f);
+            unsigned long j = distIdx % nqqSamples + nrrSamples;
+            squareDists(i, j) = qrDists[distIdx];
+            squareDists(j, i) = qrDists[distIdx];
         }
     }
 
     return squareDists;
-} 
-
-void square_block(const Eigen::VectorXf& longDists,
-                  NumpyMatrix& squareMatrix,
-                  const size_t n_samples,
-                  const size_t start,
-                  const size_t offset,
-                  const size_t max_elems) {
-    unsigned long i = calc_row_idx(start, n_samples) + offset;
-    unsigned long j = calc_col_idx(start, i - offset, n_samples) + offset;
-    for (size_t distIdx = start; distIdx < start + max_elems; distIdx++) {
-        squareMatrix(i, j) = longDists[distIdx];
-        squareMatrix(j, i) = longDists[distIdx];
-        if (++j == n_samples + offset) {
-            i++;
-            j = i + 1;
-        }
-    }
-}
-
-void rectangle_block(const Eigen::VectorXf& longDists,
-                  NumpyMatrix& squareMatrix,
-                  const size_t nrrSamples,
-                  const size_t nqqSamples,
-                  const size_t start,
-                  const size_t max_elems) {
-    unsigned long i = (size_t)(start/(float)nqqSamples + 0.001f);
-    unsigned long j = start % nqqSamples + nrrSamples;
-    for (size_t distIdx = start; distIdx < start + max_elems; distIdx++) {
-        squareMatrix(i, j) = longDists[distIdx];
-        squareMatrix(j, i) = longDists[distIdx];
-        if (++j == (nrrSamples + nqqSamples)) {
-            i++;
-            j = nrrSamples;
-        }
-    }
 }
 
 Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists, 

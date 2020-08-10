@@ -4,9 +4,7 @@
  *
  */
 
-#include <thread>
 #include <algorithm>
-#include <queue>
 #include <limits>
 #include <sys/stat.h>
 
@@ -23,34 +21,6 @@ inline bool file_exists (const std::string& name) {
   struct stat buffer;
   return (stat (name.c_str(), &buffer) == 0);
 }
-
-// Internal function definitions
-void self_dist_block(NumpyMatrix& distMat,
-                     const std::vector<size_t>& kmer_lengths,
-                     std::vector<Reference>& sketches,
-                     const RandomMC& random_chance,
-                     const bool jaccard,
-                     const size_t start_pos,
-                     const size_t calcs);
-
-void query_dist_row(NumpyMatrix& distMat,
-                    Reference * ref_sketch_ptr,
-                    std::vector<Reference>& query_sketches,
-                    const RandomMC& random_chance,
-                    const std::vector<size_t>& kmer_lengths,
-                    const bool jaccard,
-                    const size_t row_start);
-
-void sketch_block(std::vector<Reference>& sketches,
-                                    const std::vector<std::string>& names,
-                                    const std::vector<std::vector<std::string>>& files,
-                                    const std::vector<size_t>& kmer_lengths,
-                                    const size_t sketchsize64,
-                                    const bool use_rc,
-                                    const uint8_t min_count,
-                                    const bool exact,
-                                    const size_t start,
-                                    const size_t end);
 
 
 bool same_db_version(const std::string& db1_name,
@@ -73,8 +43,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const bool use_rc,
                    size_t min_count,
                    const bool exact,
-                   const size_t num_threads)
-{
+                   const size_t num_threads) {
     // Store sketches in vector
     std::vector<Reference> sketches;
 
@@ -95,49 +64,27 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         sketches.resize(names.size());
 
         // Truncate min_count if above 8 bit range
-        if (min_count > std::numeric_limits<uint8_t>::max())
-        {
+        if (min_count > std::numeric_limits<uint8_t>::max()) {
             min_count = std::numeric_limits<uint8_t>::max();
         }
 
-        // Create threaded queue for distance calculations
         size_t num_sketch_threads = num_threads;
-        if (sketches.size() < num_threads)
-        {
+        if (sketches.size() < num_threads) {
             num_sketch_threads = sketches.size();
         }
-        size_t calc_per_thread = (size_t)sketches.size() / num_sketch_threads;
-        unsigned int num_big_threads = sketches.size() % num_sketch_threads;
-        std::vector<std::thread> sketch_threads;
 
-        // Spawn worker threads
-        size_t start = 0;
-        std::cerr << "Sketching " << names.size() << " genomes using " << num_sketch_threads << " thread(s)" << std::endl;
-        for (unsigned int thread_idx = 0; thread_idx < num_sketch_threads; ++thread_idx) // Loop over threads
-        {
-            // First 'big' threads have an extra job
-            size_t thread_jobs = calc_per_thread;
-            if (thread_idx < num_big_threads)
-            {
-                thread_jobs++;
-            }
-            sketch_threads.push_back(std::thread(&sketch_block,
-                                            std::ref(sketches),
-                                            std::cref(names),
-                                            std::cref(files),
-                                            std::cref(kmer_lengths),
-                                            sketchsize64,
-                                            use_rc,
-                                            min_count,
-                                            exact,
-                                            start,
-                                            start + thread_jobs));
-            start += thread_jobs;
-        }
-        // Wait for threads to complete
-        for (auto it = sketch_threads.begin(); it != sketch_threads.end(); it++)
-        {
-            it->join();
+        std::cerr << "Sketching "
+                  << names.size()
+                  << " genomes using "
+                  << num_sketch_threads
+                  << " thread(s)"
+                  << std::endl;
+
+        #pragma omp parallel for schedule(static) num_threads(num_threads)
+        for (unsigned int i = 0; i < names.size(); i++) {
+            SeqBuf seq_in(files[i], kmer_lengths.back());
+            sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
+                                    use_rc, min_count, exact);
         }
 
         // Save sketches and check for densified sketches
@@ -172,7 +119,9 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
                                  "chance; increase minimum k-mer length");
     }
 
-    std::cerr << "Calculating distances using " << num_threads << " thread(s)" << std::endl;
+    std::cerr << "Calculating distances using " << num_threads
+              << " thread(s)" << std::endl;
+
     NumpyMatrix distMat;
     size_t dist_cols;
     if (jaccard) {
@@ -189,85 +138,78 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     if (ref_sketches == query_sketches) {
 
         // calculate dists
-        size_t dist_rows = static_cast<int>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
+        size_t dist_rows =
+         static_cast<size_t>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
         distMat.resize(dist_rows, dist_cols);
 
-        size_t num_dist_threads = num_threads;
-        if (dist_rows < num_threads)
-        {
-            num_dist_threads = dist_rows;
-        }
-        size_t calc_per_thread = (size_t)dist_rows / num_dist_threads;
-        unsigned int num_big_threads = dist_rows % num_dist_threads;
+        arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
-        // Loop over threads
-        std::vector<std::thread> dist_threads;
-        size_t start = 0;
-        for (unsigned int thread_idx = 0; thread_idx < num_dist_threads; ++thread_idx)
-        {
-            // First 'big' threads have an extra job
-            size_t thread_jobs = calc_per_thread;
-            if (thread_idx < num_big_threads)
-            {
-                thread_jobs++;
+        // Iterate upper triangle
+        size_t done_calcs = 0;
+        #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
+        for (size_t i = 0; i < ref_sketches.size(); i++) {
+            for (size_t j = i + 1; j < ref_sketches.size(); j++) {
+                size_t pos = square_to_condensed(i, j, ref_sketches.size());
+                if (jaccard) {
+                    for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+                        distMat(pos, kmer_idx) =
+                            ref_sketches[i].jaccard_dist(ref_sketches[j],
+                                                        kmer_lengths[kmer_idx],
+                                                        random_chance);
+                    }
+                } else {
+                    std::tie(distMat(pos, 0), distMat(pos, 1)) =
+                        ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j],
+                                                                kmer_mat,
+                                                                random_chance);
+                }
             }
-
-            dist_threads.push_back(std::thread(&self_dist_block,
-                                            std::ref(distMat),
-                                            std::cref(kmer_lengths),
-                                            std::ref(ref_sketches),
-                                            std::cref(random_chance),
-                                            jaccard,
-                                            start,
-                                            thread_jobs));
-            start += thread_jobs;
         }
-        // Wait for threads to complete
-        for (auto it = dist_threads.begin(); it != dist_threads.end(); it++)
-        {
-            it->join();
-        }
-    }
-    // If ref != query, make a thread queue, with each element one ref (see kmds.cpp in seer)
-    else
-    {
+    } else {
+        // If ref != query, make a thread queue, with each element one ref
         // calculate dists
         size_t dist_rows = ref_sketches.size() * query_sketches.size();
         distMat.resize(dist_rows, dist_cols);
 
         size_t num_dist_threads = num_threads;
-        if (dist_rows < num_threads)
-        {
+        if (dist_rows < num_threads) {
             num_dist_threads = dist_rows;
         }
 
-        // Loop over threads, one per query, with FIFO queue
-        std::queue<std::thread> dist_threads;
-        size_t row_start = 0;
-        for (auto query_it = query_sketches.begin(); query_it < query_sketches.end(); query_it++)
-        {
-            // If all threads being used, wait for one to finish
-            if (dist_threads.size() == num_dist_threads)
-            {
-                dist_threads.front().join();
-                dist_threads.pop();
-            }
-
-            dist_threads.push(std::thread(&query_dist_row,
-                              std::ref(distMat),
-                              &(*query_it),
-                              std::ref(ref_sketches),
-                              std::cref(random_chance),
-                              std::cref(kmer_lengths),
-                              jaccard,
-                              row_start));
-            row_start += ref_sketches.size();
+        // Prepare objects used in distance calculations
+        arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+        std::vector<size_t> query_lengths(query_sketches.size());
+        std::vector<uint16_t> query_random_idxs(query_sketches.size());
+        #pragma omp parallel for simd schedule(static) num_threads(num_threads)
+        for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
+            query_lengths[q_idx] = query_sketches[q_idx].seq_length();
+            query_random_idxs[q_idx] = random_chance.closest_cluster(query_sketches[q_idx]);
         }
-        // Wait for threads to complete
-        while(!dist_threads.empty())
-        {
-            dist_threads.front().join();
-            dist_threads.pop();
+
+        #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
+        for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
+            for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
+                const long dist_row = q_idx * ref_sketches.size() + r_idx;
+                if (jaccard) {
+                    for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+                        double jaccard_random =
+                            random_chance.random_match(ref_sketches[r_idx], query_random_idxs[q_idx],
+                                                        query_lengths[q_idx], kmer_lengths[kmer_idx]);
+                        distMat(dist_row, kmer_idx) =
+                            query_sketches[q_idx].jaccard_dist(ref_sketches[r_idx],
+                                                            kmer_lengths[kmer_idx],
+                                                            jaccard_random);
+                    }
+                } else {
+                    std::vector<double> jaccard_random =
+                        random_chance.random_matches(ref_sketches[r_idx], query_random_idxs[q_idx],
+                                                    query_lengths[q_idx], kmer_lengths);
+                    std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
+                            query_sketches[q_idx].core_acc_dist<std::vector<double>>(ref_sketches[r_idx],
+                                                                                kmer_mat,
+                                                                                jaccard_random);
+                }
+            }
         }
     }
 
@@ -389,112 +331,4 @@ RandomMC get_random(const std::string& db_name,
     Database db(h5_db);
     RandomMC random = db.load_random(use_rc_default);
     return(random);
-}
-
-/*
- * Internal functions used by main exported functions above
- * Loading from file
- * Simple in thread function definitions
- */
-
-// Creates sketches
-// (run this function in a thread)
-void sketch_block(std::vector<Reference>& sketches,
-                  const std::vector<std::string>& names,
-                  const std::vector<std::vector<std::string>>& files,
-                  const std::vector<size_t>& kmer_lengths,
-                  const size_t sketchsize64,
-                  const bool use_rc,
-                  const uint8_t min_count,
-                  const bool exact,
-                  const size_t start,
-                  const size_t end) {
-    for (unsigned int i = start; i < end; i++) {
-        SeqBuf seq_in(files[i], kmer_lengths.back());
-        sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
-                                use_rc, min_count, exact);
-    }
-}
-
-// Calculates dists self v self
-// (run this function in a thread)
-void self_dist_block(NumpyMatrix& distMat,
-                     const std::vector<size_t>& kmer_lengths,
-                     std::vector<Reference>& sketches,
-                     const RandomMC& random_chance,
-                     const bool jaccard,
-                     const size_t start_pos,
-                     const size_t calcs) {
-    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
-    // Iterate upper triangle
-    size_t done_calcs = 0;
-    size_t pos = 0;
-    for (size_t i = 0; i < sketches.size(); i++) {
-        for (size_t j = i + 1; j < sketches.size(); j++) {
-            if (pos >= start_pos) {
-                if (jaccard) {
-                    for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                        distMat(pos, kmer_idx) =
-                            sketches[i].jaccard_dist(sketches[j],
-                                                     kmer_lengths[kmer_idx],
-                                                     random_chance);
-                    }
-                } else {
-                    std::tie(distMat(pos, 0), distMat(pos, 1)) =
-                        sketches[i].core_acc_dist<RandomMC>(sketches[j],
-                                                            kmer_mat,
-                                                            random_chance);
-                }
-                done_calcs++;
-                if (done_calcs >= calcs) {
-                    break;
-                }
-            }
-            pos++;
-        }
-        if (done_calcs >= calcs) {
-            break;
-        }
-    }
-}
-
-// Calculates dists ref v query
-// (run this function in a thread)
-void query_dist_row(NumpyMatrix& distMat,
-                    Reference * query_sketch_ptr,
-                    std::vector<Reference>& ref_sketches,
-                    const RandomMC& random_chance,
-                    const std::vector<size_t>& kmer_lengths,
-                    const bool jaccard,
-                    const size_t row_start)
-{
-    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
-    const size_t query_length = query_sketch_ptr->seq_length();
-    const uint16_t query_random_idx =
-        random_chance.closest_cluster(*query_sketch_ptr);
-
-    size_t current_row = row_start;
-    for (auto ref_it = ref_sketches.begin(); ref_it != ref_sketches.end(); ref_it++)
-    {
-        if (jaccard) {
-            for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-                double jaccard_random =
-                    random_chance.random_match(*ref_it, query_random_idx,
-                                                query_length, kmer_lengths[kmer_idx]);
-                distMat(current_row, kmer_idx) =
-                    query_sketch_ptr->jaccard_dist(*ref_it,
-                                                    kmer_lengths[kmer_idx],
-                                                    jaccard_random);
-            }
-        } else {
-            std::vector<double> jaccard_random =
-                random_chance.random_matches(*ref_it, query_random_idx,
-                                             query_length, kmer_lengths);
-            std::tie(distMat(current_row, 0), distMat(current_row, 1)) =
-                     query_sketch_ptr->core_acc_dist<std::vector<double>>(*ref_it,
-                                                                          kmer_mat,
-                                                                          jaccard_random);
-        }
-        current_row++;
-    }
 }
