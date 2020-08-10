@@ -62,7 +62,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
         while ((l = kseq_read(seq)) >= 0)
         {
             size_t seq_len = strlen(seq->seq.s);
-            if (seq_len < _max_length) {
+            if (seq_len > _max_length) {
                 _max_length = seq_len;
             }
             if (seq_len >= kmer_len)

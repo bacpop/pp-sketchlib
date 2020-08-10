@@ -2,15 +2,11 @@
 CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
+  CUDAFLAGS = -g -G -lineinfo
 else ifdef PROFILE
   CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 else
   CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
-endif
-
-ifdef GPU
-	CXXFLAGS += -DGPU_AVAILABLE
-	LDFLAGS += -L/usr/local/cuda-11.0/lib64
 endif
 
 UNAME_S := $(shell uname -s)
@@ -33,7 +29,11 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS =-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+ifdef GPU
+	CXXFLAGS += -DGPU_AVAILABLE
+	CUDA_LDFLAGS += -L/usr/local/cuda-11.0/lib64
+endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
@@ -61,9 +61,9 @@ sketch_test: $(SKETCH_OBJS) main.o
 matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
-read_test: $(SKETCH_OBJS) $(CUDA_OBJS) read_test.o
+read_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) read_test.o
 	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
-	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(CUDA_LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ device_link.o -o $@ $(CUDA_LDLIBS)
 
 version.h:
 	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
