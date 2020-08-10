@@ -284,7 +284,7 @@ def main():
             query_kmers = sorted(db_kmers)
         else:
             query_kmers = sorted(set(kmers).intersection(db_kmers))
-            if (len(kmers) == 0):
+            if (len(query_kmers) == 0):
                 sys.stderr.write("No requested k-mer lengths found in DB\n")
                 sys.exit(1)
             elif (len(query_kmers) < len(query_kmers)):
