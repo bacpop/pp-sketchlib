@@ -275,7 +275,6 @@ void process_reads(char * read_seq,
     }
 }
 
-// TODO: make this work with multiple samples and k-mers
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
 void reportSketchProgress(volatile int * blocks_complete,
@@ -288,7 +287,7 @@ void reportSketchProgress(volatile int * blocks_complete,
 			if (*blocks_complete > now_completed) {
 				now_completed = *blocks_complete;
 				kern_progress = now_completed / (float)progress_blocks;
-                fprintf(stderr, "%c%ck = %d (%.1lf%%)", 13, 9, k, kern_progress * 100);
+                fprintf(stderr, "%ck = %d (%.1lf%%)", 13, k, kern_progress * 100);
 			} else {
 				usleep(1000);
 			}
@@ -465,7 +464,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
 
-    fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
+    fprintf(stderr, "%ck = %d (100%%)", 13, k);
 
     return(signs);
 }
