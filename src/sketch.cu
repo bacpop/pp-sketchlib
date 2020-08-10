@@ -204,7 +204,7 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 // countmin and binsign
 __device__
 void binhash(uint64_t * signs,
-             GPUCountMin& countmin_table,
+             unsigned int * countmin_table,
              const uint64_t hash,
              const uint64_t binsize,
              const int k,
