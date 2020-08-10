@@ -66,15 +66,12 @@ class GPUCountMin {
         GPUCountMin();
         ~GPUCountMin();
 
-#ifdef __NVCC__
-		__device__
-#endif
-        unsigned int add_count_min(uint64_t hash_val, const int k);
+        unsigned int * get_table() { return d_countmin_table };
 
         void reset();
 
     private:
-        unsigned int * d_countmin_table;
+        unsigned int * _d_countmin_table;
 
         const unsigned int _table_width_bits;
         const uint64_t _mask;

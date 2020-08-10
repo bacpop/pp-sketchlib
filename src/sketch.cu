@@ -154,17 +154,18 @@ GPUCountMin::GPUCountMin() :
          _hash_per_hash(hash_per_hash),
          _table_rows(table_rows),
          _table_cells(table_cells) {
-    CUDA_CALL(cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(unsigned int)));
+    CUDA_CALL(cudaMalloc((void**)&_d_countmin_table, table_cells * sizeof(unsigned int)));
     reset();
 }
 
 GPUCountMin::~GPUCountMin() {
-    CUDA_CALL( cudaFree(d_countmin_table));
+    CUDA_CALL( cudaFree(_d_countmin_table));
 }
 
 // Loop variables are global constants defined in gpu.hpp
 __device__
-unsigned int GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
+unsigned int add_count_min(unsigned int * d_countmin_table,
+                           uint64_t hash_val, const int k) {
     unsigned int min_count = UINT32_MAX;
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
         uint64_t current_hash = hash_val;
@@ -186,7 +187,7 @@ unsigned int GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
 }
 
 void GPUCountMin::reset() {
-    CUDA_CALL(cudaMemset(d_countmin_table, 0, table_cells * sizeof(unsigned int)));
+    CUDA_CALL(cudaMemset(_d_countmin_table, 0, table_cells * sizeof(unsigned int)));
 }
 
 // bindash functions
@@ -205,7 +206,7 @@ void binhash(uint64_t * signs,
 
     // Only consider if the bin is yet to be filled, or is min in bin
     if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
-        if (countmin_table.add_count_min(hash,  k) >= min_count) {
+        if (add_count_min(countmin_table, hash,  k) >= min_count) {
             signs[binidx] = sign;
         }
     }
@@ -220,7 +221,7 @@ void process_reads(char * read_seq,
                    const int k,
                    uint64_t * signs,
                    const uint64_t binsize,
-                   GPUCountMin& countmin_table,
+                   unsigned int * countmin_table,
                    const bool use_rc,
                    const uint16_t min_count,
                    volatile int * blocks_complete) {
@@ -427,7 +428,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
         k,
         d_signs,
         binsize,
-        countmin,
+        countmin.get_table(),
         use_rc,
         min_count,
         blocks_complete
