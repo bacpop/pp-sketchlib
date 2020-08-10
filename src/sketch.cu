@@ -244,11 +244,11 @@ void process_reads(char * read_seq,
 
         // Get first valid k-mer
         if (use_rc) {
-            NTC64(read_start + pos * n_reads,
+            NTC64(read_start,
                   k, fhVal, rhVal, hVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         } else {
-            NT64(read_start + pos * n_reads,
+            NT64(read_start,
                  k, fhVal, n_reads);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         }
