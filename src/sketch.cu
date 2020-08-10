@@ -325,11 +325,11 @@ void copyNtHashTablesToDevice() {
     CUDA_CALL(cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t)));
 
-    uint64_t* A33r_ptr, A31l_ptr,
-              C33r_ptr, C31l_ptr,
-              G33r_ptr, G31l_ptr,
-              T33r_ptr, T31l_ptr,
-              N33r_ptr, N31l_ptr;
+    uint64_t *A33r_ptr, *A31l_ptr,
+             *C33r_ptr, *C31l_ptr,
+             *G33r_ptr, *G31l_ptr,
+             *T33r_ptr, *T31l_ptr,
+             *N33r_ptr, *N31l_ptr;
     CUDA_CALL(cudaGetSymbolAddress((void**)&A33r_ptr, d_A33r));
     CUDA_CALL(cudaGetSymbolAddress((void**)&A31l_ptr, d_A31l));
     CUDA_CALL(cudaGetSymbolAddress((void**)&C33r_ptr, d_C33r));
