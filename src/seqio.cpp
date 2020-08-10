@@ -141,10 +141,10 @@ std::vector<char> SeqBuf::as_square_array(const size_t n_threads) const {
     for (size_t read_idx = 0; read_idx < n_full_seqs(); read_idx++) {
         std::string seq = sequence[_full_index[read_idx]];
         for (size_t base_idx = 0; base_idx < seq.size(); base_idx++) {
-            read_array[read_idx + base_idx * _max_length] = seq[base_idx];
+            read_array[read_idx + base_idx * n_full_seqs()] = seq[base_idx];
         }
         for (size_t base_idx = seq.size(); base_idx < _max_length; base_idx++) {
-            read_array[read_idx + base_idx * _max_length] = 'N';
+            read_array[read_idx + base_idx * n_full_seqs()] = 'N';
         }
     }
     return read_array;
