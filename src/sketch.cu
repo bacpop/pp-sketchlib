@@ -237,7 +237,6 @@ void process_reads(char * read_seq,
 	int stride = blockDim.x * gridDim.x;
 	for (long long read_idx = index; read_idx < n_reads; read_idx += stride)
 	{
-        unsigned pos = 0;
         uint64_t fhVal, rhVal, hVal;
 
         // Set pointers to start of read
@@ -255,14 +254,14 @@ void process_reads(char * read_seq,
         }
 
         // Roll through remaining k-mers in the read
-        while (pos < read_length - k + 1) {
+        for (int pos = 0; pos < read_length - k; pos++) {
             fhVal = NTF64(fhVal, k,
-                read_start[(pos - 1) * n_reads],
-                read_start[(pos - 1 + k) * n_reads]);
+                read_start[pos * n_reads],
+                read_start[(pos + k) * n_reads]);
             if (use_rc) {
                 rhVal = NTR64(rhVal, k,
-                    read_start[(pos - 1) * n_reads],
-                    read_start[(pos - 1 + k) * n_reads]);
+                    read_start[pos * n_reads],
+                    read_start[(pos + k) * n_reads]);
                 hVal = (rhVal<fhVal) ? rhVal : fhVal;
                 binhash(signs, countmin_table, hVal, binsize, k, min_count);
             } else {
