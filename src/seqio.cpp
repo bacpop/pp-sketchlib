@@ -46,7 +46,7 @@ void track_composition(const char c,
 }
 
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
- :_N_count(0), _reads(false), _max_length(0) {
+ :_N_count(0), _max_length(0), _reads(false) {
     /*
     *   Reads entire sequence to memory
     */

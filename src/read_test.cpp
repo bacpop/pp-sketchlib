@@ -6,7 +6,6 @@
 #include "database.hpp"
 #include "random_match.hpp"
 #include "api.hpp"
-#include "gpu.hpp"
 #include "countmin.hpp"
 #include "seqio.hpp"
 

@@ -8,6 +8,10 @@ else
   CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 endif
 
+ifdef GPU
+	CXXFLAGS += -DGPU_AVAILABLE
+endif
+
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
 LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lgomp
