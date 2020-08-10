@@ -7,19 +7,19 @@ try:
 except ImportError as e:
     from scipy.sparse import coo_matrix
     def sparsify(distMat, cutoff, kNN, threads):
-        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat, 
-                                                        distCutoff=cutoff, 
-                                                        kNN=kNN, 
+        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat,
+                                                        distCutoff=cutoff,
+                                                        kNN=kNN,
                                                         num_threads=threads)
-        sparse_scipy = coo_matrix((sparse_coordinates[2], 
-                                (sparse_coordinates[0], sparse_coordinates[1])), 
-                                shape=distMat.shape, 
+        sparse_scipy = coo_matrix((sparse_coordinates[2],
+                                (sparse_coordinates[0], sparse_coordinates[1])),
+                                shape=distMat.shape,
                                 dtype=np.float32)
-        
+
         # Mirror to fill in lower triangle
         if cutoff > 0:
-            sparse_scipy = sparse_scipy + sparse_scipy.transpose() 
-        
+            sparse_scipy = sparse_scipy + sparse_scipy.transpose()
+
         return(sparse_scipy)
 
 # Original PopPUNK function
@@ -53,15 +53,15 @@ qr_mat = np.array([10, 20, 10, 20, 10, 20, 10, 20], dtype=np.float32)
 square1 = pp_sketchlib.longToSquare(rr_mat, 2)
 square2 = pp_sketchlib.longToSquareMulti(rr_mat, qr_mat, qq_mat)
 
-square1_res = np.array([[0, 1, 2, 3], 
-                        [1, 0, 4, 5], 
-                        [2, 4, 0, 6], 
+square1_res = np.array([[0, 1, 2, 3],
+                        [1, 0, 4, 5],
+                        [2, 4, 0, 6],
                         [3, 5, 6, 0]], dtype=np.float32)
 
 
-square2_res = np.array([[0, 1, 2, 3, 10, 20], 
-                        [1, 0, 4, 5, 10, 20], 
-                        [2, 4, 0, 6, 10, 20], 
+square2_res = np.array([[0, 1, 2, 3, 10, 20],
+                        [1, 0, 4, 5, 10, 20],
+                        [2, 4, 0, 6, 10, 20],
                         [3, 5, 6, 0, 10, 20],
                         [10, 10, 10, 10, 0, 8],
                         [20, 20, 20, 20, 8, 0]], dtype=np.float32)
@@ -80,8 +80,8 @@ assign0 = pp_sketchlib.assignThreshold(distMat, 0, 0.5, 0.5, 2)
 assign1 = pp_sketchlib.assignThreshold(distMat, 1, 0.5, 0.5, 2)
 assign2 = pp_sketchlib.assignThreshold(distMat, 2, 0.5, 0.5, 2)
 
-assign0_res = withinBoundary(distMat, 0.5, 0.5, 0) 
-assign1_res = withinBoundary(distMat, 0.5, 0.5, 1) 
+assign0_res = withinBoundary(distMat, 0.5, 0.5, 0)
+assign1_res = withinBoundary(distMat, 0.5, 0.5, 1)
 assign2_res = withinBoundary(distMat, 0.5, 0.5, 2)
 
 check_res(assign0, assign0_res)
