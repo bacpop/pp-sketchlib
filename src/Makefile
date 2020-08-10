@@ -56,8 +56,9 @@ sketch_test: $(SKETCH_OBJS) main.o
 matrix_test: $(SKETCH_OBJS) matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
-read_test: $(SKETCH_OBJS) read_test.o
-	$(LINK.cpp) $^ -o $@ $(LDLIBS)
+read_test: $(SKETCH_OBJS) $(CUDA_OBJS) read_test.o
+	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) -shared $^ device_link.o -o $(PYTHON_LIB) $(CUDA_LDLIBS)
 
 version.h:
 	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
