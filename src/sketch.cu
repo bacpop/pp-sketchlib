@@ -148,12 +148,12 @@ inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
 // Countmin
 // See countmin.cpp
 GPUCountMin::GPUCountMin() :
-         table_width_bits(27),
-         mask(0x3FFFFFF), // 27 lowest bits ON
-         table_width(static_cast<uint32_t>(mask)), // 2^27 + 1 = 134217729 =~ 134M
-         hash_per_hash(2), // This should be 2, or the table is likely too narrow
-         table_rows(4), // Number of hashes, should be a multiple of hash_per_hash
-         table_cells(table_rows * table_width) {
+         _table_width_bits(table_width_bits),
+         _mask(mask),
+         _table_width(table_width),
+         _hash_per_hash(hash_per_hash),
+         _table_rows(table_rows),
+         _table_cells(table_cells) {
     CUDA_CALL(cudaMalloc((void**)&d_countmin_table, table_cells * sizeof(unsigned int)));
     reset();
 }
@@ -162,9 +162,10 @@ GPUCountMin::~GPUCountMin() {
     CUDA_CALL( cudaFree(d_countmin_table));
 }
 
+// Loop variables are global constants defined in gpu.hpp
 __device__
 unsigned int GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
-    unsigned int min_count = UINT8_MAX;
+    unsigned int min_count = UINT32_MAX;
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
         uint64_t current_hash = hash_val;
         for (uint i = 0; i < hash_per_hash; i++)
@@ -172,7 +173,7 @@ unsigned int GPUCountMin::add_count_min(uint64_t hash_val, const int k) {
             uint32_t hash_val_masked = current_hash & mask;
             unsigned int cell_count =
                 atomicInc(d_countmin_table + (hash_nr + i) * table_width +
-                          hash_val_masked, UINT8_MAX) + 1;
+                          hash_val_masked, UINT32_MAX) + 1;
             if (cell_count < min_count) {
                 min_count = cell_count;
             }
