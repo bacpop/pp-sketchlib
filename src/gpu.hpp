@@ -53,13 +53,6 @@ std::vector<float> dispatchDists(
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self);
 
-// parameters - these are currently hard coded based on a short bacterial genome
-const unsigned int table_width_bits = 27; // 2^27 + 1 = 134217729 =~ 134M
-constexpr uint64_t mask{ 0xFFFFFF }; // 27 lowest bits ON
-const uint32_t table_width = static_case<uint32_t>(mask);
-const int hash_per_hash = 2; // This should be 2, or the table is likely too narrow
-const int table_rows = 4; // Number of hashes, should be a multiple of hash_per_hash
-constexpr size_t table_cells = table_rows * table_width;
 // defined in sketch.cu
 class GPUCountMin {
     public:
@@ -76,8 +69,8 @@ class GPUCountMin {
         const unsigned int _table_width_bits;
         const uint64_t _mask;
         const uint32_t _table_width;
-        const int _hash_per_hash = 2;
-        const int _table_rows = 4;
+        const int _hash_per_hash;
+        const int _table_rows;
         const size_t _table_cells;
 };
 
