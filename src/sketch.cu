@@ -325,74 +325,90 @@ void copyNtHashTablesToDevice() {
     CUDA_CALL(cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t)));
 
+    uint64_t* A33r_ptr, A31l_ptr,
+              C33r_ptr, C31l_ptr,
+              G33r_ptr, G31l_ptr,
+              T33r_ptr, T31l_ptr,
+              N33r_ptr, N31l_ptr;
+    CUDA_CALL(cudaGetSymbolAddress((void**)&A33r_ptr, d_A33r));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&A31l_ptr, d_A31l));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&C33r_ptr, d_C33r));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&C31l_ptr, d_C31l));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&G33r_ptr, d_G33r));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&G31l_ptr, d_G31l));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&T33r_ptr, d_T33r));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&T31l_ptr, d_T31l));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&N33r_ptr, d_N33r));
+    CUDA_CALL(cudaGetSymbolAddress((void**)&N31l_ptr, d_N31l));
+
     static const uint64_t *d_addr_msTab33r[256] = {
-        d_N33r, d_T33r, d_N33r, d_G33r, d_A33r, d_A33r, d_N33r, d_C33r, // 0..7
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 8..15
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 16..23
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 24..31
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 32..39
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 40..47
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 48..55
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 56..63
-        d_N33r, d_A33r, d_N33r, d_C33r, d_N33r, d_N33r, d_N33r, d_G33r, // 64..71
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 72..79
-        d_N33r, d_N33r, d_N33r, d_N33r, d_T33r, d_T33r, d_N33r, d_N33r, // 80..87
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 88..95
-        d_N33r, d_A33r, d_N33r, d_C33r, d_N33r, d_N33r, d_N33r, d_G33r, // 96..103
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 104..111
-        d_N33r, d_N33r, d_N33r, d_N33r, d_T33r, d_T33r, d_N33r, d_N33r, // 112..119
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 120..127
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 128..135
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 136..143
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 144..151
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 152..159
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 160..167
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 168..175
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 176..183
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 184..191
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 192..199
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 200..207
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 208..215
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 216..223
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 224..231
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 232..239
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, // 240..247
-        d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r, d_N33r  // 248..255
+        N33r_ptr, T33r_ptr, N33r_ptr, G33r_ptr, A33r_ptr, A33r_ptr, N33r_ptr, C33r_ptr, // 0..7
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 8..15
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 16..23
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 24..31
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 32..39
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 40..47
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 48..55
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 56..63
+        N33r_ptr, A33r_ptr, N33r_ptr, C33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, G33r_ptr, // 64..71
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 72..79
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, T33r_ptr, T33r_ptr, N33r_ptr, N33r_ptr, // 80..87
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 88..95
+        N33r_ptr, A33r_ptr, N33r_ptr, C33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, G33r_ptr, // 96..103
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 104..111
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, T33r_ptr, T33r_ptr, N33r_ptr, N33r_ptr, // 112..119
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 120..127
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 128..135
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 136..143
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 144..151
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 152..159
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 160..167
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 168..175
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 176..183
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 184..191
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 192..199
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 200..207
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 208..215
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 216..223
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 224..231
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 232..239
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 240..247
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r  // 248..255
     };
 
     static const uint64_t *d_addr_msTab31l[256] = {
-        d_N31l, d_T31l, d_N31l, d_G31l, d_A31l, d_A31l, d_N31l, d_C31l, // 0..7
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 8..15
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 16..23
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 24..31
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 32..39
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 40..47
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 48..55
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 56..63
-        d_N31l, d_A31l, d_N31l, d_C31l, d_N31l, d_N31l, d_N31l, d_G31l, // 64..71
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 72..79
-        d_N31l, d_N31l, d_N31l, d_N31l, d_T31l, d_T31l, d_N31l, d_N31l, // 80..87
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 88..95
-        d_N31l, d_A31l, d_N31l, d_C31l, d_N31l, d_N31l, d_N31l, d_G31l, // 96..103
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 104..111
-        d_N31l, d_N31l, d_N31l, d_N31l, d_T31l, d_T31l, d_N31l, d_N31l, // 112..119
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 120..127
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 128..135
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 136..143
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 144..151
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 152..159
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 160..167
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 168..175
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 176..183
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 184..191
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 192..199
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 200..207
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 208..215
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 216..223
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 224..231
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 232..239
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, // 240..247
-        d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l, d_N31l  // 248..255
+        N31l_ptr, T31l_ptr, N31l_ptr, G31l_ptr, A31l_ptr, A31l_ptr, N31l_ptr, C31l_ptr, // 0..7
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 8..15
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 16..23
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 24..31
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 32..39
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 40..47
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 48..55
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 56..63
+        N31l_ptr, A31l_ptr, N31l_ptr, C31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, G31l_ptr, // 64..71
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 72..79
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, T31l_ptr, T31l_ptr, N31l_ptr, N31l_ptr, // 80..87
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 88..95
+        N31l_ptr, A31l_ptr, N31l_ptr, C31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, G31l_ptr, // 96..103
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 104..111
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, T31l_ptr, T31l_ptr, N31l_ptr, N31l_ptr, // 112..119
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 120..127
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 128..135
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 136..143
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 144..151
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 152..159
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 160..167
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 168..175
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 176..183
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 184..191
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 192..199
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 200..207
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 208..215
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 216..223
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 224..231
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 232..239
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 240..247
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l  // 248..255
     };
 
     CUDA_CALL(cudaMemcpyToSymbol(d_msTab31l, d_addr_msTab31l, 256 * sizeof(uint64_t*)));
