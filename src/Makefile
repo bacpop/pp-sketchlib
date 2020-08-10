@@ -10,6 +10,7 @@ endif
 
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
+	LDFLAGS += -L/usr/local/cuda-11.0/lib64
 endif
 
 UNAME_S := $(shell uname -s)
