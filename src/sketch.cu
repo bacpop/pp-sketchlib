@@ -265,7 +265,7 @@ void process_reads(char * read_seq,
                 hVal = (rhVal<fhVal) ? rhVal : fhVal;
                 binhash(signs, countmin_table, hVal, binsize, k, min_count);
             } else {
-                binhash(signs, countmin_table, hVal, binsize, k, min_count);
+                binhash(signs, countmin_table, fhVal, binsize, k, min_count);
             }
         }
 
@@ -300,9 +300,11 @@ DeviceReads::DeviceReads(const SeqBuf& seq_in,
                          const size_t n_threads): d_reads(nullptr) {
     CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
+    fprintf(stderr, "Transposing\n");
     std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
     n_reads = seq_in.n_full_seqs();
     read_length = seq_in.max_length();
+    fprintf(stderr, "Copy H->D\n");
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
     CUDA_CALL( cudaMemcpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
                             cudaMemcpyDefault));

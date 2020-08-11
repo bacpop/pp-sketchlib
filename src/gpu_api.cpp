@@ -96,7 +96,8 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
  				min_count,
 				cpu_threads
     		  );
-			fprintf(stderr, "%ck = %d (100%%)\n", 13, kmer_lengths.back());
+			fprintf(stderr, "%ck = %d (100%%)\n", 13,
+								static_cast<int>(kmer_lengths.back()));
 
 			// Make Reference object, and save in HDF5 DB
 			sketches[i] = Reference(names[i], usigs, def_bbits, sketchsize64,

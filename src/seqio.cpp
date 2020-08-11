@@ -52,13 +52,13 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
     */
     BaseComp<size_t> base_counts = BaseComp<size_t>();
 
+    size_t seq_idx = 0;
     for (auto name_it = filenames.begin(); name_it != filenames.end(); name_it++)
     {
         // from kseq.h
         gzFile fp = gzopen(name_it->c_str(), "r");
         kseq_t *seq = kseq_init(fp);
         int l;
-        size_t seq_idx = 0;
         while ((l = kseq_read(seq)) >= 0)
         {
             size_t seq_len = strlen(seq->seq.s);
@@ -78,7 +78,7 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                     }
                     if (c == 'N') {
                         _N_count++;
-                        has_N |= true;
+                        has_N = true;
                     }
                 }
                 if (!has_N) {
