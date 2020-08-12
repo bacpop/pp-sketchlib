@@ -211,6 +211,7 @@ void binhash(uint64_t * signs,
              const uint16_t min_count) {
     uint64_t sign = hash % SIGN_MOD;
     uint64_t binidx = sign / binsize;
+    //printf("binidx:%llu sign:%llu\n", binidx, sign);
 
     // Only consider if the bin is yet to be filled, or is min in bin
     if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
@@ -240,6 +241,7 @@ void process_reads(char * read_seq,
         uint64_t fhVal, rhVal, hVal;
 
         // Set pointers to start of read
+        //printf("k:%d read_idx: %lld\n", (int)k, read_idx);
         char* read_start = read_seq + read_idx;
 
         // Get first valid k-mer
@@ -300,11 +302,9 @@ DeviceReads::DeviceReads(const SeqBuf& seq_in,
                          const size_t n_threads): d_reads(nullptr) {
     CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
-    fprintf(stderr, "Transposing\n");
     std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
     n_reads = seq_in.n_full_seqs();
     read_length = seq_in.max_length();
-    fprintf(stderr, "Copy H->D\n");
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
     CUDA_CALL( cudaMemcpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
                             cudaMemcpyDefault));

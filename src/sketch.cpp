@@ -48,7 +48,7 @@ void binsign(std::vector<uint64_t> &signs,
              const uint64_t binsize)
 {
 	uint64_t binidx = sign / binsize;
-	signs[binidx] = MIN(signs[binidx], sign);
+    signs[binidx] = MIN(signs[binidx], sign);
 }
 
 double inverse_minhash(std::vector<uint64_t> &signs)
@@ -147,6 +147,10 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
         }
         seq.move_next_seq();
     }
+    //printf("k=%d\n", (int)kmer_len);
+    //for (int i = 0; i < nbins; i++) {
+    //    printf("bin:%d sign:%lu\n", i, signs[i]);
+    //}
     double inv_minhash = inverse_minhash(signs);
 
     // Free memory from read_counter
@@ -182,13 +186,17 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
     double minhash_sum = 0;
     bool densified = false;
     for (auto k : kmer_lengths) {
-        fprintf(stderr, "%c%ck = %d (%.1lf%%)", 13, 9, k, 0);
+        fprintf(stderr, "%ck = %d (%.1lf%%)", 13, static_cast<int>(k), 0.);
         std::vector<uint64_t> usigs(sketchsize * bbits, 0);
         std::vector<uint64_t> signs = get_signs(reads, countmin, k,
                                                 use_canonical, min_count,
                                                 binsize, nbins);
 
         minhash_sum += inverse_minhash(signs);
+        //printf("k=%d\n", (int)k);
+        //for (int i = 0; i < nbins; i++) {
+        //    printf("bin:%d sign:%lu\n", i, signs[i]);
+        //}
 
         // Apply densifying function
         densified |= densifybin(signs);

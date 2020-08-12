@@ -74,42 +74,59 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
             min_count = std::numeric_limits<unsigned int>::max();
         }
 
-		for (int i = 0; i < files.size(); i++) {
-			std::cerr << "Sketching: " << names[i] << std::endl;
-			fprintf(stderr, "%cReading data...", 13);
+		size_t n_batches = files.size() / cpu_threads +
+						files.size() % cpu_threads ? 0 : 1;
+		for (size_t i = 0; i < files.size(); i+=cpu_threads) {
+			std::cerr << "Sketching batch: "
+					  << i / files.size() + 1
+					  << " of "
+					  << n_batches
+					  << std::endl;
 
-			// Read in sequence data
-			SeqBuf seq_in(files[i], kmer_lengths.back());
+			size_t batch_size = cpu_threads;
+			if (i + batch_size >= files.size()) {
+				batch_size = files.size() - i;
+			}
 
-			// Run the sketch on the GPU
-			std::unordered_map<int, std::vector<uint64_t>> usigs;
-			size_t seq_length;
-			bool densified;
-			std::tie(usigs, seq_length, densified) =
-			   sketch_gpu(
-        		seq_in,
-				countmin_filter,
-        		sketchsize64,
-        		kmer_lengths,
-        		def_bbits,
-        		use_rc,
- 				min_count,
-				cpu_threads
-    		  );
-			fprintf(stderr, "%ck = %d (100%%)\n", 13,
-								static_cast<int>(kmer_lengths.back()));
+			// Read in a batch of sequence data (in parallel)
+    		std::vector<SeqBuf> seq_in_batch(batch_size);
+			#pragma omp parallel for schedule(static) num_threads(cpu_threads)
+			for (size_t j = 0; j < batch_size; j++) {
+				seq_in_batch[j] = SeqBuf(files[i + j], kmer_lengths.back());
+			}
 
-			// Make Reference object, and save in HDF5 DB
-			sketches[i] = Reference(names[i], usigs, def_bbits, sketchsize64,
-									seq_length, seq_in.get_composition(),
-									seq_in.missing_bases(), use_rc, densified);
-			sketch_db.add_sketch(sketches[i]);
-            if (densified) {
-                std::cerr << "NOTE: "
-						  << names[i]
-				 		  << " required densification"
-						  << std::endl;
-            }
+			// Run the sketch on the GPU (serially over the batch)
+			for (size_t j = 0; j < batch_size; j++) {
+				std::unordered_map<int, std::vector<uint64_t>> usigs;
+				size_t seq_length;
+				bool densified;
+				std::tie(usigs, seq_length, densified) =
+				sketch_gpu(
+					seq_in_batch[j],
+					countmin_filter,
+					sketchsize64,
+					kmer_lengths,
+					def_bbits,
+					use_rc,
+					min_count,
+					cpu_threads
+				);
+
+				fprintf(stderr, "%ck = %d   (100%%)\n", 13,
+									static_cast<int>(kmer_lengths.back()));
+
+				// Make Reference object, and save in HDF5 DB
+				sketches[i + j] = Reference(names[i + j], usigs, def_bbits, sketchsize64,
+										seq_length, seq_in.get_composition(),
+										seq_in.missing_bases(), use_rc, densified);
+				sketch_db.add_sketch(sketches[i + j]);
+				if (densified) {
+					std::cerr << "NOTE: "
+							<< names[i + j]
+							<< " required densification"
+							<< std::endl;
+				}
+			}
 		}
 
 	}
