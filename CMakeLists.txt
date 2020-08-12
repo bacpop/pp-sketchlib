@@ -65,7 +65,7 @@ if(CMAKE_CUDA_COMPILER)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
     # Turn on link time optimisation if available
     if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
-        string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=lto_70 -gencode arch=compute_75,code=lto_75")
+        string(APPEND CUDA_OPTS " -dlto -arch=sm_75")
     else()
         string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75")
     endif()

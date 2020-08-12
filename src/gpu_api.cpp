@@ -66,6 +66,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 		size_t mem_free, mem_total;
 		std::tie(mem_free, mem_total) = initialise_device(device_id);
 		std::cerr << "Sketching reads on GPU device " << device_id << std::endl;
+		std::cerr << "also using " << cpu_threads << " CPU cores" << std::endl;
 
 		// memory for filter and nthash only need to be allocated once
 		copyNtHashTablesToDevice();
@@ -75,10 +76,10 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
         }
 
 		size_t n_batches = files.size() / cpu_threads +
-						files.size() % cpu_threads ? 0 : 1;
-		for (size_t i = 0; i < files.size(); i+=cpu_threads) {
+						  (files.size() % cpu_threads ? 0 : 1);
+		for (size_t i = 0; i < files.size(); i += cpu_threads) {
 			std::cerr << "Sketching batch: "
-					  << i / files.size() + 1
+					  << i / cpu_threads + 1
 					  << " of "
 					  << n_batches
 					  << std::endl;

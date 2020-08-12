@@ -315,17 +315,18 @@ DeviceReads::~DeviceReads() {
 }
 
 void copyNtHashTablesToDevice() {
-    CUDA_CALL(cudaMemcpyToSymbol(d_seedTab, seedTab, 256 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_A33r, A33r, 33 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_A31l, A31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_C33r, C33r, 33 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_C31l, C31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_G33r, G33r, 33 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_G31l, G31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_T33r, T33r, 33 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_T31l, T31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_N33r, N33r, 33 * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_N31l, N31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_seedTab, seedTab, 256 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_A33r, A33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_A31l, A31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_C33r, C33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_C31l, C31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_G33r, G33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_G31l, G31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_T33r, T33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_T31l, T31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_N33r, N33r, 33 * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_N31l, N31l, 31 * sizeof(uint64_t)));
+    CUDA_CALL(cudaDeviceSynchronize();)
 
     uint64_t *A33r_ptr, *A31l_ptr,
              *C33r_ptr, *C31l_ptr,
@@ -462,6 +463,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     reportSketchProgress(blocks_complete, k, reads.count());
 
     // Copy signs back from device
+    cudaDeviceSynchronize();
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
