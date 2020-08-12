@@ -326,7 +326,7 @@ void copyNtHashTablesToDevice() {
     CUDA_CALL(cudaMemcpyToSymbolAsync(d_T31l, T31l, 31 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbolAsync(d_N33r, N33r, 33 * sizeof(uint64_t)));
     CUDA_CALL(cudaMemcpyToSymbolAsync(d_N31l, N31l, 31 * sizeof(uint64_t)));
-    CUDA_CALL(cudaDeviceSynchronize();)
+    CUDA_CALL(cudaDeviceSynchronize());
 
     uint64_t *A33r_ptr, *A31l_ptr,
              *C33r_ptr, *C31l_ptr,
@@ -414,8 +414,9 @@ void copyNtHashTablesToDevice() {
         N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l  // 248..255
     };
 
-    CUDA_CALL(cudaMemcpyToSymbol(d_msTab31l, d_addr_msTab31l, 256 * sizeof(uint64_t*)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_msTab33r, d_addr_msTab33r, 256 * sizeof(uint64_t*)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_msTab31l, d_addr_msTab31l, 256 * sizeof(uint64_t*)));
+    CUDA_CALL(cudaMemcpyToSymbolAsync(d_msTab33r, d_addr_msTab33r, 256 * sizeof(uint64_t*)));
+    CUDA_CALL(cudaDeviceSynchronize());
 }
 
 // main function called here returns signs vector - rest can be done by sketch.cpp
