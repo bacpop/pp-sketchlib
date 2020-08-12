@@ -5,7 +5,8 @@ set(CMAKE_CXX_STANDARD 14)
 # Set sketch version
 execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.hpp
                             ${CMAKE_CURRENT_SOURCE_DIR}/src/ntHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash.hpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash_tables.hpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cu
                 COMMAND openssl sha1
                 COMMAND cut -d " " -f 2
                 OUTPUT_VARIABLE sketch_hash)
