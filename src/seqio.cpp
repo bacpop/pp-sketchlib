@@ -45,6 +45,10 @@ void track_composition(const char c,
     }
 }
 
+SeqBuf::SeqBuf() :
+    _N_count(0), _max_length(0), _reads(false)
+{}
+
 SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
  :_N_count(0), _max_length(0), _reads(false) {
     /*

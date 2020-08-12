@@ -29,6 +29,7 @@ struct BaseComp {
 class SeqBuf
 {
     public:
+        SeqBuf();
         // Standard load from fasta/fastq list
         SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len);
         // Load from sequence (for randomly generated sequence)
