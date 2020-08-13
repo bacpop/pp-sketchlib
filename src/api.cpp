@@ -16,12 +16,6 @@
 
 using namespace Eigen;
 
-inline bool file_exists (const std::string& name) {
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
-}
-
-
 bool same_db_version(const std::string& db1_name,
                      const std::string& db2_name) {
     // Open databases
