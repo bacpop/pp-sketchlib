@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <cstddef>
 #include <vector>
-#include <unordered_map>
 #include <string>
 #include <tuple>
+#include "robin_hood.h"
 
 #define ARMA_DONT_USE_WRAPPER
 #include <armadillo>
@@ -46,7 +46,7 @@ class Reference
 
         // Initialise from GPU sketch
         Reference(const std::string& name,
-                     std::unordered_map<int, std::vector<uint64_t>>& sketch,
+                     robin_hood::unordered_map<int, std::vector<uint64_t>>& sketch,
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size,
@@ -97,7 +97,7 @@ class Reference
         BaseComp<double> _bases;
 
         // sketch - map keys are k-mer length
-        std::unordered_map<int, std::vector<uint64_t>> usigs;
+        robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
 };
 
 template <class T>

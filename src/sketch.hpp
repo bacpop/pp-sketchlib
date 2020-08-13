@@ -23,7 +23,7 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
 #ifdef GPU_AVAILABLE
 class GPUCountMin;
 
-std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
+std::tuple<robin_hood::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
    sketch_gpu(
         SeqBuf &seq,
         GPUCountMin &countmin,

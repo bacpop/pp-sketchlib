@@ -86,7 +86,7 @@ Reference::Reference(const std::string& name,
 
 // Initialise from GPU sketch
 Reference::Reference(const std::string& name,
-                     std::unordered_map<int, std::vector<uint64_t>>& sketch,
+                     robin_hood::unordered_map<int, std::vector<uint64_t>>& sketch,
                      const size_t bbits,
                      const size_t sketchsize64,
                      const size_t seq_size,

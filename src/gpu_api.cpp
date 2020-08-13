@@ -98,7 +98,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 			// Run the sketch on the GPU (serially over the batch)
 			for (size_t j = 0; j < batch_size; j++) {
-				std::unordered_map<int, std::vector<uint64_t>> usigs;
+				robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
 				size_t seq_length;
 				bool densified;
 				std::tie(usigs, seq_length, densified) =

@@ -11,8 +11,8 @@
 #include <cstddef>
 #include <cstring>
 #include <vector>
-#include <unordered_map>
 #include <string>
+#include "robin_hood.h"
 
 #include <highfive/H5File.hpp>
 

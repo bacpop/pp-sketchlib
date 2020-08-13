@@ -10,8 +10,8 @@
 #include <vector>
 #include <exception>
 #include <memory>
-#include <unordered_map>
 #include <iostream>
+#include "robin_hood.h"
 
 #include "sketch.hpp"
 #include "gpu.hpp"
@@ -29,7 +29,7 @@ inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) {
 // Seeds for small k-mers
 // Make sure they are symmetric so RC works
 const unsigned int small_k = 9;
-std::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
+robin_hood::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
     {6, {{1,1,0,1,1,0,1,1}}},
     {7, {{1,1,1,0,1,0,1,1,1}}},
     {8, {{1,1,0,1,1,1,1,0,1,1}}},
@@ -166,7 +166,7 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
 }
 
 #ifdef GPU_AVAILABLE
-std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
+std::tuple<robin_hood::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
    sketch_gpu(
         SeqBuf& seq,
         GPUCountMin& countmin,
@@ -179,7 +179,7 @@ std::tuple<std::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
     ) {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
-    std::unordered_map<int, std::vector<uint64_t>> sketch;
+    robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
 
     DeviceReads reads(seq, cpu_threads);
 
