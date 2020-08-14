@@ -187,7 +187,7 @@ unsigned int add_count_min(unsigned int * d_countmin_table,
                 min_count = cell_count;
             }
             __syncwarp();
-            current_hash = current_hash >> table_width_bits;
+            current_hash = current_hash >> 27;
         }
         hash_val = shifthash(hash_val, k, hash_nr / 2);
     }
@@ -214,8 +214,7 @@ void binhash(uint64_t * signs,
     //printf("binidx:%llu sign:%llu\n", binidx, sign);
 
     // Only consider if the bin is yet to be filled, or is min in bin
-    // UINT64_MAX = 18446744073709551616
-    if (signs[binidx] == 18446744073709551616 || sign < signs[binidx]) {
+    if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
         if (add_count_min(countmin_table, hash,  k) >= min_count) {
             signs[binidx] = sign;
         }
