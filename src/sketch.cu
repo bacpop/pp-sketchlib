@@ -273,7 +273,7 @@ void process_reads(char * read_seq,
         }
 
         // update progress meter
-        update_progress(read_idx, n_reads, blocks_complete);
+        update_progress(read_index, n_reads, blocks_complete);
         __syncwarp();
     }
 }
@@ -450,7 +450,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     const size_t blockSize = 32;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount, blockSize,
-                    read_length * blockSize * sizeof(char)>>> (
+                    reads.length() * blockSize * sizeof(char)>>> (
         reads.read_ptr(),
         reads.count(),
         reads.length(),
