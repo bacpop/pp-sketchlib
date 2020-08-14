@@ -436,9 +436,11 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     countmin.reset();
 
     // Signs
+    std::vector<uint64_t> signs(nbins, UINT64_MAX);
     uint64_t * d_signs;
-    CUDA_CALL(cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
-    CUDA_CALL(cudaMemset(d_signs, UINT64_MAX, nbins * sizeof(uint64_t)));
+    CUDA_CALL( cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
+    CUDA_CALL( cudaMemcpy(d_signs, signs.data(), nbins * sizeof(uint64_t),
+                          cudaMemcpyDefault));
 
     // Run process_read kernel
     //      This runs nthash on read sequence at all k-mer lengths
@@ -463,7 +465,6 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
 
     // Copy signs back from device
     cudaDeviceSynchronize();
-    std::vector<uint64_t> signs(nbins);
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
