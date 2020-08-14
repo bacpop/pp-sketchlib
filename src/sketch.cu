@@ -175,15 +175,21 @@ __device__
 unsigned int add_count_min(unsigned int * d_countmin_table,
                            uint64_t hash_val, const int k) {
     unsigned int min_count = UINT32_MAX;
-    for (int hash_nr = 0; hash_nr < table_rows; hash_nr++) {
-        uint32_t hash_val_masked = shifthash(hash_val, k, hash_nr) & mask;
-        unsigned int cell_count =
-            atomicInc(d_countmin_table + hash_nr * table_width +
-                        hash_val_masked, UINT32_MAX) + 1;
-        if (cell_count < min_count) {
-            min_count = cell_count;
+    for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
+        uint64_t current_hash = hash_val;
+        for (uint i = 0; i < hash_per_hash; i++)
+        {
+            uint32_t hash_val_masked = current_hash & mask;
+            unsigned int cell_count =
+                atomicInc(d_countmin_table + (hash_nr + i) * table_width +
+                          hash_val_masked, UINT32_MAX) + 1;
+            if (cell_count < min_count) {
+                min_count = cell_count;
+            }
+            __syncwarp();
+            current_hash = current_hash >> table_width_bits;
         }
-        __syncwarp();
+        hash_val = shifthash(hash_val, k, hash_nr / 2);
     }
     return(min_count);
 }
@@ -228,36 +234,37 @@ void process_reads(char * read_seq,
                    const bool use_rc,
                    const uint16_t min_count,
                    volatile int * blocks_complete) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-	int stride = blockDim.x * gridDim.x;
-	for (long long read_idx = index; read_idx < n_reads; read_idx += stride)
-	{
+    int read_index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (read_index < n_reads) {
         uint64_t fhVal, rhVal, hVal;
 
-        // Set pointers to start of read
-        //printf("k:%d read_idx: %lld\n", (int)k, read_idx);
-        char* read_start = read_seq + read_idx;
+        // Load reads in block into shared memory
+        extern __shared__ char read_shared[];
+        for (int base_idx = 0; base_idx < read_length; base_idx++) {
+            read_shared[threadIdx.x + base_idx * blockDim.x] =
+                read_seq[read_index + base_idx * n_reads];
+        }
 
         // Get first valid k-mer
         if (use_rc) {
-            NTC64(read_start,
-                  k, fhVal, rhVal, hVal, n_reads);
+            NTC64(read_shared,
+                  k, fhVal, rhVal, hVal, blockDim.x);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         } else {
-            NT64(read_start,
-                 k, fhVal, n_reads);
+            NT64(read_shared,
+                 k, fhVal, blockDim.x);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         }
 
         // Roll through remaining k-mers in the read
         for (int pos = 0; pos < read_length - k; pos++) {
             fhVal = NTF64(fhVal, k,
-                read_start[pos * n_reads],
-                read_start[(pos + k) * n_reads]);
+                read_shared[pos * blockDim.x],
+                read_shared[(pos + k) * blockDim.x]);
             if (use_rc) {
                 rhVal = NTR64(rhVal, k,
-                    read_start[pos * n_reads],
-                    read_start[(pos + k) * n_reads]);
+                    read_shared[pos * blockDim.x],
+                    read_shared[(pos + k) * blockDim.x]);
                 hVal = (rhVal<fhVal) ? rhVal : fhVal;
                 binhash(signs, countmin_table, hVal, binsize, k, min_count);
             } else {
@@ -442,7 +449,8 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     //      (get this working for a single k-mer length first)
     const size_t blockSize = 32;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
-    process_reads<<<blockCount, blockSize>>> (
+    process_reads<<<blockCount, blockSize,
+                    read_length * blockSize * sizeof(char)>>> (
         reads.read_ptr(),
         reads.count(),
         reads.length(),
