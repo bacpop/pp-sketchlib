@@ -178,7 +178,7 @@ unsigned int add_count_min(unsigned int * d_countmin_table,
     for (int hash_nr = 0; hash_nr < table_rows; hash_nr++) {
         uint32_t hash_val_masked = shifthash(hash_val, k, hash_nr) & mask;
         unsigned int cell_count =
-            atomicInc(d_countmin_table + (hash_nr + i) * table_width +
+            atomicInc(d_countmin_table + hash_nr * table_width +
                         hash_val_masked, UINT32_MAX) + 1;
         if (cell_count < min_count) {
             min_count = cell_count;
