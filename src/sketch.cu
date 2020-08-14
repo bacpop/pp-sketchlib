@@ -239,11 +239,17 @@ void process_reads(char * read_seq,
         uint64_t fhVal, rhVal, hVal;
 
         // Load reads in block into shared memory
+        // Cast to int to match 32-bit bank size
+        // (access will still cause bank conflicts)
         extern __shared__ char read_shared[];
-        for (int base_idx = 0; base_idx < read_length; base_idx++) {
-            read_shared[threadIdx.x + base_idx * blockDim.x] =
-                read_seq[read_index + base_idx * n_reads];
+        char *read_bytes = &read_shared[0];
+        if (threadIdx.x < (blockDim.x + 3) / 4) {
+            for (int base_idx = 0; base_idx < read_length; base_idx++) {
+                *(int*)(&read_bytes[threadIdx.x * 4 + base_idx * blockDim.x]) =
+                    *(int*)(&read_seq[read_index * 4 + base_idx * n_reads]);
+            }
         }
+        __syncwarp();
 
         // Get first valid k-mer
         if (use_rc) {
