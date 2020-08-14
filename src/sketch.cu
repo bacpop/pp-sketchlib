@@ -463,6 +463,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
 
     // Copy signs back from device
     cudaDeviceSynchronize();
+    std::vector<uint64_t> signs(nbins);
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
