@@ -175,21 +175,15 @@ __device__
 unsigned int add_count_min(unsigned int * d_countmin_table,
                            uint64_t hash_val, const int k) {
     unsigned int min_count = UINT32_MAX;
-    for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
-        uint64_t current_hash = hash_val;
-        for (uint i = 0; i < hash_per_hash; i++)
-        {
-            uint32_t hash_val_masked = current_hash & mask;
-            unsigned int cell_count =
-                atomicInc(d_countmin_table + (hash_nr + i) * table_width +
-                          hash_val_masked, UINT32_MAX) + 1;
-            if (cell_count < min_count) {
-                min_count = cell_count;
-            }
-            __syncwarp();
-            current_hash = current_hash >> 27;
+    for (int hash_nr = 0; hash_nr < table_rows; hash_nr++) {
+        uint32_t hash_val_masked = shifthash(hash_val, k, hash_nr) & mask;
+        unsigned int cell_count =
+            atomicInc(d_countmin_table + (hash_nr + i) * table_width +
+                        hash_val_masked, UINT32_MAX) + 1;
+        if (cell_count < min_count) {
+            min_count = cell_count;
         }
-        hash_val = shifthash(hash_val, k, hash_nr / 2);
+        __syncwarp();
     }
     return(min_count);
 }
