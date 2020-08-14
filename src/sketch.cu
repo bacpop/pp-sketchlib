@@ -436,17 +436,15 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     countmin.reset();
 
     // Signs
-    std::vector<uint64_t> signs(nbins, UINT64_MAX);
     uint64_t * d_signs;
-    CUDA_CALL( cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
-    CUDA_CALL( cudaMemcpy(d_signs, signs.data(), nbins * sizeof(uint64_t),
-                          cudaMemcpyDefault));
+    CUDA_CALL(cudaMalloc((void**)&d_signs, nbins * sizeof(uint64_t)));
+    CUDA_CALL(cudaMemset(d_signs, UINT64_MAX, nbins * sizeof(uint64_t)));
 
     // Run process_read kernel
     //      This runs nthash on read sequence at all k-mer lengths
     //      Check vs signs and countmin on whether to add each
     //      (get this working for a single k-mer length first)
-    const size_t blockSize = 32;
+    const size_t blockSize = 64;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount, blockSize>>> (
         reads.read_ptr(),
