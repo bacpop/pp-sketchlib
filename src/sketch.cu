@@ -214,7 +214,8 @@ void binhash(uint64_t * signs,
     //printf("binidx:%llu sign:%llu\n", binidx, sign);
 
     // Only consider if the bin is yet to be filled, or is min in bin
-    if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
+    // UINT64_MAX = 18446744073709551616
+    if (signs[binidx] == 18446744073709551616 || sign < signs[binidx]) {
         if (add_count_min(countmin_table, hash,  k) >= min_count) {
             signs[binidx] = sign;
         }
@@ -446,7 +447,7 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     //      This runs nthash on read sequence at all k-mer lengths
     //      Check vs signs and countmin on whether to add each
     //      (get this working for a single k-mer length first)
-    const size_t blockSize = 64;
+    const size_t blockSize = 32;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount, blockSize>>> (
         reads.read_ptr(),
