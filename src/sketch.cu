@@ -244,10 +244,10 @@ void process_reads(char * read_seq,
         // (access will still cause bank conflicts)
         extern __shared__ char read_shared[];
         char *read_bytes = &read_shared[0];
-        if (threadIdx.x < (blockDim.x + 7) / 8) {
-            int array_index = blockIdx.x * blockDim.x + threadIdx.x * 8;
+        if (threadIdx.x < (blockDim.x + 3) / 4) {
+            int array_index = blockIdx.x * blockDim.x + threadIdx.x * 4;
             for (int base_idx = 0; base_idx < read_length; base_idx++) {
-                *(long long int*)(&read_bytes[threadIdx.x * 8 + base_idx * blockDim.x]) =
+                *(long long int*)(&read_bytes[threadIdx.x * 4 + base_idx * blockDim.x]) =
                     *(long long int*)(&read_seq[array_index + base_idx * read_stride]);
             }
         }

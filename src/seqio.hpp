@@ -42,7 +42,7 @@ class SeqBuf
 	    size_t n_full_seqs() const { return _full_index.size(); }
         size_t n_full_seqs_padded() const {
             return _full_index.size() +
-                  (_full_index.size() % 8 ? 8 - _full_index.size() % 8 : 0);
+                  (_full_index.size() % 32 ? 32 - _full_index.size() % 32 : 0);
         }
 	    size_t max_length() const { return _max_length; }
         bool eof() const { return end; }
