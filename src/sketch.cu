@@ -245,9 +245,10 @@ void process_reads(char * read_seq,
         extern __shared__ char read_shared[];
         char *read_bytes = &read_shared[0];
         if (threadIdx.x < (blockDim.x + 3) / 4) {
+            int array_index = blockIdx.x * blockDim.x + threadIdx.x * 4;
             for (int base_idx = 0; base_idx < read_length; base_idx++) {
                 *(int*)(&read_bytes[threadIdx.x * 4 + base_idx * blockDim.x]) =
-                    *(int*)(&read_seq[read_index * 4 + base_idx * read_stride]);
+                    *(int*)(&read_seq[array_index + base_idx * read_stride]);
             }
         }
         __syncwarp();
