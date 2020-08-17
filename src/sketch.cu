@@ -227,6 +227,7 @@ __global__
 void process_reads(char * read_seq,
                    const size_t n_reads,
                    const size_t read_length,
+                   const size_t read_stride,
                    const int k,
                    uint64_t * signs,
                    const uint64_t binsize,
@@ -241,12 +242,11 @@ void process_reads(char * read_seq,
         // Load reads in block into shared memory
         // Cast to int to match 32-bit bank size
         // (access will still cause bank conflicts)
-        extern __shared__ char read_shared[];
         char *read_bytes = &read_shared[0];
         if (threadIdx.x < (blockDim.x + 3) / 4) {
             for (int base_idx = 0; base_idx < read_length; base_idx++) {
                 *(int*)(&read_bytes[threadIdx.x * 4 + base_idx * blockDim.x]) =
-                    *(int*)(&read_seq[read_index * 4 + base_idx * n_reads]);
+                    *(int*)(&read_seq[read_index * 4 + base_idx * read_stride]);
             }
         }
         __syncwarp();
@@ -306,12 +306,14 @@ void reportSketchProgress(volatile int * blocks_complete,
 
 
 DeviceReads::DeviceReads(const SeqBuf& seq_in,
-                         const size_t n_threads): d_reads(nullptr) {
+                         const size_t n_threads)
+    :d_reads(nullptr),
+     n_reads(seq_in.n_full_seqs()),
+     read_length(seq_in.max_length()),
+     read_stride(seq_in.n_full_seqs_padded())  {
     CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
     std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
-    n_reads = seq_in.n_full_seqs();
-    read_length = seq_in.max_length();
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
     CUDA_CALL( cudaMemcpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
                             cudaMemcpyDefault));
@@ -453,13 +455,14 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     //      This runs nthash on read sequence at all k-mer lengths
     //      Check vs signs and countmin on whether to add each
     //      (get this working for a single k-mer length first)
-    const size_t blockSize = 32;
+    const size_t blockSize = 64;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount, blockSize,
                     reads.length() * blockSize * sizeof(char)>>> (
         reads.read_ptr(),
         reads.count(),
         reads.length(),
+        reads.stride(),
         k,
         d_signs,
         binsize,
