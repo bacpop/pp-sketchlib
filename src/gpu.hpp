@@ -82,6 +82,7 @@ class DeviceReads {
         char * read_ptr() { return d_reads; }
         size_t count() const { return n_reads; }
         size_t length() const { return read_length; }
+        size_t stride() const { return read_stride; }
 
     private:
         // delete move and copy to avoid accidentally using them
@@ -91,6 +92,7 @@ class DeviceReads {
         char * d_reads;
         size_t n_reads;
         size_t read_length;
+        size_t read_stride;
 };
 
 void copyNtHashTablesToDevice();

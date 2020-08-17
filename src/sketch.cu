@@ -242,6 +242,7 @@ void process_reads(char * read_seq,
         // Load reads in block into shared memory
         // Cast to int to match 32-bit bank size
         // (access will still cause bank conflicts)
+        extern __shared__ char read_shared[];
         char *read_bytes = &read_shared[0];
         if (threadIdx.x < (blockDim.x + 3) / 4) {
             for (int base_idx = 0; base_idx < read_length; base_idx++) {
