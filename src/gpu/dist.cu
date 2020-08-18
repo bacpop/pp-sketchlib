@@ -74,10 +74,10 @@ float jaccard_dist(const uint64_t * sketch1,
 	size_t samebits = 0;
     for (int i = 0; i < sketchsize64; i++)
     {
+		int bin_index = i * bbits;
 		uint64_t bits = ~((uint64_t)0ULL);
-		for (int j = 0; j < bbits; j++)
-        {
-			long long bin_index = i * bbits + j;
+		for (int j = 0; j < bbits; j++) {
+			bin_index++;
 			bits &= ~(sketch1[bin_index * s1_stride] ^ sketch2[bin_index * s2_stride]);
 		}
 
