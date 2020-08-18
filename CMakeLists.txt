@@ -3,8 +3,8 @@ project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
 # Set sketch version
-execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/sketch.cu
+file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
+execute_process(COMMAND cat ${VERSION_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/sketch.cu
                 COMMAND openssl sha1
                 COMMAND cut -d " " -f 2
                 OUTPUT_VARIABLE sketch_hash)
@@ -31,6 +31,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Add libraries
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 find_package(pybind11 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
