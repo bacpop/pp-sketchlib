@@ -163,32 +163,22 @@ bool SeqBuf::move_next(size_t word_length) {
     *   Keeps track of base before k-mer length
     */
     bool next_seq = false;
-    if (!end)
-    {
+    if (!end) {
         next_base++;
 
-        if (next_base == current_seq->end())
-        {
+        if (next_base == current_seq->end()) {
             current_seq++;
             next_seq = true;
-            if (current_seq == sequence.end())
-            {
+            if (current_seq == sequence.end()) {
                 end = true;
-            }
-            else
-            {
+            } else {
                 next_base = current_seq->begin();
                 out_base = current_seq->end();
             }
-        }
-        else
-        {
-            if (out_base != current_seq->end())
-            {
+        } else {
+            if (out_base != current_seq->end()) {
                 out_base++;
-            }
-            else if ((next_base - word_length) >= current_seq->begin())
-            {
+            } else if ((next_base - word_length) >= current_seq->begin()) {
                 out_base = current_seq->begin();
             }
         }
