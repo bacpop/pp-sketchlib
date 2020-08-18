@@ -12,7 +12,7 @@
 #include <string>
 #include <tuple>
 
-#include "gpu.hpp"
+#include "gpu/gpu.hpp"
 #include "robin_hood.h"
 #include "dist/matrix.hpp"
 
