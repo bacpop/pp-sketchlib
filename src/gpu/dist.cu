@@ -66,8 +66,8 @@ T observed_excess(T obs, T exp, T max) {
 __device__
 float jaccard_dist(const uint64_t * sketch1,
                    const uint64_t * sketch2,
-				   const SketchStrides& s1_strides,
-				   const SketchStrides& s2_strides)
+				   const SketchStrides s1_strides,
+				   const SketchStrides s2_strides)
 {
 	size_t samebits = 0;
     for (int i = 0; i < s1_strides.sketchsize64; i++)
@@ -234,8 +234,7 @@ void calculate_query_dists(const uint64_t * ref,
 		query_start += query_strides.kmer_stride;
 	}
 
-	if (ref_idx < ref_n)
-	{
+	if (ref_idx < ref_n) {
 		// Run the regression, and store results in dists
 		simple_linear_regression(dists + dist_idx,
 								 dists + dist_n + dist_idx,
@@ -248,7 +247,7 @@ void calculate_query_dists(const uint64_t * ref,
 
 		update_progress(dist_idx, dist_n, blocks_complete);
 	}
-
+	__syncwarp();
 }
 
 // Takes a position in the condensed form distance matrix, converts into an
