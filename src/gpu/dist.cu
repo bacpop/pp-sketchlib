@@ -193,11 +193,8 @@ void calculate_query_dists(const uint64_t * ref,
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
 	float xsquaresum = 0; float ysquaresum = 0;
-	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++)
-	{
+	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
 		// Copy query sketch into __shared__ mem (on chip) for faster access within block
-		// Hopefully this doesn't suffer from bank conflicts as the sketch2 access in
-		// jaccard_distance() should result in a broadcast
 		// Uses all threads *in a single warp* to do the copy
 		// NB there is no disadvantage vs using multiple warps, as they would have to wait
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
@@ -213,8 +210,7 @@ void calculate_query_dists(const uint64_t * ref,
 
 		// Some threads at the end of the last block will have nothing to do
 		// Need to have conditional here to avoid block on __syncthreads() above
-		if (ref_idx < ref_n)
-		{
+		if (ref_idx < ref_n) {
 			// Calculate Jaccard distance at current k-mer length
 			float jaccard_obs = jaccard_dist(ref_start, query_shared,
 											 ref_strides.sketchsize64,
@@ -271,18 +267,15 @@ void calculate_self_dists(const uint64_t * ref,
 						  const uint16_t * ref_idx_lookup,
 						  const SketchStrides ref_strides,
 						  const RandomStrides random_strides,
-						  volatile int * blocks_complete)
-{
+						  volatile int * blocks_complete) {
 	// Grid-stride loop
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
-	for (long long dist_idx = index; dist_idx < dist_n; dist_idx += stride)
-	{
+	for (long long dist_idx = index; dist_idx < dist_n; dist_idx += stride) {
 		long i, j;
 		i = calc_row_idx(dist_idx, ref_n);
 		j = calc_col_idx(dist_idx, i, ref_n);
-		if (j <= i)
-		{
+		if (j <= i) {
 			continue;
 		}
 
@@ -292,8 +285,7 @@ void calculate_self_dists(const uint64_t * ref,
 
 		float xsum = 0; float ysum = 0; float xysum = 0;
 		float xsquaresum = 0; float ysquaresum = 0;
-		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx)
-		{
+		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx) {
 			// Get Jaccard distance and move pointers to next k-mer
 			float jaccard_obs = jaccard_dist(ref_start, query_start,
 											 ref_strides.sketchsize64,
