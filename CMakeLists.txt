@@ -72,7 +72,7 @@ if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
-    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu src/sketch.cu)
+    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist/dist.cu src/sketch/sketch.cu)
     target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
@@ -80,24 +80,24 @@ if(CMAKE_CUDA_COMPILER)
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden")
     # CPU code/gcc compiled code needed by cuda lib
-    target_sources("${TARGET_NAME}" PRIVATE src/gpu_api.cpp)
+    target_sources("${TARGET_NAME}" PRIVATE src/gpu/gpu_api.cpp)
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
 endif()
 
 # Compile CPU library
 target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
-                                    src/dist.cpp
-                                    src/matrix_ops.cpp
+                                    src/dist/dist.cpp
+                                    src/dist/matrix_ops.cpp
                                     src/reference.cpp
-                                    src/seqio.cpp
-                                    src/countmin.cpp
-                                    src/sketch.cpp
-                                    src/database.cpp
+                                    src/sketch/seqio.cpp
+                                    src/sketch/countmin.cpp
+                                    src/sketch/sketch.cpp
+                                    src/database/database.cpp
                                     src/api.cpp
-                                    src/linear_regression.cpp
-                                    src/rng.cpp
-                                    src/random_match.cpp)
+                                    src/dist/linear_regression.cpp
+                                    src/random/rng.cpp
+                                    src/random/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
     INTERPROCEDURAL_OPTIMIZATION TRUE

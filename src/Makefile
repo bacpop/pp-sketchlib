@@ -43,9 +43,9 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 
 PROGRAMS=sketch_test matrix_test read_test
 
-SKETCH_OBJS=dist.o matrix_ops.o reference.o seqio.o sketch.o database.o countmin.o api.o linear_regression.o rng.o random_match.o
-GPU_SKETCH_OBJS=gpu_api.o
-CUDA_OBJS=dist.cu.o sketch.cu.o
+SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sketch.o database/database.o sketch/countmin.o api.o dist/linear_regression.o random/rng.o random/random_match.o
+GPU_SKETCH_OBJS=gpu/gpu_api.o
+CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 
 all: $(PROGRAMS)
 
@@ -67,7 +67,7 @@ read_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) read_test.o
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ device_link.o -o $@ $(CUDA_LDLIBS)
 
 version.h:
-	cat sketch.cpp sketch.hpp ntHashIterator.hpp nthash.hpp stHashIterator.hpp sketch.cu nthash_tables.hpp | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
+	cat sketch/*.cpp sketch/*.hpp gpu/sketch.cu | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
 database.o: version.h
 
