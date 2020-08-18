@@ -277,9 +277,9 @@ void calculate_self_dists(const uint64_t * ref,
 		}
 	}
 	// j (column) is given by multiplying the blocks needed for this i (row)
-	// by the block size, plus offsets of i and the thread index
+	// by the block size, plus offsets of i + 1 and the thread index
 	int blocksPerQuery = (ref_n + blockDim.x - 2 - i) / blockDim.x;
-	int j = i + (blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x + threadIdx.x;
+	int j = i + 1 + (blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x + threadIdx.x;
 
 	const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
 	const uint64_t* query_start = ref + j * ref_strides.sample_stride;
