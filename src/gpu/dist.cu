@@ -283,11 +283,12 @@ void calculate_self_dists(const uint64_t * ref,
 
 	const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
 	const uint64_t* query_start = ref + j * ref_strides.sample_stride;
-	long dist_idx = 0;
+	long long dist_idx = 0;
 	if (j < ref_n) {
 		dist_idx = square_to_condensed(i, j, ref_n);
 	}
 	__syncwarp();
+	printf("b.idx:%d t.idx:%d i:%d j:%d d_idx:%lld\n", blockIdx.x, threadIdx.x, i, j, dist_idx);
 
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
@@ -495,19 +496,18 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 										const size_t query_samples,
 										const size_t dist_rows,
 									    const bool self) {
-	size_t blockSize = std::min(512, (int)(32 * (ref_samples + 32 - 1) / 32));
+	// Each block processes a single query. As max size is 512 threads
+	// per block, may need multiple blocks (non-exact multiples lead
+	// to some wasted computation in threads)
+	// We take the next multiple of 32 that is larger than the number of
+	// reference sketches, up to a maximum of 512
+	size_t blockSize = std::min(512, 32 * static_cast<int>((ref_samples + 32 - 1) / 32));
 	size_t blockCount = 0;
 	if (self) {
 		for (int i = 0; i < ref_samples; i++) {
 			blockCount += (ref_samples + blockSize - 2 - i) / blockSize;
 		}
 	} else {
-		// Each block processes a single query. As max size is 512 threads
-		// per block, may need multiple blocks (non-exact multiples lead
-		// to some wasted computation in threads)
-		// We take the next multiple of 32 that is larger than the number of
-		// reference sketches, up to a maximum of 512
-		blockSize = std::min(512, (int)(32 * (ref_samples + 32 - 1) / 32));
 		size_t blocksPerQuery = (ref_samples + blockSize - 1) / blockSize;
 		blockCount = blocksPerQuery * query_samples;
 	}
