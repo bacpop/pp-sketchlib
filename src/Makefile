@@ -56,13 +56,13 @@ install: all
 	install -d $(BINDIR)
 	install $(PROGRAMS) $(BINDIR)
 
-sketch_test: $(SKETCH_OBJS) main.o
+sketch_test: $(SKETCH_OBJS) test/main.o
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
-matrix_test: $(SKETCH_OBJS) matrix_test.o
+matrix_test: $(SKETCH_OBJS) test/matrix_test.o
 	$(LINK.cpp) $^ -o $@ $(LDLIBS)
 
-read_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) read_test.o
+read_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) test/read_test.o
 	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ device_link.o -o $@ $(CUDA_LDLIBS)
 
