@@ -268,44 +268,62 @@ void calculate_self_dists(const uint64_t * ref,
 						  const SketchStrides ref_strides,
 						  const RandomStrides random_strides,
 						  volatile int * blocks_complete) {
-	// Grid-stride loop
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	int stride = blockDim.x * gridDim.x;
-	for (long long dist_idx = index; dist_idx < dist_n; dist_idx += stride) {
-		long i, j;
-		i = calc_row_idx(dist_idx, ref_n);
-		j = calc_col_idx(dist_idx, i, ref_n);
-		if (j <= i) {
-			continue;
+	// Blocks have the same i -- calculate blocks needed by each row up
+	// to this point (blockIdx.x)
+	int blocksDone = 0;
+	int i;
+	for (i = 0; i < ref_n; i++) {
+		blocksDone += (ref_n + blockDim.x - 2 - i) / blockDim.x;
+		if (blocksDone > blockIdx.x) {
+			break;
 		}
+	}
+	// j (column) is given by multiplying the blocks needed for this i (row)
+	// by the block size, plus offsets of i and the thread index
+	int blocksPerQuery = (ref_n + blockDim.x - 2 - i) / blockDim.x;
+	int j = i + (blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x + threadIdx.x;
 
-		// Set pointers to start of sketch i, j
-		const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
-		const uint64_t* query_start = ref + j * ref_strides.sample_stride;
+	const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
+	const uint64_t* query_start = ref + j * ref_strides.sample_stride;
+	long dist_idx = 0;
+	if (j < ref_n) {
+		dist_idx = square_to_condensed(i, j, ref_n);
+	}
+	__syncwarp();
 
-		float xsum = 0; float ysum = 0; float xysum = 0;
-		float xsquaresum = 0; float ysquaresum = 0;
-		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx) {
-			// Get Jaccard distance and move pointers to next k-mer
-			float jaccard_obs = jaccard_dist(ref_start, query_start,
+	// Calculate Jaccard distances over k-mer lengths
+	float xsum = 0; float ysum = 0; float xysum = 0;
+	float xsquaresum = 0; float ysquaresum = 0;
+	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
+		// Copy query sketch into __shared__ mem (on chip) for faster access within block
+		// Uses all threads *in a single warp* to do the copy
+		// NB there is no disadvantage vs using multiple warps, as they would have to wait
+		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
+		extern __shared__ uint64_t query_shared[];
+		size_t sketch_bins = ref_strides.bbits * ref_strides.sketchsize64;
+		size_t sketch_stride = ref_strides.bin_stride;
+		if (threadIdx.x < warpSize) {
+			for (long lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
+				query_shared[lidx] = query_start[lidx * sketch_stride];
+			}
+		}
+		__syncthreads();
+
+		// Some threads at the end of the last block will have nothing to do
+		// Need to have conditional here to avoid block on __syncthreads() above
+		if (j < ref_n) {
+			// Calculate Jaccard distance at current k-mer length
+			float jaccard_obs = jaccard_dist(ref_start, query_shared,
 											 ref_strides.sketchsize64,
-										     ref_strides.bbits,
+											 ref_strides.bbits,
 											 ref_strides.bin_stride,
-											 ref_strides.bin_stride);
-			ref_start += ref_strides.kmer_stride;
-			query_start += ref_strides.kmer_stride;
+											 1);
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
-												  ref_idx_lookup[i] * random_strides.cluster_inner_stride +
-												  ref_idx_lookup[j] * random_strides.cluster_outer_stride];
+													ref_idx_lookup[i] * random_strides.cluster_inner_stride +
+													ref_idx_lookup[j] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			//printf("i:%ld j:%ld k:%d r_idx:%ld r:%f jac_obs:%f jac_adj:%f y:%f\n",
-			//  i, j, kmer_idx,
-			//	kmer_idx * random_strides.kmer_stride +
-			//	ref_idx_lookup[i] * random_strides.cluster_inner_stride +
-			//	ref_idx_lookup[j] * random_strides.cluster_outer_stride,
-			//  jaccard_expected, jaccard_obs, jaccard_expected, y);
 
 			// Running totals for regression
 			xsum += kmers[kmer_idx];
@@ -315,6 +333,12 @@ void calculate_self_dists(const uint64_t * ref,
 			ysquaresum += y * y;
 		}
 
+		// Move to next k-mer length
+		ref_start += ref_strides.kmer_stride;
+		query_start += ref_strides.kmer_stride;
+	}
+
+	if (j < ref_n) {
 		// Run the regression, and store results in dists
 		simple_linear_regression(dists + dist_idx,
 								 dists + dist_n + dist_idx,
@@ -326,8 +350,8 @@ void calculate_self_dists(const uint64_t * ref,
 								 kmer_n);
 
 		update_progress(dist_idx, dist_n, blocks_complete);
-		__syncwarp();
 	}
+	__syncwarp();
 }
 
 /***************
@@ -343,8 +367,7 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	const std::vector<size_t>& kmer_lengths,
 	SketchStrides& strides,
 	const size_t start_sample_idx,
-	const size_t end_sample_idx)
-{
+	const size_t end_sample_idx) {
 	// Set strides structure
 	size_t num_sketches = end_sample_idx - start_sample_idx;
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
@@ -359,10 +382,8 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	auto flat_ref_it = flat_ref.begin();
 	for (auto sample_it = sketches.cbegin() + start_sample_idx;
 		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx);
-		 sample_it++)
-	{
-		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
-		{
+		 sample_it++) {
+		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
 			thrust::copy(sample_it->get_sketch(*kmer_it).cbegin(),
 						 sample_it->get_sketch(*kmer_it).cend(),
 						 flat_ref_it);
@@ -379,8 +400,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	const std::vector<size_t>& kmer_lengths,
 	SketchStrides& strides,
 	const size_t start_sample_idx,
-	const size_t end_sample_idx)
-{
+	const size_t end_sample_idx) {
 	// Set strides
 	size_t num_sketches = end_sample_idx - start_sample_idx;
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
@@ -477,11 +497,12 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 										const size_t query_samples,
 										const size_t dist_rows,
 									    const bool self) {
-	size_t blockSize, blockCount;
+	size_t blockSize = std::min(512, (int)(32 * (ref_samples + 32 - 1) / 32));
+	size_t blockCount = 0;
 	if (self) {
-		// Empirically a blockSize (selfBlockSize global const) of 32 or 256 seemed best
-		blockSize = selfBlockSize;
-		blockCount = (dist_rows + blockSize - 1) / blockSize;
+		for (int i = 0; i < ref_n; i++) {
+			blockCount += (ref_n + blockSize - 2 - i) / blockSize;
+		}
 	} else {
 		// Each block processes a single query. As max size is 512 threads
 		// per block, may need multiple blocks (non-exact multiples lead
@@ -576,7 +597,8 @@ std::vector<float> dispatchDists(
 													   sketch_subsample.ref_size,
 													   dist_rows,
 													   self);
-		calculate_self_dists<<<blockCount, blockSize>>>
+		calculate_self_dists<<<blockCount, blockSize,
+							   ref_strides.sketchsize64*ref_strides.bbits*sizeof(uint64_t)>>>
 			(
 				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 				sketch_subsample.ref_size,
