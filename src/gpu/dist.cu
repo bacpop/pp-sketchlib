@@ -65,30 +65,32 @@ T observed_excess(T obs, T exp, T max) {
 // CUDA version of bindash dist function (see dist.cpp)
 __device__
 float jaccard_dist(const uint64_t * sketch1,
-                   const uint64_t * sketch2,
-				   const SketchStrides s1_strides,
-				   const SketchStrides s2_strides)
+				   const uint64_t * sketch2,
+				   const size_t sketchsize64,
+				   const size_t bbits,
+				   const size_t s1_stride,
+				   const size_t s2_stride)
 {
 	size_t samebits = 0;
-    for (int i = 0; i < s1_strides.sketchsize64; i++)
+    for (int i = 0; i < sketchsize64; i++)
     {
 		uint64_t bits = ~((uint64_t)0ULL);
-		for (int j = 0; j < s1_strides.bbits; j++)
+		for (int j = 0; j < bbits; j++)
         {
-			long long bin_index = i * s1_strides.bbits + j;
-			bits &= ~(sketch1[bin_index * s1_strides.bin_stride] ^ sketch2[bin_index * s2_strides.bin_stride]);
+			long long bin_index = i * bbits + j;
+			bits &= ~(sketch1[bin_index * s1_stride] ^ sketch2[bin_index * s2_stride]);
 		}
 
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
 	}
-	const size_t maxnbits = s1_strides.sketchsize64 * NBITS(uint64_t);
-	const size_t expected_samebits = (maxnbits >> s1_strides.bbits);
+	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
+	const size_t expected_samebits = (maxnbits >> bbits);
 	size_t intersize = samebits;
 	if (!expected_samebits)
 	{
 		size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
 	}
-	size_t unionsize = NBITS(uint64_t) * s1_strides.sketchsize64;
+	size_t unionsize = NBITS(uint64_t) * sketchsize64;
     float jaccard = __fdiv_ru(intersize, unionsize);
     return(jaccard);
 }
@@ -200,9 +202,11 @@ void calculate_query_dists(const uint64_t * ref,
 		// NB there is no disadvantage vs using multiple warps, as they would have to wait
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
 		extern __shared__ uint64_t query_shared[];
+		size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
+		size_t sketch_stride = query_strides.bin_stride;
 		if (threadIdx.x < warpSize) {
-			for (long lidx = threadIdx.x; lidx < query_strides.bbits * query_strides.sketchsize64; lidx += warpSize) {
-				query_shared[lidx] = query_start[lidx * query_strides.bin_stride];
+			for (long lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
+				query_shared[lidx] = query_start[lidx * sketch_stride];
 			}
 		}
 		__syncthreads();
@@ -212,7 +216,11 @@ void calculate_query_dists(const uint64_t * ref,
 		if (ref_idx < ref_n)
 		{
 			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, query_strides);
+			float jaccard_obs = jaccard_dist(ref_start, query_start,
+											 ref_strides.sketchsize64,
+											 ref_strides.bbits,
+											 ref_strides.bin_stride,
+											 query_strides.bin_stride);
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
@@ -287,7 +295,11 @@ void calculate_self_dists(const uint64_t * ref,
 		for (int kmer_idx = 0; kmer_idx < kmer_n; ++kmer_idx)
 		{
 			// Get Jaccard distance and move pointers to next k-mer
-			float jaccard_obs = jaccard_dist(ref_start, query_start, ref_strides, ref_strides);
+			float jaccard_obs = jaccard_dist(ref_start, query_start,
+											 ref_strides.sketchsize64,
+										     ref_strides.bbits,
+											 ref_strides.bin_stride,
+											 ref_strides.bin_stride);
 			ref_start += ref_strides.kmer_stride;
 			query_start += ref_strides.kmer_stride;
 
