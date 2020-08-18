@@ -28,8 +28,6 @@
 #include "gpu.hpp"
 #include "cuda.cuh"
 
-const int selfBlockSize = 32;
-
 // Memory on device for each operation
 struct DeviceMemory {
 	thrust::device_vector<uint64_t> ref_sketches;
@@ -500,8 +498,8 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 	size_t blockSize = std::min(512, (int)(32 * (ref_samples + 32 - 1) / 32));
 	size_t blockCount = 0;
 	if (self) {
-		for (int i = 0; i < ref_n; i++) {
-			blockCount += (ref_n + blockSize - 2 - i) / blockSize;
+		for (int i = 0; i < ref_samples; i++) {
+			blockCount += (ref_samples + blockSize - 2 - i) / blockSize;
 		}
 	} else {
 		// Each block processes a single query. As max size is 512 threads
