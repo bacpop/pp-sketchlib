@@ -19,7 +19,7 @@
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
 
-#include "seqio.hpp"
+#include "sketch/seqio.hpp"
 
 class RandomMC;
 

@@ -3,11 +3,11 @@
 #include <iostream>
 
 #include "reference.hpp"
-#include "database.hpp"
-#include "random_match.hpp"
+#include "database/database.hpp"
+#include "random/random_match.hpp"
 #include "api.hpp"
-#include "countmin.hpp"
-#include "seqio.hpp"
+#include "sketch/countmin.hpp"
+#include "sketch/seqio.hpp"
 
 int main (int argc, char* argv[])
 {

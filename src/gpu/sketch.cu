@@ -12,7 +12,7 @@
 #include "cuda.cuh"
 
 // nthash
-#include "nthash_tables.hpp"
+#include "sketch/nthash_tables.hpp"
 
 // Tables on device
 __constant__ uint64_t d_seedTab[256];

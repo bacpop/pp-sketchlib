@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "reference.hpp"
-#include "database.hpp"
+#include "database/database.hpp"
 #include "api.hpp"
 
 int main (int argc, char* argv[])

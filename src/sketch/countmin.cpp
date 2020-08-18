@@ -11,8 +11,6 @@
 #include <iterator>
 #include <limits>
 
-#include "countmin.hpp"
-
 // Constructors
 
 KmerCounter::KmerCounter(const uint8_t min_count, const size_t num_hashes)

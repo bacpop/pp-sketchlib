@@ -10,11 +10,11 @@
 
 #include "reference.hpp"
 
-#include "sketch.hpp"
-#include "dist.hpp"
-#include "random_match.hpp"
+#include "sketch/sketch.hpp"
+#include "dist/dist.hpp"
+#include "random/random_match.hpp"
 
-#include "bitfuncs.hpp"
+#include "sketch/bitfuncs.hpp"
 
 auto key_selector = [](auto pair){return pair.first;};
 // auto value_selector = [](auto pair){return pair.second;};

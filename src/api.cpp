@@ -10,9 +10,9 @@
 #include <H5Cpp.h>
 
 #include "api.hpp"
-#include "gpu.hpp"
+#include "gpu/gpu.hpp"
 #include "reference.hpp"
-#include "database.hpp"
+#include "database/database.hpp"
 
 using namespace Eigen;
 

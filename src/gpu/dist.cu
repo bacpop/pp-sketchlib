@@ -24,7 +24,7 @@
 #include <thrust/copy.h>
 
 // internal headers
-#include "bitfuncs.hpp"
+#include "sketch/bitfuncs.hpp"
 #include "gpu.hpp"
 #include "cuda.cuh"
 
