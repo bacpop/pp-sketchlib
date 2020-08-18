@@ -216,11 +216,11 @@ void calculate_query_dists(const uint64_t * ref,
 		if (ref_idx < ref_n)
 		{
 			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref_start, query_start,
+			float jaccard_obs = jaccard_dist(ref_start, query_shared,
 											 ref_strides.sketchsize64,
 											 ref_strides.bbits,
 											 ref_strides.bin_stride,
-											 query_strides.bin_stride);
+											 1);
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
