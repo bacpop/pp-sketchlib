@@ -163,7 +163,8 @@ long long square_to_condensed(long i, long j, long n) {
 // but callable from the host
 
 __global__
-void calculate_dists(const uint64_t * ref,
+void calculate_dists(const bool self,
+					 const uint64_t * ref,
 					 const long ref_n,
 					 const uint64_t * query,
 					 const long query_n,
@@ -180,24 +181,25 @@ void calculate_dists(const uint64_t * ref,
 					 volatile int * blocks_complete) {
 	// Calculate indices for query, ref and results
 	int ref_idx, query_idx, dist_idx;
-	if (ref == query) {
+	if (self) {
 		// Blocks have the same i -- calculate blocks needed by each row up
 		// to this point (blockIdx.x)
 		int blocksDone = 0;
-		for (ref_idx = 0; ref_idx < ref_n; ref_idx++) {
-			blocksDone += (ref_n + blockDim.x - 2 - ref_idx) / blockDim.x;
+		for (query_idx = 0; query_idx < ref_n; query_idx++) {
+			blocksDone += (ref_n + blockDim.x - 2 - query_idx) / blockDim.x;
 			if (blocksDone > blockIdx.x) {
 				break;
 			}
 		}
 		// j (column) is given by multiplying the blocks needed for this i (row)
 		// by the block size, plus offsets of i + 1 and the thread index
-		int blocksPerQuery = (ref_n + blockDim.x - 2 - ref_idx) / blockDim.x;
-		query_idx = ref_idx + 1 + threadIdx.x +
-						(blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x;
+		int blocksPerQuery = (ref_n + blockDim.x - 2 - query_idx) / blockDim.x;
+		ref_idx = query_idx + 1 + threadIdx.x +
+				  (blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x;
 
-		if (j < ref_n) {
-			dist_idx = square_to_condensed(i, j, ref_n);
+		if (ref_idx < ref_n) {
+			// Order of ref/query reversed here to give correct output order
+			dist_idx = square_to_condensed(query_idx, ref_idx, ref_n);
 		}
 	} else {
 		int blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
@@ -248,10 +250,11 @@ void calculate_dists(const uint64_t * ref,
 			//printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, r1, r2, jaccard_obs, y);
 
 			// Running totals for regression
-			xsum += kmers[kmer_idx];
+			int kmer = kmers[kmer_idx];
+			xsum += kmer;
 			ysum += y;
-			xysum += kmers[kmer_idx] * y;
-			xsquaresum += kmers[kmer_idx] * kmers[kmer_idx];
+			xysum += kmer * y;
+			xsquaresum += kmer * kmer;
 			ysquaresum += y * y;
 		}
 
@@ -523,6 +526,7 @@ std::vector<float> dispatchDists(
 		calculate_dists<<<blockCount, blockSize,
 						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 			(
+				self,
 				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 				sketch_subsample.ref_size,
 				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
@@ -565,6 +569,7 @@ std::vector<float> dispatchDists(
 		calculate_dists<<<blockCount, blockSize,
 						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
+			self,
 			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 			sketch_subsample.ref_size,
 			thrust::raw_pointer_cast(&device_arrays.query_sketches[0]),
