@@ -76,18 +76,20 @@ float jaccard_dist(const uint64_t * sketch1,
 		uint64_t bits = ~((uint64_t)0ULL);
 		for (int j = 0; j < bbits; j++) {
 			bin_index++;
+			// Almost all kernel time is spent on this line (bbits * sketchsize64 iterations)
 			bits &= ~(sketch1[bin_index * s1_stride] ^ sketch2[bin_index * s2_stride]);
 		}
 
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
 	}
+
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> bbits);
 	size_t intersize = samebits;
-	if (!expected_samebits)
-	{
+	if (!expected_samebits) {
 		size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
 	}
+
 	size_t unionsize = NBITS(uint64_t) * sketchsize64;
     float jaccard = __fdiv_ru(intersize, unionsize);
     return(jaccard);
@@ -104,13 +106,11 @@ void simple_linear_regression(float * const &core_dist,
 							  const float xysum,
 							  const float xsquaresum,
 							  const float ysquaresum,
-							  const int n)
-{
-	// Here I use CUDA fast-math intrinsics on floats, which give comparable accuracy
-	// --use-fast-math compile option also possible, but gives less control
+							  const int n) {
+	// CUDA fast-math intrinsics on floats, which give comparable accuracy
+	// Speed gain is fairly minimal, as most time spent on Jaccard distance
 	// __fmul_ru(x, y) = x * y and rounds up.
 	// __fpow(x, a) = x^a give 0 for x<0, so not using here (and it is slow)
-	// could also replace add / subtract, but becomes less readable
 	float xbar = xsum / n;
 	float ybar = ysum / n;
     float x_diff = xsquaresum - __fmul_ru(xsum, xsum)/n;
@@ -162,10 +162,8 @@ long long square_to_condensed(long i, long j, long n) {
 // Main kernel functions run on the device,
 // but callable from the host
 
-// To calculate distance of query sketches from a panel
-// of references
 __global__
-void calculate_query_dists(const uint64_t * ref,
+void calculate_dists(const uint64_t * ref,
 					 const long ref_n,
 					 const uint64_t * query,
 					 const long query_n,
@@ -181,10 +179,34 @@ void calculate_query_dists(const uint64_t * ref,
 					 const RandomStrides random_strides,
 					 volatile int * blocks_complete) {
 	// Calculate indices for query, ref and results
-	long blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
-	long query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
-	long ref_idx = (blockIdx.x % blocksPerQuery) * blockDim.x + threadIdx.x;
-	long dist_idx = query_idx * ref_n + ref_idx;
+	int ref_idx, query_idx, dist_idx;
+	if (ref == query) {
+		// Blocks have the same i -- calculate blocks needed by each row up
+		// to this point (blockIdx.x)
+		int blocksDone = 0;
+		for (ref_idx = 0; ref_idx < ref_n; ref_idx++) {
+			blocksDone += (ref_n + blockDim.x - 2 - ref_idx) / blockDim.x;
+			if (blocksDone > blockIdx.x) {
+				break;
+			}
+		}
+		// j (column) is given by multiplying the blocks needed for this i (row)
+		// by the block size, plus offsets of i + 1 and the thread index
+		int blocksPerQuery = (ref_n + blockDim.x - 2 - ref_idx) / blockDim.x;
+		query_idx = ref_idx + 1 + threadIdx.x +
+						(blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x;
+
+		if (j < ref_n) {
+			dist_idx = square_to_condensed(i, j, ref_n);
+		}
+	} else {
+		int blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
+		query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
+		ref_idx = (blockIdx.x % blocksPerQuery) * blockDim.x + threadIdx.x;
+		dist_idx = query_idx * ref_n + ref_idx;
+	}
+	__syncwarp();
+
 	const uint64_t* ref_start = ref + ref_idx * ref_strides.sample_stride;
 	const uint64_t* query_start = query + query_idx * query_strides.sample_stride;
 
@@ -192,15 +214,17 @@ void calculate_query_dists(const uint64_t * ref,
 	float xsum = 0; float ysum = 0; float xysum = 0;
 	float xsquaresum = 0; float ysquaresum = 0;
 	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
-		// Copy query sketch into __shared__ mem (on chip) for faster access within block
+		// Copy query sketch into __shared__ mem
 		// Uses all threads *in a single warp* to do the copy
 		// NB there is no disadvantage vs using multiple warps, as they would have to wait
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
+		// NB for query these reads will be coalesced, but for ref they won't, as can't
+		// coalesce both here (bin inner stride) and in jaccard (sample inner stride)
 		extern __shared__ uint64_t query_shared[];
 		size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
 		size_t sketch_stride = query_strides.bin_stride;
 		if (threadIdx.x < warpSize) {
-			for (long lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
+			for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
 				query_shared[lidx] = query_start[lidx * sketch_stride];
 			}
 		}
@@ -237,107 +261,6 @@ void calculate_query_dists(const uint64_t * ref,
 	}
 
 	if (ref_idx < ref_n) {
-		// Run the regression, and store results in dists
-		simple_linear_regression(dists + dist_idx,
-								 dists + dist_n + dist_idx,
-								 xsum,
-								 ysum,
-								 xysum,
-								 xsquaresum,
-								 ysquaresum,
-								 kmer_n);
-
-		update_progress(dist_idx, dist_n, blocks_complete);
-	}
-	__syncwarp();
-}
-
-// Takes a position in the condensed form distance matrix, converts into an
-// i, j for the ref/query vectors. Calls regression with these start points
-__global__
-void calculate_self_dists(const uint64_t * ref,
-					      const long ref_n,
-					      const int * kmers,
-					      const int kmer_n,
-					      float * dists,
-						  const long long dist_n,
-						  const float * random_table,
-						  const uint16_t * ref_idx_lookup,
-						  const SketchStrides ref_strides,
-						  const RandomStrides random_strides,
-						  volatile int * blocks_complete) {
-	// Blocks have the same i -- calculate blocks needed by each row up
-	// to this point (blockIdx.x)
-	int blocksDone = 0;
-	int i;
-	for (i = 0; i < ref_n; i++) {
-		blocksDone += (ref_n + blockDim.x - 2 - i) / blockDim.x;
-		if (blocksDone > blockIdx.x) {
-			break;
-		}
-	}
-	// j (column) is given by multiplying the blocks needed for this i (row)
-	// by the block size, plus offsets of i + 1 and the thread index
-	int blocksPerQuery = (ref_n + blockDim.x - 2 - i) / blockDim.x;
-	int j = i + 1 + (blockIdx.x - (blocksDone - blocksPerQuery)) * blockDim.x + threadIdx.x;
-
-	const uint64_t* ref_start = ref + i * ref_strides.sample_stride;
-	const uint64_t* query_start = ref + j * ref_strides.sample_stride;
-	long long dist_idx = 0;
-	if (j < ref_n) {
-		dist_idx = square_to_condensed(i, j, ref_n);
-	}
-	__syncwarp();
-	printf("b.idx:%d t.idx:%d i:%d j:%d d_idx:%lld\n", blockIdx.x, threadIdx.x, i, j, dist_idx);
-
-	// Calculate Jaccard distances over k-mer lengths
-	float xsum = 0; float ysum = 0; float xysum = 0;
-	float xsquaresum = 0; float ysquaresum = 0;
-	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
-		// Copy query sketch into __shared__ mem (on chip) for faster access within block
-		// Uses all threads *in a single warp* to do the copy
-		// NB there is no disadvantage vs using multiple warps, as they would have to wait
-		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
-		extern __shared__ uint64_t query_shared[];
-		size_t sketch_bins = ref_strides.bbits * ref_strides.sketchsize64;
-		size_t sketch_stride = ref_strides.bin_stride;
-		if (threadIdx.x < warpSize) {
-			for (long lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
-				query_shared[lidx] = query_start[lidx * sketch_stride];
-			}
-		}
-		__syncthreads();
-
-		// Some threads at the end of the last block will have nothing to do
-		// Need to have conditional here to avoid block on __syncthreads() above
-		if (j < ref_n) {
-			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref_start, query_shared,
-											 ref_strides.sketchsize64,
-											 ref_strides.bbits,
-											 ref_strides.bin_stride,
-											 1);
-
-			// Adjust for random matches
-			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
-													ref_idx_lookup[i] * random_strides.cluster_inner_stride +
-													ref_idx_lookup[j] * random_strides.cluster_outer_stride];
-			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-
-			// Running totals for regression
-			xsum += kmers[kmer_idx];
-			ysum += y;
-			xysum += kmers[kmer_idx] * y;
-			xsquaresum += kmers[kmer_idx] * kmers[kmer_idx];
-			ysquaresum += y * y;
-		}
-
-		// Move to next k-mer length
-		ref_start += ref_strides.kmer_stride;
-		query_start += ref_strides.kmer_stride;
-	}
-
-	if (j < ref_n) {
 		// Run the regression, and store results in dists
 		simple_linear_regression(dists + dist_idx,
 								 dists + dist_n + dist_idx,
@@ -559,6 +482,8 @@ std::vector<float> dispatchDists(
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
 	const bool self) {
+	cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+	cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 
 	// Progress meter
 	volatile int *blocks_complete;
@@ -570,9 +495,6 @@ std::vector<float> dispatchDists(
 	long long dist_rows;
 	if (self) {
 		// square 'self' block
-		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeDefault);
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-
 		dist_rows = static_cast<long long>(
 						0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
 		device_arrays =
@@ -595,9 +517,14 @@ std::vector<float> dispatchDists(
 													   sketch_subsample.ref_size,
 													   dist_rows,
 													   self);
-		calculate_self_dists<<<blockCount, blockSize,
-							   ref_strides.sketchsize64*ref_strides.bbits*sizeof(uint64_t)>>>
+
+		// Third argument is the size of __shared__ memory needed by a thread block
+		// This is equal to the query sketch size in bytes (at a single k-mer length)
+		calculate_dists<<<blockCount, blockSize,
+						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 			(
+				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
+				sketch_subsample.ref_size,
 				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 				sketch_subsample.ref_size,
 				thrust::raw_pointer_cast(&device_arrays.kmers[0]),
@@ -606,6 +533,8 @@ std::vector<float> dispatchDists(
 				dist_rows,
 				thrust::raw_pointer_cast(&device_arrays.random_table[0]),
 				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+				ref_strides,
 				ref_strides,
 				random_strides,
 				blocks_complete
@@ -613,9 +542,6 @@ std::vector<float> dispatchDists(
 		reportDistProgress(blocks_complete, dist_rows);
 	} else {
 		// 'query' block
-		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
-
 		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
 		device_arrays = loadDeviceMemory(
 			ref_strides,
@@ -636,10 +562,8 @@ std::vector<float> dispatchDists(
 													   dist_rows,
 													   self);
 
-		// Third argument is the size of __shared__ memory needed by a thread block
-		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_query_dists<<<blockCount, blockSize,
-								query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+		calculate_dists<<<blockCount, blockSize,
+						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 		(
 			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
 			sketch_subsample.ref_size,
@@ -663,7 +587,9 @@ std::vector<float> dispatchDists(
 	// Copy results back to host
 	std::vector<float> dist_results(dist_rows * 2);
 	try {
-		thrust::copy(device_arrays.dist_mat.begin(), device_arrays.dist_mat.end(), dist_results.begin());
+		thrust::copy(device_arrays.dist_mat.begin(),
+					 device_arrays.dist_mat.end(),
+					 dist_results.begin());
 	} catch (thrust::system_error &e) {
 		// output a non-threatening but likely inaccurate error message and exit
 		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
@@ -671,15 +597,11 @@ std::vector<float> dispatchDists(
 		// and deal with it here
 		std::cerr << "Error getting result: " << std::endl;
 		std::cerr << e.what() << std::endl;
-		// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
 		exit(1);
 	}
 
 	cudaDeviceSynchronize();
-	// cdpErrchk( cudaFree(blocks_complete) ); // Not needed, not an array
 	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	return(dist_results);
 }
-
-
