@@ -226,8 +226,8 @@ void calculate_dists(const bool self,
 		extern __shared__ uint64_t query_shared[];
 		size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
 		size_t sketch_stride = query_strides.bin_stride;
-		if (threadIdx.x < warpSize) {
-			for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warpSize) {
+		if (threadIdx.x < warp_size) {
+			for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
 				query_shared[lidx] = query_start[lidx * sketch_stride];
 			}
 		}
@@ -288,7 +288,7 @@ void calculate_dists(const bool self,
 
 // Gives strides aligned to the warp size (32)
 inline size_t warpPad(const size_t stride) {
-	return(stride + (stride % warpSize ? warpSize - stride % warpSize : 0));
+	return(stride + (stride % warp_size ? warp_size - stride % warp_size : 0));
 }
 
 // Turn a vector of references into a flattened vector of

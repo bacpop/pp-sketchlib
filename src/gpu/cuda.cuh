@@ -6,6 +6,11 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
+// Using built in warpSize annoying in host code
+#if __CUDA_ARCH__ <= 800
+static const int warp_size = 32;
+#endif
+
 const int progressBitshift = 10; // Update every 2^10 = 1024 dists
 
 static void HandleCUDAError(const char *file, int line,
