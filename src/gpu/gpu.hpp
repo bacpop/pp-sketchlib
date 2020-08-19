@@ -76,6 +76,10 @@ class GPUCountMin {
         void reset();
 
     private:
+        // delete move and copy to avoid accidentally using them
+        GPUCountMin ( const GPUCountMin & ) = delete;
+        GPUCountMin ( GPUCountMin && ) = delete;
+
         unsigned int * _d_countmin_table;
 
         const unsigned int _table_width_bits;

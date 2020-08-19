@@ -19,25 +19,69 @@
 #include <algorithm>
 #include <iomanip>
 
-// cuda
-#include <thrust/device_vector.h>
-#include <thrust/copy.h>
-
 // internal headers
 #include "sketch/bitfuncs.hpp"
 #include "gpu.hpp"
 #include "cuda.cuh"
 
 // Memory on device for each operation
-struct DeviceMemory {
-	thrust::device_vector<uint64_t> ref_sketches;
-	thrust::device_vector<uint64_t> query_sketches;
-	thrust::device_vector<float> random_table;
-	thrust::device_vector<uint16_t> ref_random;
-	thrust::device_vector<uint16_t> query_random;
-	thrust::device_vector<int> kmers;
-	thrust::device_vector<float> dist_mat;
-};
+class DeviceMemory {
+	public:
+		// Defined below
+		DeviceMemory(SketchStrides& ref_strides,
+			SketchStrides& query_strides,
+			std::vector<Reference>& ref_sketches,
+			std::vector<Reference>& query_sketches,
+			const SketchSlice& sample_slice,
+			const FlatRandom& flat_random,
+			const std::vector<uint16_t>& ref_random_idx,
+			const std::vector<uint16_t>& query_random_idx,
+			const std::vector<size_t>& kmer_lengths,
+			long long dist_rows,
+			const bool self);
+
+		~DeviceMemory() {
+			CUDA_CALL(cudaFree(d_ref_sketches));
+			CUDA_CALL(cudaFree(d_query_sketches));
+			CUDA_CALL(cudaFree(d_random_table));
+			CUDA_CALL(cudaFree(d_ref_random));
+			CUDA_CALL(cudaFree(d_query_random));
+			CUDA_CALL(cudaFree(d_kmers));
+			CUDA_CALL(cudaFree(d_dist_mat));
+		}
+
+		std::vector<float> read_dists() {
+			cudaDeviceSynchronize();
+			std::vector<float> dists(_n_dists);
+			CUDA_CALL(cudaMemCpy(dists.data(),
+								 d_dist_mat,
+								 _n_dists * sizeof(float),
+								 cudaMemcpyDefault));
+            return dists;
+		}
+
+		uint64_t * ref_sketches() { return d_ref_sketches; }
+		uint64_t * query_sketches() { return d_query_sketches; }
+		float * random_table() { return d_random_table; }
+		uint16_t * ref_random() { return d_ref_random; }
+		uint16_t * query_random() { return d_query_random; }
+		int * kmers() { return d_kmers; }
+		float * dist_mat() { return d_dist_mat; }
+
+	private:
+		DeviceMemory ( const DeviceMemory & ) = delete;
+        DeviceMemory ( DeviceMemory && ) = delete;
+
+		size_t _n_dists;
+		uint64_t * d_ref_sketches;
+		uint64_t * d_query_sketches;
+		float * d_random_table;
+		uint16_t * d_ref_random;
+		uint16_t * d_query_random;
+		int * d_kmers;
+		float * d_dist_mat;
+	};
+}
 
 /******************
 *			      *
@@ -293,7 +337,7 @@ inline size_t warpPad(const size_t stride) {
 
 // Turn a vector of references into a flattened vector of
 // uint64 with strides bins * kmers * samples
-thrust::host_vector<uint64_t> flatten_by_bins(
+std::vector<uint64_t> flatten_by_bins(
 	const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
 	SketchStrides& strides,
@@ -312,13 +356,13 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
 
 	// Iterate over each dimension to flatten
-	thrust::host_vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
+	std::vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
 	auto flat_ref_it = flat_ref.begin();
 	for (auto sample_it = sketches.cbegin() + start_sample_idx;
 		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx);
 		 sample_it++) {
 		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
-			thrust::copy(sample_it->get_sketch(*kmer_it).cbegin(),
+			std::copy(sample_it->get_sketch(*kmer_it).cbegin(),
 						 sample_it->get_sketch(*kmer_it).cend(),
 						 flat_ref_it);
             flat_ref_it += strides.kmer_stride;
@@ -329,7 +373,7 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 
 // Turn a vector of queries into a flattened vector of
 // uint64 with strides samples * bins * kmers
-thrust::host_vector<uint64_t> flatten_by_samples(
+std::vector<uint64_t> flatten_by_samples(
 	const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
 	SketchStrides& strides,
@@ -347,12 +391,12 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	// This is 4x faster than striding by samples by looping over References vector,
 	// presumably because many fewer dereferences are being used
 	SketchStrides old_strides = strides;
-	thrust::host_vector<uint64_t> flat_bins = flatten_by_bins(sketches,
+	std::vector<uint64_t> flat_bins = flatten_by_bins(sketches,
 															  kmer_lengths,
 															  old_strides,
 															  start_sample_idx,
 															  end_sample_idx);
-	thrust::host_vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
+	std::vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
 	auto flat_ref_it = flat_ref.begin();
 	for (size_t kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
 		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++) {
@@ -370,7 +414,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 }
 
 // Sets up data structures and loads them onto the device
-DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
+DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 					  SketchStrides& query_strides,
 					  std::vector<Reference>& ref_sketches,
 					  std::vector<Reference>& query_sketches,
@@ -380,51 +424,72 @@ DeviceMemory loadDeviceMemory(SketchStrides& ref_strides,
 					  const std::vector<uint16_t>& query_random_idx,
 					  const std::vector<size_t>& kmer_lengths,
 					  long long dist_rows,
-					  const bool self) {
-	DeviceMemory loaded;
-	try {
-		// Set up reference sketches, flatten and copy to device
-		thrust::host_vector<uint64_t> flat_ref =
-			flatten_by_samples(ref_sketches,
-								kmer_lengths,
-								ref_strides,
-								sample_slice.ref_offset,
-								sample_slice.ref_offset + sample_slice.ref_size);
-		loaded.ref_sketches = flat_ref; // copies to device
+					  const bool self)
+	: _n_dists(dist_rows * 2),
+	  d_query_sketches(nullptr),
+	  d_query_random(nullptr) {
+	// Set up reference sketches, flatten and copy to device
+	std::vector<uint64_t> flat_ref = flatten_by_samples
+		(
+			ref_sketches,
+			kmer_lengths,
+			ref_strides,
+			sample_slice.ref_offset,
+			sample_slice.ref_offset + sample_slice.ref_size
+		);
+	CUDA_CALL(cudaMalloc((void**)&d_ref_sketches,
+						 flat_ref.size() * sizeof(uint64_t)));
+	CUDA_CALL(cudaMemCpy(d_ref_sketches, flat_ref.data(),
+						 flat_ref.size() * sizeof(uint64_t),
+						 cudaMemcpyDefault);
 
-		// Preload random match chances, which have already been flattened
-		loaded.random_table = std::get<1>(flat_random);
-		loaded.ref_random.resize(sample_slice.ref_size);
-		thrust::copy(ref_random_idx.begin() + sample_slice.ref_offset,
-					ref_random_idx.begin() + sample_slice.ref_offset + sample_slice.ref_size,
-					loaded.ref_random.begin());
+	// Preload random match chances, which have already been flattened
+	CUDA_CALL(cudaMalloc((void**)&d_random_table,
+						  std::get<1>(flat_random).size() * sizeof(float)));
+	CUDA_CALL(cudaMemCpy(d_random_table, std::get<1>(flat_random).data(),
+						 std::get<1>(flat_random).size() * sizeof(float),
+						 cudaMemcpyDefault));
+	CUDA_CALL(cudaMalloc((void**)&d_ref_random,
+						  sample_slice.ref_size * sizeof(uint16_t)));
+	CUDA_CALL(cudaMemCpy(d_ref_random,
+						 ref_random_idx.data() + sample_slice.ref_offset,
+						 sample_slice.ref_size * sizeof(uint16_t),
+						 cudaMemcpyDefault));
 
-		// If ref v query mode, also flatten query vector and copy to device
-		if (!self) {
-			thrust::host_vector<uint64_t> flat_query =
-				flatten_by_bins(query_sketches,
-								kmer_lengths,
-								query_strides,
-								sample_slice.query_offset,
-								sample_slice.query_offset + sample_slice.query_size);
-			loaded.query_sketches = flat_query;
+	// If ref v query mode, also flatten query vector and copy to device
+	if (!self) {
+		std::vector<uint64_t> flat_query = flatten_by_bins
+		(
+			query_sketches,
+			kmer_lengths,
+			query_strides,
+			sample_slice.query_offset,
+			sample_slice.query_offset + sample_slice.query_size
+		);
+		CUDA_CALL(cudaMalloc((void**)&d_query_sketches,
+							 flat_query.size() * sizeof(uint64_t)));
+		CUDA_CALL(cudaMemCpy(d_query_sketches, flat_query.data(),
+							 flat_query.size() * sizeof(uint64_t),
+						     cudaMemcpyDefault));
 
-			loaded.query_random.resize(sample_slice.query_size);
-			thrust::copy(query_random_idx.begin() + sample_slice.query_offset,
-					     query_random_idx.begin() + sample_slice.query_offset + sample_slice.query_size,
-						 loaded.query_random.begin());
-		}
-
-		// Copy other arrays needed on device (kmers and distance output)
-		loaded.kmers = kmer_lengths;
-		loaded.dist_mat.resize(dist_rows*2, 0);
-	} catch (thrust::system_error &e) {
-		std::cerr << "Error loading sketches onto GPU: " << std::endl;
-		std::cerr << e.what() << std::endl;
-		exit(1);
+		CUDA_CALL(cudaMalloc((void**)&d_query_random,
+							 sample_slice.query_size * sizeof(uint16_t)));
+		CUDA_CALL(cudaMemCpy(d_query_random,
+						     query_random_idx.data() + sample_slice.query_offset,
+							 sample_slice.query_size * sizeof(uint16_t),
+							 cudaMemcpyDefault));
 	}
 
-	return(loaded);
+	// Copy or set other arrays needed on device (kmers and distance output)
+	CUDA_CALL(cudaMalloc((void**)&d_kmers,
+						 kmer_lengths.size() * sizeof(int)));
+	CUDA_CALL(cudaMemCpy(d_kmers, kmer_lengths.data(),
+						 kmer_lengths.size() * sizeof(int),
+						 cudaMemcpyDefault));
+
+	CUDA_CALL(cudaMalloc((void**)&d_dist_mat,
+						 _n_dists * sizeof(float)));
+	CUDA_CALL(cudaMemset(d_dist_mat, 0, _n_dists * sizeof(float)));
 }
 
 // Get the blockSize and blockCount for CUDA call
@@ -509,115 +574,93 @@ std::vector<float> dispatchDists(
 	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
-		// square 'self' block
-		dist_rows = static_cast<long long>(
-						0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
-		device_arrays =
-			loadDeviceMemory(
-				ref_strides,
-				query_strides,
-				ref_sketches,
-				query_sketches,
-				sketch_subsample,
-				flat_random,
-				ref_random_idx,
-				query_random_idx,
-				kmer_lengths,
-				dist_rows,
-				self
-			);
+		dist_rows = (sketch_subsample.ref_size * (sketch_subsample.ref_size - 1)) >> 1;
+	} else {
+		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
+	}
 
-		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size,
-													   sketch_subsample.ref_size,
-													   dist_rows,
-													   self);
+	// Load memory onto device
+	DeviceMemory device_arrays
+	(
+		ref_strides,
+		query_strides,
+		ref_sketches,
+		query_sketches,
+		sketch_subsample,
+		flat_random,
+		ref_random_idx,
+		query_random_idx,
+		kmer_lengths,
+		dist_rows,
+		self
+	);
+
+	size_t blockSize, blockCount;
+	if (self) {
+		std::tie(blockSize, blockCount) =
+			getBlockSize(sketch_subsample.ref_size,
+						 sketch_subsample.ref_size,
+						 dist_rows,
+						 self);
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
 		calculate_dists<<<blockCount, blockSize,
-						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+						query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
 			(
 				self,
-				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
+				device_arrays.ref_sketches(),
 				sketch_subsample.ref_size,
-				thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
+				device_arrays.ref_sketches(),
 				sketch_subsample.ref_size,
-				thrust::raw_pointer_cast(&device_arrays.kmers[0]),
+				device_arrays.kmers(),
 				kmer_lengths.size(),
-				thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
+				device_arrays.dist_mat(),
 				dist_rows,
-				thrust::raw_pointer_cast(&device_arrays.random_table[0]),
-				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
-				thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
+				device_arrays.random_table(),
+				device_arrays.ref_random(),
+				device_arrays.ref_random(),
 				ref_strides,
-				ref_strides,
+				query_strides,
 				random_strides,
 				blocks_complete
 			);
-		reportDistProgress(blocks_complete, dist_rows);
 	} else {
-		// 'query' block
-		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
-		device_arrays = loadDeviceMemory(
-			ref_strides,
-			query_strides,
-			ref_sketches,
-			query_sketches,
-			sketch_subsample,
-			flat_random,
-			ref_random_idx,
-			query_random_idx,
-			kmer_lengths,
-			dist_rows,
-			self);
+		std::tie(blockSize, blockCount) =
+			getBlockSize(sketch_subsample.ref_size,
+						 sketch_subsample.query_size,
+						 dist_rows,
+						 self);
 
-		size_t blockSize, blockCount;
-		std::tie(blockSize, blockCount) = getBlockSize(sketch_subsample.ref_size,
-													   sketch_subsample.query_size,
-													   dist_rows,
-													   self);
-
+		// Third argument is the size of __shared__ memory needed by a thread block
+		// This is equal to the query sketch size in bytes (at a single k-mer length)
 		calculate_dists<<<blockCount, blockSize,
-						  query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
-		(
-			self,
-			thrust::raw_pointer_cast(&device_arrays.ref_sketches[0]),
-			sketch_subsample.ref_size,
-			thrust::raw_pointer_cast(&device_arrays.query_sketches[0]),
-			sketch_subsample.query_size,
-			thrust::raw_pointer_cast(&device_arrays.kmers[0]),
-			kmer_lengths.size(),
-			thrust::raw_pointer_cast(&device_arrays.dist_mat[0]),
-			dist_rows,
-			thrust::raw_pointer_cast(&device_arrays.random_table[0]),
-			thrust::raw_pointer_cast(&device_arrays.ref_random[0]),
-			thrust::raw_pointer_cast(&device_arrays.query_random[0]),
-			ref_strides,
-			query_strides,
-			random_strides,
-			blocks_complete
-		);
-		reportDistProgress(blocks_complete, dist_rows);
+						query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+			(
+				self,
+				device_arrays.ref_sketches(),
+				sketch_subsample.ref_size,
+				device_arrays.query_sketches(),
+				sketch_subsample.query_size,
+				device_arrays.kmers(),
+				kmer_lengths.size(),
+				device_arrays.dist_mat(),
+				dist_rows,
+				device_arrays.random_table(),
+				device_arrays.ref_random(),
+				device_arrays.query_random(),
+				ref_strides,
+				query_strides,
+				random_strides,
+				blocks_complete
+			);
 	}
+
+	reportDistProgress(blocks_complete, dist_rows);
 
 	// Copy results back to host
-	std::vector<float> dist_results(dist_rows * 2);
-	try {
-		thrust::copy(device_arrays.dist_mat.begin(),
-					 device_arrays.dist_mat.end(),
-					 dist_results.begin());
-	} catch (thrust::system_error &e) {
-		// output a non-threatening but likely inaccurate error message and exit
-		// e.g. 'trivial_device_copy D->H failed: unspecified launch failure'
-		// error will have occurred elsewhere as launch is async, but better to catch
-		// and deal with it here
-		std::cerr << "Error getting result: " << std::endl;
-		std::cerr << e.what() << std::endl;
-		exit(1);
-	}
+	std::vector<float> dist_results = device_arrays.read_dists();
 
-	cudaDeviceSynchronize();
 	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	return(dist_results);
