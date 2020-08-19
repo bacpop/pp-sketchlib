@@ -75,9 +75,10 @@ float jaccard_dist(const uint64_t * sketch1,
 		int bin_index = i * bbits;
 		uint64_t bits = ~((uint64_t)0ULL);
 		for (int j = 0; j < bbits; j++) {
-			bin_index++;
-			// Almost all kernel time is spent on this line (bbits * sketchsize64 iterations)
+			// Almost all kernel time is spent on this line
+			// (bbits * sketchsize64 * N^2 * 2 8-byte memory loads)
 			bits &= ~(sketch1[bin_index * s1_stride] ^ sketch2[bin_index * s2_stride]);
+			bin_index++;
 		}
 
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
@@ -285,6 +286,11 @@ void calculate_dists(const bool self,
 *			   *
 ***************/
 
+// Gives strides aligned to the warp size (32)
+inline size_t warpPad(const size_t stride) {
+	return(stride + (stride % warpSize ? warpSize - stride % warpSize : 0));
+}
+
 // Turn a vector of references into a flattened vector of
 // uint64 with strides bins * kmers * samples
 thrust::host_vector<uint64_t> flatten_by_bins(
@@ -293,13 +299,16 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 	SketchStrides& strides,
 	const size_t start_sample_idx,
 	const size_t end_sample_idx) {
-	// Set strides structure
+	// Input checks
 	size_t num_sketches = end_sample_idx - start_sample_idx;
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
 	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
 	assert(end_sample_idx > start_sample_idx);
+
+	// Set strides structure
 	strides.bin_stride = 1;
-	strides.kmer_stride = strides.bin_stride * num_bins;
+	strides.kmer_stride = warpPad(strides.bin_stride * num_bins);
+	// warpPad not needed here, as k-mer stride already a multiple of warp size
 	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
 
 	// Iterate over each dimension to flatten
@@ -312,7 +321,7 @@ thrust::host_vector<uint64_t> flatten_by_bins(
 			thrust::copy(sample_it->get_sketch(*kmer_it).cbegin(),
 						 sample_it->get_sketch(*kmer_it).cend(),
 						 flat_ref_it);
-            flat_ref_it += sample_it->get_sketch(*kmer_it).size();
+            flat_ref_it += strides.kmer_stride;
 		}
 	}
 	return flat_ref;
@@ -331,7 +340,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 	const size_t num_bins = strides.sketchsize64 * strides.bbits;
 	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
 	strides.sample_stride = 1;
-	strides.bin_stride = num_sketches;
+	strides.bin_stride = warpPad(num_sketches);
 	strides.kmer_stride = strides.bin_stride * num_bins;
 
 	// Stride by bins then restride by samples
@@ -353,6 +362,7 @@ thrust::host_vector<uint64_t> flatten_by_samples(
 										 kmer_idx * old_strides.kmer_stride];
 				flat_ref_it++;
 			}
+			flat_ref_it += strides.bin_stride - num_sketches;
 		}
 	}
 
