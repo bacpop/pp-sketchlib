@@ -485,8 +485,6 @@ std::vector<float> dispatchDists(
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
 	const bool self) {
-	cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-	cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 
 	// Progress meter
 	volatile int *blocks_complete;
@@ -497,6 +495,8 @@ std::vector<float> dispatchDists(
 	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
+		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeDefault);
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 		// square 'self' block
 		dist_rows = static_cast<long long>(
 						0.5*(sketch_subsample.ref_size)*(sketch_subsample.ref_size - 1));
@@ -546,6 +546,8 @@ std::vector<float> dispatchDists(
 		reportDistProgress(blocks_complete, dist_rows);
 	} else {
 		// 'query' block
+		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferEqual);
 		dist_rows = sketch_subsample.ref_size * sketch_subsample.query_size;
 		device_arrays = loadDeviceMemory(
 			ref_strides,
