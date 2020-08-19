@@ -441,7 +441,7 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 						 flat_ref.size() * sizeof(uint64_t)));
 	CUDA_CALL(cudaMemCpy(d_ref_sketches, flat_ref.data(),
 						 flat_ref.size() * sizeof(uint64_t),
-						 cudaMemcpyDefault);
+						 cudaMemcpyDefault));
 
 	// Preload random match chances, which have already been flattened
 	CUDA_CALL(cudaMalloc((void**)&d_random_table,
