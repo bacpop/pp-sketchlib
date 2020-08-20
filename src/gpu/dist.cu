@@ -445,12 +445,12 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 	// Preload random match chances, which have already been flattened
 	CUDA_CALL(cudaMalloc((void**)&d_random_table,
 						  std::get<1>(flat_random).size() * sizeof(float)));
-	CUDA_CALL(cudaMemCpy(d_random_table, std::get<1>(flat_random).data(),
+	CUDA_CALL(cudaMemcpy(d_random_table, std::get<1>(flat_random).data(),
 						 std::get<1>(flat_random).size() * sizeof(float),
 						 cudaMemcpyDefault));
 	CUDA_CALL(cudaMalloc((void**)&d_ref_random,
 						  sample_slice.ref_size * sizeof(uint16_t)));
-	CUDA_CALL(cudaMemCpy(d_ref_random,
+	CUDA_CALL(cudaMemcpy(d_ref_random,
 						 ref_random_idx.data() + sample_slice.ref_offset,
 						 sample_slice.ref_size * sizeof(uint16_t),
 						 cudaMemcpyDefault));
@@ -467,13 +467,13 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 		);
 		CUDA_CALL(cudaMalloc((void**)&d_query_sketches,
 							 flat_query.size() * sizeof(uint64_t)));
-		CUDA_CALL(cudaMemCpy(d_query_sketches, flat_query.data(),
+		CUDA_CALL(cudaMemcpy(d_query_sketches, flat_query.data(),
 							 flat_query.size() * sizeof(uint64_t),
 						     cudaMemcpyDefault));
 
 		CUDA_CALL(cudaMalloc((void**)&d_query_random,
 							 sample_slice.query_size * sizeof(uint16_t)));
-		CUDA_CALL(cudaMemCpy(d_query_random,
+		CUDA_CALL(cudaMemcpy(d_query_random,
 						     query_random_idx.data() + sample_slice.query_offset,
 							 sample_slice.query_size * sizeof(uint16_t),
 							 cudaMemcpyDefault));
@@ -482,7 +482,7 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 	// Copy or set other arrays needed on device (kmers and distance output)
 	CUDA_CALL(cudaMalloc((void**)&d_kmers,
 						 kmer_lengths.size() * sizeof(int)));
-	CUDA_CALL(cudaMemCpy(d_kmers, kmer_lengths.data(),
+	CUDA_CALL(cudaMemcpy(d_kmers, kmer_lengths.data(),
 						 kmer_lengths.size() * sizeof(int),
 						 cudaMemcpyDefault));
 
