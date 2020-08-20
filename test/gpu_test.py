@@ -40,7 +40,7 @@ def compare_dists_files(cpu_file, gpu_file):
             fail = True
         for cpu_line, gpu_line in zip(cpu_dists, gpu_dists):
             rname, qname, core_dist, acc_dist = cpu_line.rstrip().split("\t")
-            g_rname, g_qname, g_core_dist, g_acc_dist = cpu_line.rstrip().split("\t")
+            g_rname, g_qname, g_core_dist, g_acc_dist = gpu_line.rstrip().split("\t")
             if (rname != g_rname or qname != g_qname):
                 sys.stderr.write("Sample order mismatch")
                 fail = True
@@ -57,7 +57,9 @@ subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --quer
 sys.stderr.write("Testing self distances match\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass --read-k --print > tmp.cpu.self.dists.txt", shell=True, check=True)
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass --read-k --print --use-gpu > tmp.gpu.self.dists.txt", shell=True, check=True)
-fail = compare_dists_files("tmp.cpu.self.dists.txt", "tmp.gpu.self.dists.txt")
+fail_self = compare_dists_files("tmp.cpu.self.dists.txt", "tmp.gpu.self.dists.txt")
+if fail_self:
+    sys.stderr.write("Self distances mismatch!\n")
 
 sys.stderr.write("Testing query distances on CPU\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print", shell=True, check=True)
@@ -67,7 +69,9 @@ subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --quer
 sys.stderr.write("Testing query distances match\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print > tmp.cpu.query.dists.txt", shell=True, check=True)
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print --use-gpu > tmp.gpu.query.dists.txt", shell=True, check=True)
-fail = fail or compare_dists_files("tmp.cpu.query.dists.txt", "tmp.gpu.query.dists.txt")
+fail_query = compare_dists_files("tmp.cpu.query.dists.txt", "tmp.gpu.query.dists.txt")
+if fail_query:
+    sys.stderr.write("Query distances mismatch!\n")
 
 sys.stderr.write("Tests completed\n")
-sys.exit(fail)
+sys.exit(fail_self or fail_query)

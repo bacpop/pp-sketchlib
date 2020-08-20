@@ -291,7 +291,7 @@ void calculate_dists(const bool self,
 												  ref_idx_lookup[ref_idx] * random_strides.cluster_inner_stride +
 												  query_idx_lookup[query_idx] * random_strides.cluster_outer_stride];
 			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
-			//printf("i:%ld j:%ld k:%d r1:%f r2:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, r1, r2, jaccard_obs, y);
+			//printf("i:%d j:%d k:%d r:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, jaccard_expected, jaccard_obs, y);
 
 			// Running totals for regression
 			int kmer = kmers[kmer_idx];
