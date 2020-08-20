@@ -85,10 +85,10 @@ install_python: python
 	install -d $(PYTHON_LIB_PATH)
 	install $(PYTHON_LIB) $(PYTHON_LIB_PATH)
 
-dist.cu.o:
+gpu/dist.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c dist.cu -o $@
 
-sketch.cu.o:
+gpu/sketch.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c sketch.cu -o $@
 
 .PHONY: all clean install python install_python
