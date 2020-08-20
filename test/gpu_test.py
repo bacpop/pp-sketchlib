@@ -26,6 +26,8 @@ def compare_dists(d1, d2):
         if (abs(diff) > max_diff and abs(diff_fraction) > max_diff_fraction):
             sys.stderr.write("Difference outside tolerance")
             fail = True
+    elif not (d1 == 0 and d2 == 0):
+        fail = True
     return(fail)
 
 def compare_dists_files(cpu_file, gpu_file):

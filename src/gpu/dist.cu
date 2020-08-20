@@ -621,7 +621,7 @@ std::vector<float> dispatchDists(
 				device_arrays.ref_random(),
 				device_arrays.ref_random(),
 				ref_strides,
-				query_strides,
+				ref_strides,
 				random_strides,
 				blocks_complete
 			);
