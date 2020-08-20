@@ -66,6 +66,10 @@ read_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) test/read_test.o
 	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
 	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ device_link.o -o $@ $(CUDA_LDLIBS)
 
+gpu_dist_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) test/gpu_dist_test.o
+	nvcc $(CUDAFLAGS) $(CUDA_LDFLAGS) -Wno-deprecated-gpu-targets -shared -dlink $^ -o device_link.o -Xnvlink $(CUDA_LDLIBS)
+	$(LINK.cpp) $(CUDA_LDFLAGS) $(LDFLAGS) $^ device_link.o -o $@ $(CUDA_LDLIBS)
+
 version.h:
 	cat sketch/*.cpp sketch/*.hpp gpu/sketch.cu | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
