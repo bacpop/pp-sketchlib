@@ -214,7 +214,8 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     std::sort(kmer_lengths.begin(), kmer_lengths.end());
 
     /* Turn off HDF5 error messages */
-    /* getAutoPrint throws and unknown exception when called from python, but is ok from C++ */
+    /* getAutoPrint throws an unknown exception when
+       called from python, but is ok from C++ */
 #ifndef PYTHON_EXT
     H5E_auto2_t errorPrinter;
     void** clientData = nullptr;

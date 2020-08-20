@@ -9,9 +9,20 @@
 #include "sketch/countmin.hpp"
 #include "sketch/seqio.hpp"
 
-int main()
+int main(int argc, char* argv[])
 {
     // Runs a test of functionality
+    std::ifstream rfile(argv[1]);
+    std::string name, file;
+    std::vector<std::string> names;
+    std::vector<std::vector<std::string>> files;
+    while (rfile >> name >> file)
+    {
+        names.push_back(name);
+        std::vector<std::string> file_list = {file};
+        files.push_back(file_list);
+    }
+
     HighFive::File h5_db = open_h5("listeria.h5");
     Database listeria_db(h5_db);
     std::vector<Reference> listeria_sketches;
