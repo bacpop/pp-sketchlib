@@ -53,7 +53,7 @@ class DeviceMemory {
 		std::vector<float> read_dists() {
 			cudaDeviceSynchronize();
 			std::vector<float> dists(_n_dists);
-			CUDA_CALL(cudaMemCpy(dists.data(),
+			CUDA_CALL(cudaMemcpy(dists.data(),
 								 d_dist_mat,
 								 _n_dists * sizeof(float),
 								 cudaMemcpyDefault));
@@ -80,8 +80,7 @@ class DeviceMemory {
 		uint16_t * d_query_random;
 		int * d_kmers;
 		float * d_dist_mat;
-	};
-}
+};
 
 /******************
 *			      *
