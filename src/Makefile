@@ -41,7 +41,7 @@ PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 # python specific options
 python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.5.0\" $(shell python3 -m pybind11 --includes)
 
-PROGRAMS=sketch_test matrix_test read_test
+PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 
 SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sketch.o database/database.o sketch/countmin.o api.o dist/linear_regression.o random/rng.o random/random_match.o
 GPU_SKETCH_OBJS=gpu/gpu_api.o
@@ -73,7 +73,7 @@ gpu_dist_test: $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) test/gpu_dist_test
 version.h:
 	cat sketch/*.cpp sketch/*.hpp gpu/sketch.cu | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
-database.o: version.h
+database/database.o: version.h
 
 python: $(PYTHON_LIB)
 
