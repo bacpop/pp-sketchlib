@@ -477,6 +477,8 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 						     query_random_idx.data() + sample_slice.query_offset,
 							 sample_slice.query_size * sizeof(uint16_t),
 							 cudaMemcpyDefault));
+	} else {
+		query_strides = ref_strides;
 	}
 
 	// Copy or set other arrays needed on device (kmers and distance output)
