@@ -50,7 +50,7 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 all: $(PROGRAMS)
 
 clean:
-	$(RM) *.o *.so version.h ~* $(PROGRAMS)
+	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
