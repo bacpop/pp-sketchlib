@@ -438,7 +438,7 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 		);
 	CUDA_CALL(cudaMalloc((void**)&d_ref_sketches,
 						 flat_ref.size() * sizeof(uint64_t)));
-	CUDA_CALL(cudaMemCpy(d_ref_sketches, flat_ref.data(),
+	CUDA_CALL(cudaMemcpy(d_ref_sketches, flat_ref.data(),
 						 flat_ref.size() * sizeof(uint64_t),
 						 cudaMemcpyDefault));
 
@@ -570,7 +570,6 @@ std::vector<float> dispatchDists(
 	*blocks_complete = 0;
 
 	RandomStrides random_strides = std::get<0>(flat_random);
-	DeviceMemory device_arrays;
 	long long dist_rows;
 	if (self) {
 		dist_rows = (sketch_subsample.ref_size * (sketch_subsample.ref_size - 1)) >> 1;
