@@ -110,8 +110,7 @@ float jaccard_dist(const uint64_t * sketch1,
 				   const size_t sketchsize64,
 				   const size_t bbits,
 				   const size_t s1_stride,
-				   const size_t s2_stride)
-{
+				   const size_t s2_stride) {
 	size_t samebits = 0;
     for (int i = 0; i < sketchsize64; i++)
     {
@@ -123,7 +122,6 @@ float jaccard_dist(const uint64_t * sketch1,
 			bits &= ~(sketch1[bin_index * s1_stride] ^ sketch2[bin_index * s2_stride]);
 			bin_index++;
 		}
-
 		samebits += __popcll(bits); // CUDA 64-bit popcnt
 	}
 
@@ -482,10 +480,11 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 	}
 
 	// Copy or set other arrays needed on device (kmers and distance output)
+	std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
 	CUDA_CALL(cudaMalloc((void**)&d_kmers,
-						 kmer_lengths.size() * sizeof(int)));
-	CUDA_CALL(cudaMemcpy(d_kmers, kmer_lengths.data(),
-						 kmer_lengths.size() * sizeof(int),
+			             kmer_ints.size() * sizeof(int)));
+	CUDA_CALL(cudaMemcpy(d_kmers, kmer_ints.data(),
+						 kmer_ints.size() * sizeof(int),
 						 cudaMemcpyDefault));
 
 	CUDA_CALL(cudaMalloc((void**)&d_dist_mat,
