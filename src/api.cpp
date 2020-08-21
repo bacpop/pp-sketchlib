@@ -10,9 +10,9 @@
 #include <H5Cpp.h>
 
 #include "api.hpp"
-#include "gpu.hpp"
+#include "gpu/gpu.hpp"
 #include "reference.hpp"
-#include "database.hpp"
+#include "database/database.hpp"
 
 using namespace Eigen;
 
@@ -137,7 +137,6 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
         // Iterate upper triangle
-        size_t done_calcs = 0;
         #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
         for (size_t i = 0; i < ref_sketches.size(); i++) {
             for (size_t j = i + 1; j < ref_sketches.size(); j++) {
@@ -162,11 +161,6 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         // calculate dists
         size_t dist_rows = ref_sketches.size() * query_sketches.size();
         distMat.resize(dist_rows, dist_cols);
-
-        size_t num_dist_threads = num_threads;
-        if (dist_rows < num_threads) {
-            num_dist_threads = dist_rows;
-        }
 
         // Prepare objects used in distance calculations
         arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
@@ -220,7 +214,8 @@ std::vector<Reference> load_sketches(const std::string& db_name,
     std::sort(kmer_lengths.begin(), kmer_lengths.end());
 
     /* Turn off HDF5 error messages */
-    /* getAutoPrint throws and unknown exception when called from python, but is ok from C++ */
+    /* getAutoPrint throws an unknown exception when
+       called from python, but is ok from C++ */
 #ifndef PYTHON_EXT
     H5E_auto2_t errorPrinter;
     void** clientData = nullptr;

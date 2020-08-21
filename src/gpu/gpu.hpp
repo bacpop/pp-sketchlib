@@ -12,7 +12,19 @@
 
 #include "reference.hpp"
 
-struct RandomStrides {
+// Align structs
+// https://stackoverflow.com/a/12779757
+#if defined(__CUDACC__) // NVCC
+   #define ALIGN(n) __align__(n)
+#elif defined(__GNUC__) // GCC
+  #define ALIGN(n) __attribute__((aligned(n)))
+#elif defined(_MSC_VER) // MSVC
+  #define ALIGN(n) __declspec(align(n))
+#else
+  #error "Please provide a definition for MY_ALIGN macro for your host compiler!"
+#endif
+
+struct ALIGN(8) RandomStrides {
 	size_t kmer_stride;
 	size_t cluster_inner_stride;
 	size_t cluster_outer_stride;
@@ -22,7 +34,7 @@ typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
 
 #ifdef GPU_AVAILABLE
 // Structure of flattened vectors
-struct SketchStrides {
+struct ALIGN(16) SketchStrides {
 	size_t bin_stride;
 	size_t kmer_stride;
 	size_t sample_stride;
@@ -30,7 +42,7 @@ struct SketchStrides {
 	size_t bbits;
 };
 
-struct SketchSlice {
+struct ALIGN(8) SketchSlice {
 	size_t ref_offset;
 	size_t ref_size;
 	size_t query_offset;
@@ -64,6 +76,10 @@ class GPUCountMin {
         void reset();
 
     private:
+        // delete move and copy to avoid accidentally using them
+        GPUCountMin ( const GPUCountMin & ) = delete;
+        GPUCountMin ( GPUCountMin && ) = delete;
+
         unsigned int * _d_countmin_table;
 
         const unsigned int _table_width_bits;
@@ -82,6 +98,7 @@ class DeviceReads {
         char * read_ptr() { return d_reads; }
         size_t count() const { return n_reads; }
         size_t length() const { return read_length; }
+        size_t stride() const { return read_stride; }
 
     private:
         // delete move and copy to avoid accidentally using them
@@ -91,6 +108,7 @@ class DeviceReads {
         char * d_reads;
         size_t n_reads;
         size_t read_length;
+        size_t read_stride;
 };
 
 void copyNtHashTablesToDevice();

@@ -3,13 +3,13 @@
 #include <iostream>
 
 #include "reference.hpp"
-#include "database.hpp"
+#include "database/database.hpp"
 #include "api.hpp"
 
 int main (int argc, char* argv[])
 {
     // Runs a test of functionality
-    
+
     std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
     SeqBuf ref_seq({argv[2]}, kmer_lengths.back());
     Reference ref(argv[1], ref_seq, kmer_lengths, 156, true, 0, false);
@@ -24,7 +24,7 @@ int main (int argc, char* argv[])
     std::cout << ref.jaccard_dist(query, 29, random_match) << std::endl;
     std::cout << query.jaccard_dist(ref, 29, random_match) << std::endl;
 
-    auto core_acc = ref.core_acc_dist<RandomMC>(query, random_match); 
+    auto core_acc = ref.core_acc_dist<RandomMC>(query, random_match);
     std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
 
     Database sketch_db("sketch.h5");
@@ -36,8 +36,8 @@ int main (int argc, char* argv[])
     std::cout << ref_read.jaccard_dist(query_read, 15, random_match) << std::endl;
 
     std::vector<Reference> ref_sketches = create_sketches("full",
-                               {argv[1], argv[3]}, 
-                               {{argv[2]}, {argv[4]}}, 
+                               {argv[1], argv[3]},
+                               {{argv[2]}, {argv[4]}},
                                kmer_lengths,
                                156,
                                true,
@@ -63,11 +63,11 @@ int main (int argc, char* argv[])
         names.push_back(name);
         std::vector<std::string> file_list = {file};
         files.push_back(file_list);
-    } 
+    }
 
     create_sketches("listeria",
-                    names, 
-                    files, 
+                    names,
+                    files,
                     kmer_lengths,
                     156,
                     true,

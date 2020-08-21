@@ -14,7 +14,7 @@
 #include "robin_hood.h"
 
 #include "sketch.hpp"
-#include "gpu.hpp"
+#include "gpu/gpu.hpp"
 #include "stHashIterator.hpp"
 
 #include "bitfuncs.hpp"

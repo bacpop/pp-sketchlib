@@ -140,15 +140,17 @@ std::vector<char> SeqBuf::as_square_array(const size_t n_threads) const {
         throw std::runtime_error("Input contains no sequence!");
     }
 
-    std::vector<char> read_array(max_length() * n_full_seqs());
+    // Pad so that the stride is a multiple of 4
+    // (needed to align memory addresses)
+    std::vector<char> read_array(max_length() * n_full_seqs_padded());
     #pragma omp parallel for simd schedule(static) num_threads(n_threads)
     for (size_t read_idx = 0; read_idx < n_full_seqs(); read_idx++) {
         std::string seq = sequence[_full_index[read_idx]];
         for (size_t base_idx = 0; base_idx < seq.size(); base_idx++) {
-            read_array[read_idx + base_idx * n_full_seqs()] = seq[base_idx];
+            read_array[read_idx + base_idx * n_full_seqs_padded()] = seq[base_idx];
         }
         for (size_t base_idx = seq.size(); base_idx < _max_length; base_idx++) {
-            read_array[read_idx + base_idx * n_full_seqs()] = 'N';
+            read_array[read_idx + base_idx * n_full_seqs_padded()] = 'N';
         }
     }
     return read_array;
@@ -161,32 +163,22 @@ bool SeqBuf::move_next(size_t word_length) {
     *   Keeps track of base before k-mer length
     */
     bool next_seq = false;
-    if (!end)
-    {
+    if (!end) {
         next_base++;
 
-        if (next_base == current_seq->end())
-        {
+        if (next_base == current_seq->end()) {
             current_seq++;
             next_seq = true;
-            if (current_seq == sequence.end())
-            {
+            if (current_seq == sequence.end()) {
                 end = true;
-            }
-            else
-            {
+            } else {
                 next_base = current_seq->begin();
                 out_base = current_seq->end();
             }
-        }
-        else
-        {
-            if (out_base != current_seq->end())
-            {
+        } else {
+            if (out_base != current_seq->end()) {
                 out_base++;
-            }
-            else if ((next_base - word_length) >= current_seq->begin())
-            {
+            } else if ((next_base - word_length) >= current_seq->begin()) {
                 out_base = current_seq->begin();
             }
         }

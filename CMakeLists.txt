@@ -3,10 +3,8 @@ project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 
 # Set sketch version
-execute_process(COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.hpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/ntHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash.hpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/stHashIterator.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/nthash_tables.hpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch.cu
+file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
+execute_process(COMMAND cat ${VERSION_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/sketch.cu
                 COMMAND openssl sha1
                 COMMAND cut -d " " -f 2
                 OUTPUT_VARIABLE sketch_hash)
@@ -33,6 +31,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Add libraries
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 find_package(pybind11 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
@@ -72,7 +71,7 @@ if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
-    add_library("${TARGET_NAME}_CUDA" OBJECT src/dist.cu src/sketch.cu)
+    add_library("${TARGET_NAME}_CUDA" OBJECT src/gpu/dist.cu src/gpu/sketch.cu)
     target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
     set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
@@ -80,24 +79,24 @@ if(CMAKE_CUDA_COMPILER)
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden")
     # CPU code/gcc compiled code needed by cuda lib
-    target_sources("${TARGET_NAME}" PRIVATE src/gpu_api.cpp)
+    target_sources("${TARGET_NAME}" PRIVATE src/gpu/gpu_api.cpp)
 else()
     message(STATUS "CUDA not found, compiling CPU code only")
 endif()
 
 # Compile CPU library
 target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
-                                    src/dist.cpp
-                                    src/matrix_ops.cpp
+                                    src/dist/dist.cpp
+                                    src/dist/matrix_ops.cpp
                                     src/reference.cpp
-                                    src/seqio.cpp
-                                    src/countmin.cpp
-                                    src/sketch.cpp
-                                    src/database.cpp
+                                    src/sketch/seqio.cpp
+                                    src/sketch/countmin.cpp
+                                    src/sketch/sketch.cpp
+                                    src/database/database.cpp
                                     src/api.cpp
-                                    src/linear_regression.cpp
-                                    src/rng.cpp
-                                    src/random_match.cpp)
+                                    src/dist/linear_regression.cpp
+                                    src/random/rng.cpp
+                                    src/random/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
     INTERPROCEDURAL_OPTIMIZATION TRUE

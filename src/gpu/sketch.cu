@@ -12,7 +12,7 @@
 #include "cuda.cuh"
 
 // nthash
-#include "nthash_tables.hpp"
+#include "sketch/nthash_tables.hpp"
 
 // Tables on device
 __constant__ uint64_t d_seedTab[256];
@@ -227,6 +227,7 @@ __global__
 void process_reads(char * read_seq,
                    const size_t n_reads,
                    const size_t read_length,
+                   const size_t read_stride,
                    const int k,
                    uint64_t * signs,
                    const uint64_t binsize,
@@ -234,36 +235,38 @@ void process_reads(char * read_seq,
                    const bool use_rc,
                    const uint16_t min_count,
                    volatile int * blocks_complete) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-	int stride = blockDim.x * gridDim.x;
-	for (long long read_idx = index; read_idx < n_reads; read_idx += stride)
-	{
+    int read_index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (read_index < n_reads) {
         uint64_t fhVal, rhVal, hVal;
 
-        // Set pointers to start of read
-        //printf("k:%d read_idx: %lld\n", (int)k, read_idx);
-        char* read_start = read_seq + read_idx;
+        // Load reads in block into shared memory
+        extern __shared__ char read_shared[];
+        for (int base_idx = 0; base_idx < read_length; base_idx++) {
+            read_shared[threadIdx.x + base_idx * blockDim.x] =
+                read_seq[read_index + base_idx * read_stride];
+        }
+        __syncthreads();
 
         // Get first valid k-mer
         if (use_rc) {
-            NTC64(read_start,
-                  k, fhVal, rhVal, hVal, n_reads);
+            NTC64(read_shared,
+                  k, fhVal, rhVal, hVal, blockDim.x);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         } else {
-            NT64(read_start,
-                 k, fhVal, n_reads);
+            NT64(read_shared,
+                 k, fhVal, blockDim.x);
             binhash(signs, countmin_table, hVal, binsize, k, min_count);
         }
 
         // Roll through remaining k-mers in the read
         for (int pos = 0; pos < read_length - k; pos++) {
             fhVal = NTF64(fhVal, k,
-                read_start[pos * n_reads],
-                read_start[(pos + k) * n_reads]);
+                read_shared[pos * blockDim.x],
+                read_shared[(pos + k) * blockDim.x]);
             if (use_rc) {
                 rhVal = NTR64(rhVal, k,
-                    read_start[pos * n_reads],
-                    read_start[(pos + k) * n_reads]);
+                    read_shared[pos * blockDim.x],
+                    read_shared[(pos + k) * blockDim.x]);
                 hVal = (rhVal<fhVal) ? rhVal : fhVal;
                 binhash(signs, countmin_table, hVal, binsize, k, min_count);
             } else {
@@ -272,7 +275,7 @@ void process_reads(char * read_seq,
         }
 
         // update progress meter
-        update_progress(read_idx, n_reads, blocks_complete);
+        update_progress(read_index, n_reads, blocks_complete);
         __syncwarp();
     }
 }
@@ -299,12 +302,14 @@ void reportSketchProgress(volatile int * blocks_complete,
 
 
 DeviceReads::DeviceReads(const SeqBuf& seq_in,
-                         const size_t n_threads): d_reads(nullptr) {
+                         const size_t n_threads)
+    :d_reads(nullptr),
+     n_reads(seq_in.n_full_seqs()),
+     read_length(seq_in.max_length()),
+     read_stride(seq_in.n_full_seqs_padded())  {
     CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
     std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
-    n_reads = seq_in.n_full_seqs();
-    read_length = seq_in.max_length();
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
     CUDA_CALL( cudaMemcpy(d_reads, flattened_reads.data(), flattened_reads.size() * sizeof(char),
                             cudaMemcpyDefault));
@@ -446,12 +451,14 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
     //      This runs nthash on read sequence at all k-mer lengths
     //      Check vs signs and countmin on whether to add each
     //      (get this working for a single k-mer length first)
-    const size_t blockSize = 32;
+    const size_t blockSize = 64;
     const size_t blockCount = (reads.count() + blockSize - 1) / blockSize;
-    process_reads<<<blockCount, blockSize>>> (
+    process_reads<<<blockCount, blockSize,
+                    reads.length() * blockSize * sizeof(char)>>> (
         reads.read_ptr(),
         reads.count(),
         reads.length(),
+        reads.stride(),
         k,
         d_signs,
         binsize,

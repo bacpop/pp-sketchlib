@@ -19,11 +19,11 @@
 #include <iomanip>
 
 // internal headers
-#include "bitfuncs.hpp"
+#include "sketch/bitfuncs.hpp"
 #include "gpu.hpp"
 #include "api.hpp"
-#include "database.hpp"
-#include "sketch.hpp"
+#include "database/database.hpp"
+#include "sketch/sketch.hpp"
 
 const float mem_epsilon = 0.05;
 
@@ -70,7 +70,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 		// memory for filter and nthash only need to be allocated once
 		copyNtHashTablesToDevice();
-		GPUCountMin countmin_filter = GPUCountMin();
+		GPUCountMin countmin_filter;
         if (min_count > std::numeric_limits<unsigned int>::max()) {
             min_count = std::numeric_limits<unsigned int>::max();
         }

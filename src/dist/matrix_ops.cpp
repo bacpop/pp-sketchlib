@@ -31,14 +31,14 @@ void rectangle_block(const Eigen::VectorXf& longDists,
                   const size_t max_elems);
 
 //https://stackoverflow.com/a/12399290
-std::vector<size_t> sort_indexes(const Eigen::VectorXf &v) {
+std::vector<long> sort_indexes(const Eigen::VectorXf &v) {
 
   // initialize original index locations
-  std::vector<size_t> idx(v.size());
+  std::vector<long> idx(v.size());
   std::iota(idx.begin(), idx.end(), 0);
 
   std::stable_sort(idx.begin(), idx.end(),
-       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+       [&v](long i1, long i2) {return v[i1] < v[i2];});
 
   return idx;
 }
@@ -125,7 +125,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
                                  float y_max,
                                  unsigned int num_threads) {
     Eigen::VectorXf boundary_test(distMat.rows());
-    
+
     #pragma omp parallel for simd schedule(static) num_threads(num_threads)
     for (long row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
@@ -171,7 +171,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
 
     // Loop over threads for ref v ref square
     #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-    for (size_t distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
+    for (long distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
         unsigned long i = calc_row_idx(distIdx, nrrSamples);
         unsigned long j = calc_col_idx(distIdx, i, nrrSamples);
         squareDists(i, j) = rrDists[distIdx];
@@ -180,7 +180,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
 
     if (qqDists.size() > 0) {
         #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-        for (size_t distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
+        for (long distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
             unsigned long i = calc_row_idx(distIdx, nqqSamples) + nrrSamples;
             unsigned long j = calc_col_idx(distIdx, i - nrrSamples, nqqSamples) + nrrSamples;
             squareDists(i, j) = qqDists[distIdx];
@@ -191,7 +191,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     // Query vs ref rectangles
     if (qrDists.size() > 0) {
         #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-        for (size_t distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
+        for (long distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
             unsigned long i = static_cast<size_t>(distIdx / (float)nqqSamples + 0.001f);
             unsigned long j = distIdx % nqqSamples + nrrSamples;
             squareDists(i, j) = qrDists[distIdx];

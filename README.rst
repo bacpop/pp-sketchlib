@@ -95,7 +95,7 @@ Benchmarks
 ----------
 Sketching 31610 ~3Mb *L. monocytogenes* genomes takes around 20 minutes.
 Calculating all core/accessory distances (500M pairs) takes a further 14 minutes
-on a CPU, or 2 minutes on a GPU. Assigning new queries is twice as fast.
+on a CPU node, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 
 +--------------+-----------------+--------------------------------+
 | Mode         | Parallelisation | Speed                          |
@@ -106,13 +106,9 @@ on a CPU, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 |              +-----------------+--------------------------------+
 |              | CPU & GPU       |  32 genomes per minute         |
 +--------------+-----------------+--------------------------------+
-| Self query   | CPU             |  0.6M distances per second     |
+| Distances    | CPU             |  1.4M distances per second     |
 |              +-----------------+--------------------------------+
-|              | GPU             |  4.3M distances per second     |
-+--------------+-----------------+--------------------------------+
-| Assign query | CPU             |  0.6M distances per second     |
-|              +-----------------+--------------------------------+
-|              | GPU             |  7.2M distances per second     |
+|              | GPU             |  6.0M distances per second     |
 +--------------+-----------------+--------------------------------+
 
 CPU tested using 16 cores on a Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz.

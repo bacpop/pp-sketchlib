@@ -12,8 +12,8 @@
 #include <string>
 #include <sys/stat.h>
 
-#include "matrix.hpp"
-#include "random_match.hpp"
+#include "dist/matrix.hpp"
+#include "random/random_match.hpp"
 #include "reference.hpp"
 
 
