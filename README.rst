@@ -102,7 +102,7 @@ on a CPU node, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 +==============+=================+================================+
 | Sketching    | CPU             |  26 genomes per second         |
 +--------------+-----------------+--------------------------------+
-| Read sketch  | CPU             |  2.3 genomes per minute        |
+| Read sketch  | CPU             |  1.2 genomes per minute        |
 |              +-----------------+--------------------------------+
 |              | CPU & GPU       |  32 genomes per minute         |
 +--------------+-----------------+--------------------------------+
@@ -113,6 +113,10 @@ on a CPU node, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 
 CPU tested using 16 cores on a Intel(R) Xeon(R) Gold 6230 CPU @ 2.10GHz.
 GPU tested using an NVIDIA RTX 2080 Ti GPU (4352 CUDA cores @ 1.35GHz).
+
+NB: The distance speeds can be increased (linearly) by decreasing number of
+k-mers or number of bins. The values above are for eight k-mer lengths
+and 10000 bins.
 
 API
 ===
