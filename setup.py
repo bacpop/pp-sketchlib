@@ -15,7 +15,6 @@ from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install
 from distutils.version import LooseVersion
 
-
 def read(*names, **kwargs):
     with io.open(
         os.path.join(os.path.dirname(__file__), *names),
@@ -39,28 +38,29 @@ class CMakeExtension(Extension):
         self.sourcedir = os.path.abspath(sourcedir)
 
 class CMakeBuild(build_ext):
-    user_options = [
-        ('env=', None, 'Environment (conda, azure or none)'),
+    user_options = build_ext.user_options + [
+        ('target=', None, 'Target (conda, azure or none)'),
     ]
 
     def initialize_options(self):
         build_ext.initialize_options(self)
-        self.env = None
+        self.target = None
 
     def finalize_options(self):
         build_ext.finalize_options(self)
 
     def run(self):
-        try:
-            out = subprocess.check_output(['cmake', '--version'])
-        except OSError:
-            raise RuntimeError("CMake must be installed to build the following extensions: " +
-                               ", ".join(e.name for e in self.extensions))
+        if self.target != 'conda' and self.target != 'azure':
+            try:
+                out = subprocess.check_output(['cmake', '--version'])
+            except OSError:
+                raise RuntimeError("CMake must be installed to build the following extensions: " +
+                                ", ".join(e.name for e in self.extensions))
 
-        if platform.system() == "Windows":
-            cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)', out.decode()).group(1))
-            if cmake_version < '3.1.0':
-                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
+            if platform.system() == "Windows":
+                cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)', out.decode()).group(1))
+                if cmake_version < '3.1.0':
+                    raise RuntimeError("CMake >= 3.1.0 is required on Windows")
 
         for ext in self.extensions:
             self.build_extension(ext)
@@ -91,16 +91,15 @@ class CMakeBuild(build_ext):
                                                               self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-        if self.env == 'conda':
+        if self.target == 'conda':
             subprocess.check_call(['make', 'python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'LIBLOC="' + os.environ['PREFIX'] + '"', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
-        elif self.env == 'azure':
+        elif self.target == 'azure':
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
-            subprocess.check_call(['make', 'install_python'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         else:
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
-
 
 here = path.abspath(path.dirname(__file__))
 
