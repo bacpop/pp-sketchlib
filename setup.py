@@ -116,7 +116,7 @@ setup(
     ],
     python_requires='>=3.6.0',
     keywords='bacteria genomics population-genetics k-mer',
-    packages=['poppunk_sketch'],
+    packages=['pp_sketch'],
     entry_points={
         "console_scripts": [
             'poppunk_sketch = pp_sketch.__main__:main'
