@@ -58,7 +58,7 @@ std::vector<SeqBuf> read_seq_batch(
 inline size_t cap_batch_size(const size_t idx, const size_t total_size,
 						     size_t batch_size) {
 	if (idx + batch_size >= total_size) {
-		batch_size = total_size - i;
+		batch_size = total_size - idx;
 	}
 	return(batch_size);
 }
