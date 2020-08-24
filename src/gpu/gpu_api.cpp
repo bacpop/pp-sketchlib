@@ -25,7 +25,8 @@
 #include "database/database.hpp"
 #include "sketch/sketch.hpp"
 
-const float mem_epsilon = 0.05;
+static const int warp_size = 32;
+static const float mem_epsilon = 0.05;
 
 template<class T>
 inline T samples_to_rows(const T samples) {

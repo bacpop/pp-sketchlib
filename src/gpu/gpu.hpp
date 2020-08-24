@@ -79,7 +79,8 @@ std::vector<float> dispatchDists(
 				   const std::vector<uint16_t>& query_random_idx,
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
-				   const bool self);
+				   const bool self,
+           const int cpu_threads);
 
 // Memory on device for each operation
 class DeviceMemory {

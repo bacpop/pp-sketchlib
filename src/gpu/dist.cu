@@ -366,7 +366,7 @@ DeviceMemory::~DeviceMemory() {
 	CUDA_CALL(cudaFree(d_dist_mat));
 }
 
-DeviceMemory::std::vector<float> read_dists() {
+std::vector<float> DeviceMemory::read_dists() {
 	cudaDeviceSynchronize();
 	std::vector<float> dists(_n_dists);
 	CUDA_CALL(cudaMemcpy(dists.data(),
