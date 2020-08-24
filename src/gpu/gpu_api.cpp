@@ -214,6 +214,92 @@ void longToSquareBlock(NumpyMatrix& coreSquare,
                         sketch_subsample.ref_size) = square_form;
 }
 
+// Gives strides aligned to the warp size (32)
+inline size_t warpPad(const size_t stride) {
+	return(stride + (stride % warp_size ? warp_size - stride % warp_size : 0));
+}
+
+// Turn a vector of references into a flattened vector of
+// uint64 with strides bins * kmers * samples
+std::vector<uint64_t> flatten_by_bins(
+	const std::vector<Reference>& sketches,
+	const std::vector<size_t>& kmer_lengths,
+	SketchStrides& strides,
+	const size_t start_sample_idx,
+	const size_t end_sample_idx,
+	const int cpu_threads) {
+	// Input checks
+	size_t num_sketches = end_sample_idx - start_sample_idx;
+	const size_t num_bins = strides.sketchsize64 * strides.bbits;
+	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
+	assert(end_sample_idx > start_sample_idx);
+
+	// Set strides structure
+	strides.bin_stride = 1;
+	strides.kmer_stride = warpPad(strides.bin_stride * num_bins);
+	// warpPad not needed here, as k-mer stride already a multiple of warp size
+	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
+
+	// Iterate over each dimension to flatten
+	std::vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
+	#pragma omp parallel for simd schedule(static) num_threads(cpu_threads)
+	for (int sample_idx = start_sample_idx; sample_idx < end_sample_idx; sample_idx++) {
+		auto flat_ref_it = flat_ref.begin() + sample_idx * strides.sample_stride;
+		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
+			std::copy(sketches[sample_idx].get_sketch(*kmer_it).cbegin(),
+					  sketches[sample_idx].get_sketch(*kmer_it).cend(),
+					  flat_ref_it);
+            flat_ref_it += strides.kmer_stride;
+		}
+	}
+	return flat_ref;
+}
+
+// Turn a vector of queries into a flattened vector of
+// uint64 with strides samples * bins * kmers
+std::vector<uint64_t> flatten_by_samples(
+	const std::vector<Reference>& sketches,
+	const std::vector<size_t>& kmer_lengths,
+	SketchStrides& strides,
+	const size_t start_sample_idx,
+	const size_t end_sample_idx,
+	const int cpu_threads) {
+	// Set strides
+	size_t num_sketches = end_sample_idx - start_sample_idx;
+	const size_t num_bins = strides.sketchsize64 * strides.bbits;
+	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
+	strides.sample_stride = 1;
+	strides.bin_stride = warpPad(num_sketches);
+	strides.kmer_stride = strides.bin_stride * num_bins;
+
+	// Stride by bins then restride by samples
+	// This is 4x faster than striding by samples by looping over References vector,
+	// presumably because many fewer dereferences are being used
+	SketchStrides old_strides = strides;
+	std::vector<uint64_t> flat_bins = flatten_by_bins(sketches,
+														kmer_lengths,
+														old_strides,
+														start_sample_idx,
+														end_sample_idx);
+	std::vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
+	#pragma omp parallel for simd collapse(2) schedule(static) num_threads(cpu_threads)
+	for (size_t kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
+		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++) {
+			auto flat_ref_it = flat_ref.begin() +
+								kmer_idx * strides.kmer_stride +
+								bin_idx * strides.bin_stride;
+			for (size_t sample_idx = 0; sample_idx < num_sketches; sample_idx++) {
+				*flat_ref_it = flat_bins[sample_idx * old_strides.sample_stride + \
+										 bin_idx * old_strides.bin_stride + \
+										 kmer_idx * old_strides.kmer_stride];
+				flat_ref_it++;
+			}
+		}
+	}
+
+	return flat_ref;
+}
+
 // Main function callable via API
 // Checks inputs
 // Flattens sketches
@@ -288,7 +374,9 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 		// These are iterated over in the same order as a square distance matrix.
 		// The i = j chunks are 'self', i < j can be skipped
 		// as they contain only lower triangle values, i > j work as query vs ref
-		chunks = floor((est_size * 2) / (mem_free * (1 - mem_epsilon))) + 1;
+		if (est_size > mem_free * (1 - mem_epsilon)) {
+			chunks = floor((est_size * 2) / (mem_free * (1 - mem_epsilon))) + 1;
+		}
         size_t calc_per_chunk = n_samples / chunks;
 		unsigned int num_big_chunks = n_samples % chunks;
 
@@ -328,7 +416,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						ref_random_idx,
 						sketch_subsample,
 						kmer_lengths,
-						chunk_i == chunk_j);
+						chunk_i == chunk_j,
+						num_cpu_threads);
 
 				// Read intermediate dists out
 				if (chunks > 1) {
@@ -370,7 +459,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 									query_random_idx,
                                     sketch_subsample,
                                     kmer_lengths,
-                                    false);
+                                    false,
+									num_cpu_threads);
 	}
 
 	NumpyMatrix dists_ret_matrix;

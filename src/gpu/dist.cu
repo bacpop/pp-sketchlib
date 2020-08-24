@@ -24,64 +24,6 @@
 #include "gpu.hpp"
 #include "cuda.cuh"
 
-// Memory on device for each operation
-class DeviceMemory {
-	public:
-		// Defined below
-		DeviceMemory(SketchStrides& ref_strides,
-			SketchStrides& query_strides,
-			std::vector<Reference>& ref_sketches,
-			std::vector<Reference>& query_sketches,
-			const SketchSlice& sample_slice,
-			const FlatRandom& flat_random,
-			const std::vector<uint16_t>& ref_random_idx,
-			const std::vector<uint16_t>& query_random_idx,
-			const std::vector<size_t>& kmer_lengths,
-			long long dist_rows,
-			const bool self);
-
-		~DeviceMemory() {
-			CUDA_CALL(cudaFree(d_ref_sketches));
-			CUDA_CALL(cudaFree(d_query_sketches));
-			CUDA_CALL(cudaFree(d_random_table));
-			CUDA_CALL(cudaFree(d_ref_random));
-			CUDA_CALL(cudaFree(d_query_random));
-			CUDA_CALL(cudaFree(d_kmers));
-			CUDA_CALL(cudaFree(d_dist_mat));
-		}
-
-		std::vector<float> read_dists() {
-			cudaDeviceSynchronize();
-			std::vector<float> dists(_n_dists);
-			CUDA_CALL(cudaMemcpy(dists.data(),
-								 d_dist_mat,
-								 _n_dists * sizeof(float),
-								 cudaMemcpyDefault));
-            return dists;
-		}
-
-		uint64_t * ref_sketches() { return d_ref_sketches; }
-		uint64_t * query_sketches() { return d_query_sketches; }
-		float * random_table() { return d_random_table; }
-		uint16_t * ref_random() { return d_ref_random; }
-		uint16_t * query_random() { return d_query_random; }
-		int * kmers() { return d_kmers; }
-		float * dist_mat() { return d_dist_mat; }
-
-	private:
-		DeviceMemory ( const DeviceMemory & ) = delete;
-        DeviceMemory ( DeviceMemory && ) = delete;
-
-		size_t _n_dists;
-		uint64_t * d_ref_sketches;
-		uint64_t * d_query_sketches;
-		float * d_random_table;
-		uint16_t * d_ref_random;
-		uint16_t * d_query_random;
-		int * d_kmers;
-		float * d_dist_mat;
-};
-
 /******************
 *			      *
 *	Device code   *
@@ -141,8 +83,8 @@ float jaccard_dist(const uint64_t * sketch1,
 // Avoids use of dynamic memory allocation on device, or
 // linear algebra libraries
 __device__
-void simple_linear_regression(float * const &core_dist,
-				              float * const &accessory_dist,
+void simple_linear_regression(float * core_dist,
+				              float * accessory_dist,
 							  const float xsum,
 							  const float ysum,
 							  const float xysum,
@@ -164,6 +106,8 @@ void simple_linear_regression(float * const &core_dist,
     float alpha = __fmaf_ru(-beta, xbar, ybar); // maf: x * y + z
 
 	// Store core/accessory in dists, truncating at zero
+	// Memory should be initialised to zero so else block not strictly
+	// necessary, but better safe than sorry!
 	if (beta < 0) {
 		*core_dist = 1 - __expf(beta);
 	} else {
@@ -327,89 +271,6 @@ void calculate_dists(const bool self,
 *			   *
 ***************/
 
-// Gives strides aligned to the warp size (32)
-inline size_t warpPad(const size_t stride) {
-	return(stride + (stride % warp_size ? warp_size - stride % warp_size : 0));
-}
-
-// Turn a vector of references into a flattened vector of
-// uint64 with strides bins * kmers * samples
-std::vector<uint64_t> flatten_by_bins(
-	const std::vector<Reference>& sketches,
-	const std::vector<size_t>& kmer_lengths,
-	SketchStrides& strides,
-	const size_t start_sample_idx,
-	const size_t end_sample_idx) {
-	// Input checks
-	size_t num_sketches = end_sample_idx - start_sample_idx;
-	const size_t num_bins = strides.sketchsize64 * strides.bbits;
-	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
-	assert(end_sample_idx > start_sample_idx);
-
-	// Set strides structure
-	strides.bin_stride = 1;
-	strides.kmer_stride = warpPad(strides.bin_stride * num_bins);
-	// warpPad not needed here, as k-mer stride already a multiple of warp size
-	strides.sample_stride = strides.kmer_stride * kmer_lengths.size();
-
-	// Iterate over each dimension to flatten
-	std::vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
-	auto flat_ref_it = flat_ref.begin();
-	for (auto sample_it = sketches.cbegin() + start_sample_idx;
-		 sample_it != sketches.cend() - (sketches.size() - end_sample_idx);
-		 sample_it++) {
-		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
-			std::copy(sample_it->get_sketch(*kmer_it).cbegin(),
-						 sample_it->get_sketch(*kmer_it).cend(),
-						 flat_ref_it);
-            flat_ref_it += strides.kmer_stride;
-		}
-	}
-	return flat_ref;
-}
-
-// Turn a vector of queries into a flattened vector of
-// uint64 with strides samples * bins * kmers
-std::vector<uint64_t> flatten_by_samples(
-	const std::vector<Reference>& sketches,
-	const std::vector<size_t>& kmer_lengths,
-	SketchStrides& strides,
-	const size_t start_sample_idx,
-	const size_t end_sample_idx) {
-	// Set strides
-	size_t num_sketches = end_sample_idx - start_sample_idx;
-	const size_t num_bins = strides.sketchsize64 * strides.bbits;
-	assert(num_bins == sketches[0].get_sketch(kmer_lengths[0]).size());
-	strides.sample_stride = 1;
-	strides.bin_stride = warpPad(num_sketches);
-	strides.kmer_stride = strides.bin_stride * num_bins;
-
-	// Stride by bins then restride by samples
-	// This is 4x faster than striding by samples by looping over References vector,
-	// presumably because many fewer dereferences are being used
-	SketchStrides old_strides = strides;
-	std::vector<uint64_t> flat_bins = flatten_by_bins(sketches,
-															  kmer_lengths,
-															  old_strides,
-															  start_sample_idx,
-															  end_sample_idx);
-	std::vector<uint64_t> flat_ref(strides.kmer_stride * kmer_lengths.size());
-	auto flat_ref_it = flat_ref.begin();
-	for (size_t kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++) {
-		for (size_t bin_idx = 0; bin_idx < num_bins; bin_idx++) {
-			for (size_t sample_idx = 0; sample_idx < num_sketches; sample_idx++) {
-				*flat_ref_it = flat_bins[sample_idx * old_strides.sample_stride + \
-										 bin_idx * old_strides.bin_stride + \
-										 kmer_idx * old_strides.kmer_stride];
-				flat_ref_it++;
-			}
-			flat_ref_it += strides.bin_stride - num_sketches;
-		}
-	}
-
-	return flat_ref;
-}
-
 // Sets up data structures and loads them onto the device
 DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 					  SketchStrides& query_strides,
@@ -421,7 +282,8 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 					  const std::vector<uint16_t>& query_random_idx,
 					  const std::vector<size_t>& kmer_lengths,
 					  long long dist_rows,
-					  const bool self)
+					  const bool self,
+					  const int cpu_threads)
 	: _n_dists(dist_rows * 2),
 	  d_query_sketches(nullptr),
 	  d_query_random(nullptr) {
@@ -432,7 +294,8 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 			kmer_lengths,
 			ref_strides,
 			sample_slice.ref_offset,
-			sample_slice.ref_offset + sample_slice.ref_size
+			sample_slice.ref_offset + sample_slice.ref_size,
+			cpu_threads
 		);
 	CUDA_CALL(cudaMalloc((void**)&d_ref_sketches,
 						 flat_ref.size() * sizeof(uint64_t)));
@@ -461,7 +324,8 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 			kmer_lengths,
 			query_strides,
 			sample_slice.query_offset,
-			sample_slice.query_offset + sample_slice.query_size
+			sample_slice.query_offset + sample_slice.query_size,
+			cpu_threads
 		);
 		CUDA_CALL(cudaMalloc((void**)&d_query_sketches,
 							 flat_query.size() * sizeof(uint64_t)));
@@ -490,6 +354,26 @@ DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
 	CUDA_CALL(cudaMalloc((void**)&d_dist_mat,
 						 _n_dists * sizeof(float)));
 	CUDA_CALL(cudaMemset(d_dist_mat, 0, _n_dists * sizeof(float)));
+}
+
+DeviceMemory::~DeviceMemory() {
+	CUDA_CALL(cudaFree(d_ref_sketches));
+	CUDA_CALL(cudaFree(d_query_sketches));
+	CUDA_CALL(cudaFree(d_random_table));
+	CUDA_CALL(cudaFree(d_ref_random));
+	CUDA_CALL(cudaFree(d_query_random));
+	CUDA_CALL(cudaFree(d_kmers));
+	CUDA_CALL(cudaFree(d_dist_mat));
+}
+
+DeviceMemory::std::vector<float> read_dists() {
+	cudaDeviceSynchronize();
+	std::vector<float> dists(_n_dists);
+	CUDA_CALL(cudaMemcpy(dists.data(),
+						 d_dist_mat,
+						 _n_dists * sizeof(float),
+						 cudaMemcpyDefault));
+	return dists;
 }
 
 // Get the blockSize and blockCount for CUDA call
@@ -559,7 +443,8 @@ std::vector<float> dispatchDists(
 	const std::vector<uint16_t>& query_random_idx,
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
-	const bool self) {
+	const bool self,
+    const int cpu_threads) {
 	// Note this is a preference, which will be overridden if more __shared__
 	// space is needed
 	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
@@ -591,7 +476,8 @@ std::vector<float> dispatchDists(
 		query_random_idx,
 		kmer_lengths,
 		dist_rows,
-		self
+		self,
+		cpu_threads
 	);
 
 	size_t blockSize, blockCount;
