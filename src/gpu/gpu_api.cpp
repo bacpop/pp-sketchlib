@@ -51,7 +51,7 @@ std::vector<SeqBuf> read_seq_batch(
 	for (size_t j = 0; j < batch_size; j++) {
 		seq_in_batch[j] = SeqBuf(*(file_it + j), max_kmer);
 	}
-	file_it += j;
+	file_it += batch_size;
 	return seq_in_batch;
 }
 
