@@ -49,9 +49,9 @@ std::vector<SeqBuf> read_seq_batch(
 	std::vector<SeqBuf> seq_in_batch(batch_size);
 	#pragma omp parallel for schedule(static) num_threads(cpu_threads)
 	for (size_t j = 0; j < batch_size; j++) {
-		seq_in_batch[j] = SeqBuf(*file_it, max_kmer);
-		file_it++;
+		seq_in_batch[j] = SeqBuf(*(file_it + j), max_kmer);
 	}
+	file_it += j;
 	return seq_in_batch;
 }
 
@@ -118,7 +118,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 
 			// Get the next batch asynchronously
 			std::vector<SeqBuf> seq_in_batch = seq_reader.get();
-			if (file_it != files.end()) {
+			if (file_it != files.cend()) {
 				seq_reader = std::async(policy, &read_seq_batch, std::ref(file_it),
 							 batch_size, kmer_lengths.back(), worker_threads);
 			}
@@ -150,9 +150,9 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 				sketch_db.add_sketch(sketches[i + j]);
 				if (densified) {
 					std::cerr << "NOTE: "
-							<< names[i + j]
-							<< " required densification"
-							<< std::endl;
+							  << names[i + j]
+							  << " required densification"
+							  << std::endl;
 				}
 			}
 		}
