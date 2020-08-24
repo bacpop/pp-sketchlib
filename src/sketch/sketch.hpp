@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <tuple>
 
+#include "robin_hood.h"
+
 #include "seqio.hpp"
 
 typedef robin_hood::unordered_flat_map<std::vector<unsigned>> KmerSeeds;

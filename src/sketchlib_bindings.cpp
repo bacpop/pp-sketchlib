@@ -116,8 +116,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
                          const bool jaccard = false,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
-                         const int device_id = 0)
-{
+                         const int device_id = 0) {
     if (jaccard && use_gpu) {
         throw std::runtime_error("Extracting Jaccard distances not supported on GPU");
     }
@@ -140,17 +139,14 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
 
     NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
-    if (use_gpu)
-    {
+    if (use_gpu) {
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             random,
                             device_id,
                             num_threads);
-    }
-    else
-    {
+    } else {
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
@@ -197,17 +193,14 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     }
     NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
-    if (use_gpu)
-    {
+    if (use_gpu) {
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             random,
                             device_id,
                             num_threads);
-    }
-    else
-    {
+    } else {
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
@@ -256,8 +249,7 @@ void addRandomToDb(const std::string& db_name,
 double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
-                   const size_t kmer_size)
-{
+                   const size_t kmer_size) {
     auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
     return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size, RandomMC()));
 }

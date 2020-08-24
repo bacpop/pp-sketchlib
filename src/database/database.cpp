@@ -56,8 +56,7 @@ Database::Database(HighFive::File& h5_file)
 * be overwritten
 *
 */
-void Database::add_sketch(const Reference& ref)
-{
+void Database::add_sketch(const Reference& ref) {
     // Create group for sketches
     std::string sketch_name = "/sketches/" + ref.name();
     HighFive::Group sketch_group = _h5_file.createGroup(sketch_name, true);
@@ -104,8 +103,7 @@ void Database::add_sketch(const Reference& ref)
     }
 }
 
-Reference Database::load_sketch(const std::string& name)
-{
+Reference Database::load_sketch(const std::string& name) {
     // Read in attributes
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches/" + name);
 
@@ -131,8 +129,7 @@ Reference Database::load_sketch(const std::string& name)
     }
 
     Reference new_ref(name, bbits, sketchsize64, seq_size, bases, missing_bases);
-    for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
-    {
+    for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
         std::vector<uint64_t> usigs;
         sketch_group.getDataSet(std::to_string(*kmer_it)).read(usigs);
         new_ref.add_kmer_sketch(usigs, *kmer_it);
