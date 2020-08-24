@@ -17,6 +17,7 @@
 #include <tuple>
 #include <algorithm>
 #include <iomanip>
+#include <future>
 
 // internal headers
 #include "sketch/bitfuncs.hpp"
@@ -38,6 +39,22 @@ inline T samples_to_rows(const T samples) {
 *
 */
 
+// Read in a batch of sequence data (in parallel)
+std::vector<SeqBuf> read_seq_batch(
+	std::vector<std::vector<std::string>>::iterator& file_it,
+	const size_t batch_size,
+	const size_t max_kmer,
+	const size_t cpu_threads) {
+
+	std::vector<SeqBuf> seq_in_batch(batch_size);
+	#pragma omp parallel for schedule(static) num_threads(cpu_threads)
+	for (size_t j = 0; j < batch_size; j++) {
+		seq_in_batch[j] = SeqBuf(*file_it, max_kmer);
+		file_it++;
+	}
+	return seq_in_batch;
+}
+
 std::vector<Reference> create_sketches_cuda(const std::string& db_name,
                    const std::vector<std::string>& names,
                    const std::vector<std::vector<std::string>>& files,
@@ -50,11 +67,9 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 	// Try loading sketches from file
 	std::vector<Reference> sketches;
     bool resketch = true;
-    if (file_exists(db_name + ".h5"))
-    {
+    if (file_exists(db_name + ".h5")) {
         sketches = load_sketches(db_name, names, kmer_lengths);
-        if (sketches.size() == names.size())
-        {
+        if (sketches.size() == names.size()) {
             resketch = false;
         }
     }
@@ -75,6 +90,18 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
             min_count = std::numeric_limits<unsigned int>::max();
         }
 
+		// CPU threads read in sequence (asynchronously)
+		std::launch policy = std::launch::async;
+		if (cpu_threads == 1) {
+			// Gives serial behaviour if only one thread available
+			policy = std::launch::deferred;
+		}
+		auto file_it = files.begin();
+		std::future<std::vector<SeqBuf>> seq_reader =
+			std::async(std::launch::deferred, read_seq_batch, file_it,
+					   cpu_threads <= files.size() ? cpu_threads : files.size(),
+					   kmer_lengths.back(), cpu_threads);
+
 		size_t n_batches = files.size() / cpu_threads +
 						  (files.size() % cpu_threads ? 1 : 0);
 		for (size_t i = 0; i < files.size(); i += cpu_threads) {
@@ -84,16 +111,15 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 					  << n_batches
 					  << std::endl;
 
-			size_t batch_size = cpu_threads;
-			if (i + batch_size >= files.size()) {
-				batch_size = files.size() - i;
-			}
-
-			// Read in a batch of sequence data (in parallel)
-    		std::vector<SeqBuf> seq_in_batch(batch_size);
-			#pragma omp parallel for schedule(static) num_threads(cpu_threads)
-			for (size_t j = 0; j < batch_size; j++) {
-				seq_in_batch[j] = SeqBuf(files[i + j], kmer_lengths.back());
+			// Get the next batch asynchronously
+			std::vector<SeqBuf> seq_in_batch = seq_reader.get();
+			if (file_it != files.end()) {
+				size_t batch_size = cpu_threads - 1;
+				if (i + batch_size >= files.size()) {
+					batch_size = files.size() - i;
+				}
+				seq_reader = std::async(policy, read_seq_batch, file_it,
+							 batch_size, kmer_lengths.back(), cpu_threads - 1);
 			}
 
 			// Run the sketch on the GPU (serially over the batch)
