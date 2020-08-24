@@ -33,8 +33,8 @@ steps:
 # pushd src && make && make install && popd
 - script: |
     source activate pp_env
-    python -m pip install --no-deps --ignore-installed . --global-option="build_ext" --global-option="--target=azure"
-    python -m pip install --no-deps .
+    export SKETCHLIB_INSTALL=azure
+    python -m pip install --no-deps --ignore-installed .
   displayName: 'Build & install (setup.py)'
 
 - bash: cd test && python run_test.py --no-cpp
