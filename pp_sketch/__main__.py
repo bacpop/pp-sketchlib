@@ -80,7 +80,7 @@ def get_options():
 
     description = 'Run poppunk sketching/distances'
     parser = argparse.ArgumentParser(description=description,
-                                     prog='pp_sketch')
+                                     prog='poppunk_sketch')
 
     modeGroup = parser.add_argument_group('Mode of operation')
     mode = modeGroup.add_mutually_exclusive_group(required=True)
@@ -113,24 +113,26 @@ def get_options():
                     default='ppsketch',
                     help="Output prefix [default = 'ppsketch']")
 
-    kmerGroup = parser.add_argument_group('Kmer comparison options')
+    kmerGroup = parser.add_argument_group('Kmer options')
     kmerGroup.add_argument('--read-k', default = False, action='store_true',
                             help='Use k-mer lengths found in query databases (query mode only)')
     kmerGroup.add_argument('--min-k', default = 13, type=int, help='Minimum kmer length [default = 13]')
     kmerGroup.add_argument('--max-k', default = 29, type=int, help='Maximum kmer length [default = 29]')
     kmerGroup.add_argument('--k-step', default = 4, type=int, help='K-mer step size [default = 4]')
-    kmerGroup.add_argument('--sketch-size', default=10000, type=int, help='K-mer sketch size [default = 10000]')
-    kmerGroup.add_argument('--no-correction', default=False, action='store_true',
-                            help='Disable correction for random matches at short k-mer lengths')
-    kmerGroup.add_argument('--jaccard', default=False, action='store_true',
-                            help='Output adjusted Jaccard distances, not core and accessory distances')
-    kmerGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
+
+    sketchGroup = parser.add_argument_group('Sketch options')
+    sketchGroup.add_argument('--sketch-size', default=10000, type=int, help='K-mer sketch size [default = 10000]')
+    sketchGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
                                                                                 'e.g. for RNA viruses with preserved strand')
-    kmerGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
-    kmerGroup.add_argument('--exact-counter', default=False, action='store_true',
+    sketchGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
+    sketchGroup.add_argument('--exact-counter', default=False, action='store_true',
                             help='Use an exact rather than approximate k-mer counter '
                                   'when using reads as input (increases memory use) '
                                   '[default = False]')
+    sketchGroup.add_argument('--no-random', default = False, action = 'store_true',
+                             help = 'Do not calculate random match chances. Use this '
+                                    'if sketching input for querying against a reference.'
+                                    ' [default = False]')
 
     query = parser.add_argument_group('Query options')
     query.add_argument('--subset',
@@ -161,6 +163,14 @@ def get_options():
                              'of core',
                         action='store_true',
                         default=False)
+    query.add_argument('--no-correction',
+                        default=False,
+                        action='store_true',
+                        help='Disable correction for random matches at short k-mer lengths')
+    query.add_argument('--jaccard',
+                        default=False,
+                        action='store_true',
+                        help='Output adjusted Jaccard distances, not core and accessory distances')
 
     optimisation = parser.add_argument_group('Optimisation options')
     optimisation.add_argument('--cpus',
@@ -169,8 +179,7 @@ def get_options():
                               help='Number of CPUs to use (--sketch and --query) '
                                    '[default = 1]')
     optimisation.add_argument('--use-gpu', default=False, action='store_true',
-                              help='Use GPU code to calculate distances, '
-                                   'if available (--query only) [default = False]')
+                              help='Use GPU [default = False]')
     optimisation.add_argument('--gpu-id',
                               type=int,
                               default=0,
@@ -212,8 +221,9 @@ def main():
             sys.exit(1)
 
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers,
-                                       int(round(args.sketch_size/64)), args.strand,
-                                       args.min_count, args.exact_counter, args.cpus)
+                                       int(round(args.sketch_size/64)), not args.no_random,
+                                       args.strand, args.min_count, args.exact_counter, args.cpus,
+                                       args.use_gpu, args.gpu_id)
 
     #
     # Join two databases

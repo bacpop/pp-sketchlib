@@ -4,8 +4,9 @@
  * Special functions for reading/writing to HDF5
  *
  */
+#pragma once
 
-#include "matrix.hpp"
+#include "dist/matrix.hpp"
 
 #include "robin_hood.h"
 #include <highfive/H5File.hpp>

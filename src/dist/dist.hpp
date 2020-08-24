@@ -21,7 +21,7 @@ inline T observed_excess(T obs, T exp, U max) {
 	return(diff * max / (max - exp));
 }
 
-size_t calc_intersize(const std::vector<uint64_t> * sketch1, 
-                      const std::vector<uint64_t> * sketch2, 
-                      const size_t sketchsize64, 
+size_t calc_intersize(const std::vector<uint64_t> * sketch1,
+                      const std::vector<uint64_t> * sketch2,
+                      const size_t sketchsize64,
                       const size_t bbits);

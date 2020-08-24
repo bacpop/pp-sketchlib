@@ -10,14 +10,11 @@
 
 #include "reference.hpp"
 
-#include "sketch.hpp"
-#include "dist.hpp"
-#include "random_match.hpp"
+#include "sketch/sketch.hpp"
+#include "dist/dist.hpp"
+#include "random/random_match.hpp"
 
-const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
-const size_t def_sketchsize64 = 156;
-
-#include "bitfuncs.hpp"
+#include "sketch/bitfuncs.hpp"
 
 auto key_selector = [](auto pair){return pair.first;};
 // auto value_selector = [](auto pair){return pair.second;};
@@ -70,9 +67,6 @@ Reference::Reference(const std::string& name,
     } else {
         _seq_size = _bases.total;
     }
-
-    // SeqBuf containing sequences will get deleted here
-    // usigs (the sketch) will be retained
 }
 
 Reference::Reference(const std::string& name,
@@ -89,6 +83,20 @@ Reference::Reference(const std::string& name,
     _bases.g = bases[2];
     _bases.t = bases[3];
 }
+
+// Initialise from GPU sketch
+Reference::Reference(const std::string& name,
+                     robin_hood::unordered_map<int, std::vector<uint64_t>>& sketch,
+                     const size_t bbits,
+                     const size_t sketchsize64,
+                     const size_t seq_size,
+                     const BaseComp<double>& bases,
+                     const unsigned long int missing_bases,
+                     const bool use_rc,
+                     const bool densified)
+   :_name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(use_rc),
+   _seq_size(seq_size), _missing_bases(missing_bases), _densified(densified),
+   _bases(bases), usigs(sketch) {}
 
 double Reference::jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard) {
     size_t intersize = calc_intersize(&this->get_sketch(kmer_len),

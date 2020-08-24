@@ -12,9 +12,9 @@
 #include <string>
 #include <tuple>
 
-#include "gpu.hpp"
+#include "gpu/gpu.hpp"
 #include "robin_hood.h"
-#include "matrix.hpp"
+#include "dist/matrix.hpp"
 
 const unsigned int default_max_k = 101;
 const unsigned int default_n_clusters = 3;

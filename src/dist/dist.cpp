@@ -11,7 +11,7 @@
 
 #include "dist.hpp"
 
-#include "bitfuncs.hpp"
+#include "sketch/bitfuncs.hpp"
 
 // Start of macros and method copied from https://github.com/kimwalisch/libpopcnt
 

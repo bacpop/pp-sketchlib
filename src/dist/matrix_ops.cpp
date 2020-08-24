@@ -31,14 +31,14 @@ void rectangle_block(const Eigen::VectorXf& longDists,
                   const size_t max_elems);
 
 //https://stackoverflow.com/a/12399290
-std::vector<size_t> sort_indexes(const Eigen::VectorXf &v) {
+std::vector<long> sort_indexes(const Eigen::VectorXf &v) {
 
   // initialize original index locations
-  std::vector<size_t> idx(v.size());
+  std::vector<long> idx(v.size());
   std::iota(idx.begin(), idx.end(), 0);
 
   std::stable_sort(idx.begin(), idx.end(),
-       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+       [&v](long i1, long i2) {return v[i1] < v[i2];});
 
   return idx;
 }
@@ -52,7 +52,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
     } else if (kNN < 1 && distCutoff < 0) {
         throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
-    
+
     // ijv vectors
     std::vector<float> dists;
     std::vector<long> i_vec;
@@ -64,8 +64,8 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
         {
             std::vector<float> dists_private;
             std::vector<long> i_vec_private;
-            std::vector<long> j_vec_private; 
-            #pragma omp for simd schedule(guided, 1) nowait 
+            std::vector<long> j_vec_private;
+            #pragma omp for simd schedule(guided, 1) nowait
             // This loop is 'backwards' to try and get better scheduling
             for (long i = denseDists.rows() - 1; i >= 0; i--) {
                 for (long j = i + 1; j < denseDists.cols(); j++) {
@@ -88,7 +88,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
         {
             std::vector<float> dists_private;
             std::vector<long> i_vec_private;
-            std::vector<long> j_vec_private; 
+            std::vector<long> j_vec_private;
             #pragma omp for simd schedule(guided, 1) nowait
             for (long i = 0; i < denseDists.rows(); i++) {
                 unsigned long unique_neighbors = 0;
@@ -112,10 +112,10 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             #pragma omp critical
             dists.insert(dists.end(), dists_private.begin(), dists_private.end());
             i_vec.insert(i_vec.end(), i_vec_private.begin(), i_vec_private.end());
-            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end()); 
+            j_vec.insert(j_vec.end(), j_vec_private.begin(), j_vec_private.end());
         }
     }
-    
+
     return(std::make_tuple(i_vec, j_vec, dists));
 }
 
@@ -125,7 +125,7 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix& distMat,
                                  float y_max,
                                  unsigned int num_threads) {
     Eigen::VectorXf boundary_test(distMat.rows());
-    
+
     #pragma omp parallel for simd schedule(static) num_threads(num_threads)
     for (long row_idx = 0; row_idx < distMat.rows(); row_idx++) {
         float in_tri = 0;
@@ -171,7 +171,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
 
     // Loop over threads for ref v ref square
     #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-    for (size_t distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
+    for (long distIdx = 0; distIdx < rrDists.rows(); distIdx++) {
         unsigned long i = calc_row_idx(distIdx, nrrSamples);
         unsigned long j = calc_col_idx(distIdx, i, nrrSamples);
         squareDists(i, j) = rrDists[distIdx];
@@ -180,7 +180,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
 
     if (qqDists.size() > 0) {
         #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-        for (size_t distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
+        for (long distIdx = 0; distIdx < qqDists.rows(); distIdx++) {
             unsigned long i = calc_row_idx(distIdx, nqqSamples) + nrrSamples;
             unsigned long j = calc_col_idx(distIdx, i - nrrSamples, nqqSamples) + nrrSamples;
             squareDists(i, j) = qqDists[distIdx];
@@ -191,7 +191,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     // Query vs ref rectangles
     if (qrDists.size() > 0) {
         #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-        for (size_t distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
+        for (long distIdx = 0; distIdx < qrDists.rows(); distIdx++) {
             unsigned long i = static_cast<size_t>(distIdx / (float)nqqSamples + 0.001f);
             unsigned long j = distIdx % nqqSamples + nrrSamples;
             squareDists(i, j) = qrDists[distIdx];
@@ -207,17 +207,17 @@ Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
     if (squareDists.rows() != squareDists.cols()) {
         throw std::runtime_error("square_to_long input must be a square matrix");
     }
-    
-    long n = squareDists.rows(); 
+
+    long n = squareDists.rows();
     Eigen::VectorXf longDists((n * (n - 1)) >> 1);
-    
+
     // Each inner loop increases in size linearly with outer index
     // due to reverse direction
     // guided schedules inversely proportional to outer index
     #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
     for (long i = n - 2; i >= 0; i--) {
         for (long j = i + 1; j < n; j++) {
-            longDists(square_to_condensed(i, j, n)) = squareDists(i, j); 
+            longDists(square_to_condensed(i, j, n)) = squareDists(i, j);
         }
     }
 

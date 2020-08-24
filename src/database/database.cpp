@@ -9,7 +9,7 @@
 
 #include "database.hpp"
 #include "hdf5_funcs.hpp"
-#include "random_match.hpp"
+#include "random/random_match.hpp"
 
 #include "robin_hood.h"
 

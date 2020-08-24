@@ -11,8 +11,6 @@
 #include <iterator>
 #include <limits>
 
-#include "countmin.hpp"
-
 // Constructors
 
 KmerCounter::KmerCounter(const uint8_t min_count, const size_t num_hashes)
@@ -75,7 +73,7 @@ uint8_t HashCounter::add_count(stHashIterator& hash)
     else if (table_val->second < std::numeric_limits<uint8_t>::max())
     {
         (table_val->second)++;
-        count = table_val->second; 
+        count = table_val->second;
     }
     return(count);
 }

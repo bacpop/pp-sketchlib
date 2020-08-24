@@ -14,9 +14,9 @@ const float accessory_upper = 0;
 
 std::tuple<float, float> fit_slope(const arma::mat& kmers,
                                    const arma::vec& dists,
-                                   Reference * r1, 
+                                   Reference * r1,
                                    Reference * r2) {
-    
+
     try {
         arma::colvec slopes = arma::solve(kmers, dists);
 
@@ -40,11 +40,11 @@ std::tuple<float, float> fit_slope(const arma::mat& kmers,
     }
 }
 
-std::tuple<float, float> regress_kmers(Reference * r1, 
-                                       Reference * r2, 
+std::tuple<float, float> regress_kmers(Reference * r1,
+                                       Reference * r2,
                                        const arma::mat& kmers,
                                        const RandomMC& random) {
-    // Vector of points 
+    // Vector of points
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i)
     {
@@ -53,14 +53,14 @@ std::tuple<float, float> regress_kmers(Reference * r1,
     return(fit_slope(kmers, dists, r1, r2));
 }
 
-// This is basically copied from above - 
+// This is basically copied from above -
 // I don't know if there's an easier
-std::tuple<float, float> regress_kmers(Reference * r1, 
-                                       Reference * r2, 
+std::tuple<float, float> regress_kmers(Reference * r1,
+                                       Reference * r2,
                                        const arma::mat& kmers,
                                        const std::vector<double>& random)
 {
-    // Vector of points 
+    // Vector of points
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i)
     {

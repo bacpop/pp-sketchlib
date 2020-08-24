@@ -1,3 +1,9 @@
+// Thread-safe RNG from http://prng.di.unimi.it/ using:
+// xoshiro256starstar.c
+// splitmix64.c
+
+#pragma once
+
 #include <vector>
 #include <climits>
 #include <limits>
@@ -5,9 +11,6 @@
 
 #define XOSHIRO_WIDTH 4
 
-// Thread-safe RNG from http://prng.di.unimi.it/ using:
-// xoshiro256starstar.c
-// splitmix64.c
 class Xoshiro {
     public:
         // Definitions to be used as URNG in C++11
@@ -18,7 +21,7 @@ class Xoshiro {
 
         // Constructor
         Xoshiro(uint64_t seed);
-        
+
         // Change internal state
         void set_seed(uint64_t seed);
         void jump();

@@ -49,21 +49,48 @@ void constructDatabase(const std::string& db_name,
                        const std::vector<std::vector<std::string>>& file_names,
                        std::vector<size_t> kmer_lengths,
                        const size_t sketch_size,
+                       const bool calc_random = true,
                        const bool use_rc = true,
                        size_t min_count = 0,
                        const bool exact = false,
-                       const size_t num_threads = 1)
-{
-    std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                            sample_names,
-                                                            file_names,
-                                                            kmer_lengths,
-                                                            sketch_size,
-                                                            use_rc,
-                                                            min_count,
-                                                            exact,
-                                                            num_threads);
-    if (ref_sketches.size() >= default_n_clusters) {
+                       const size_t num_threads = 1,
+                       const bool use_gpu = false,
+                       const int device_id = 0) {
+    std::vector<Reference> ref_sketches;
+#ifdef GPU_AVAILABLE
+    if (use_gpu) {
+        ref_sketches = create_sketches_cuda(db_name,
+                                            sample_names,
+                                            file_names,
+                                            kmer_lengths,
+                                            sketch_size,
+                                            use_rc,
+                                            min_count,
+                                            num_threads,
+                                            device_id);
+    } else {
+        ref_sketches = create_sketches(db_name,
+                                        sample_names,
+                                        file_names,
+                                        kmer_lengths,
+                                        sketch_size,
+                                        use_rc,
+                                        min_count,
+                                        exact,
+                                        num_threads);
+    }
+#else
+    ref_sketches = create_sketches(db_name,
+                                    sample_names,
+                                    file_names,
+                                    kmer_lengths,
+                                    sketch_size,
+                                    use_rc,
+                                    min_count,
+                                    exact,
+                                    num_threads);
+#endif
+    if (calc_random && ref_sketches.size() >= default_n_clusters) {
         RandomMC random = calculate_random(ref_sketches,
                                         db_name,
                                         default_n_clusters,
@@ -204,69 +231,6 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     return(sparse_return);
 }
 
-NumpyMatrix constructAndQuery(const std::string& db_name,
-                             const std::vector<std::string>& sample_names,
-                             const std::vector<std::vector<std::string>>& file_names,
-                             std::vector<size_t> kmer_lengths,
-                             const size_t sketch_size,
-                             const bool use_rc = true,
-                             size_t min_count = 0,
-                             const bool exact = false,
-                             const bool random_correct = true,
-                             const bool jaccard = false,
-                             const size_t num_threads = 1,
-                             const bool use_gpu = false,
-                             const int device_id = 0)
-{
-    std::vector<Reference> ref_sketches = create_sketches(db_name,
-                                                            sample_names,
-                                                            file_names,
-                                                            kmer_lengths,
-                                                            sketch_size,
-                                                            use_rc,
-                                                            min_count,
-                                                            exact,
-                                                            num_threads);
-    RandomMC random;
-    if (!random_correct || ref_sketches.size() < default_n_clusters) {
-        random = RandomMC();
-    } else {
-        random = calculate_random(ref_sketches,
-                                       db_name,
-                                       default_n_clusters,
-                                       default_n_MC,
-                                       use_rc,
-                                       num_threads);
-    }
-
-    NumpyMatrix dists;
-#ifdef GPU_AVAILABLE
-    if (use_gpu) {
-        dists = query_db_cuda(ref_sketches,
-                             ref_sketches,
-                             kmer_lengths,
-                             random,
-                             device_id,
-                             num_threads);
-    } else {
-        dists = query_db(ref_sketches,
-                ref_sketches,
-                kmer_lengths,
-                random,
-                jaccard,
-                num_threads);
-    }
-#else
-    dists = query_db(ref_sketches,
-                     ref_sketches,
-                     kmer_lengths,
-                     random,
-                     jaccard,
-                     num_threads);
-#endif
-    return(dists);
-}
-
 void addRandomToDb(const std::string& db_name,
                       const std::vector<std::string>& sample_names,
                       const std::vector<size_t> kmer_lengths,
@@ -320,10 +284,13 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("files"),
         py::arg("klist"),
         py::arg("sketch_size"),
+        py::arg("calc_random") = true,
         py::arg("use_rc") = true,
         py::arg("min_count") = 0,
         py::arg("exact") = false,
-        py::arg("num_threads") = 1);
+        py::arg("num_threads") = 1,
+        py::arg("use_gpu") = false,
+        py::arg("device_id") = 0);
 
   m.def("queryDatabase", &queryDatabase, py::return_value_policy::reference_internal, "Find distances between sketches; return all distances",
         py::arg("ref_db_name"),
@@ -347,21 +314,6 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("dist_cutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("core") = true,
-        py::arg("num_threads") = 1,
-        py::arg("use_gpu") = false,
-        py::arg("device_id") = 0);
-
-  m.def("constructAndQuery", &constructAndQuery, py::return_value_policy::reference_internal, "Create and save sketches, and get pairwise distances",
-        py::arg("db_name"),
-        py::arg("samples"),
-        py::arg("files"),
-        py::arg("klist"),
-        py::arg("sketch_size"),
-        py::arg("use_rc") = true,
-        py::arg("min_count") = 0,
-        py::arg("exact") = false,
-        py::arg("random_correct") = true,
-        py::arg("jaccard") = false,
         py::arg("num_threads") = 1,
         py::arg("use_gpu") = false,
         py::arg("device_id") = 0);

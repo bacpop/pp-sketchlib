@@ -26,6 +26,8 @@ def compare_dists(d1, d2):
         if (abs(diff) > max_diff and abs(diff_fraction) > max_diff_fraction):
             sys.stderr.write("Difference outside tolerance")
             fail = True
+    elif not (d1 == 0 and d2 == 0):
+        fail = True
     return(fail)
 
 def compare_dists_files(cpu_file, gpu_file):
@@ -34,13 +36,13 @@ def compare_dists_files(cpu_file, gpu_file):
         cpu_header = cpu_dists.readline()
         gpu_header = gpu_dists.readline()
         if (cpu_header != gpu_header):
-            sys.stderr.write("Headers mismatch")
+            print(f"\033[91mHeader mismatch!\033[0m")
             fail = True
         for cpu_line, gpu_line in zip(cpu_dists, gpu_dists):
             rname, qname, core_dist, acc_dist = cpu_line.rstrip().split("\t")
-            g_rname, g_qname, g_core_dist, g_acc_dist = cpu_line.rstrip().split("\t")
+            g_rname, g_qname, g_core_dist, g_acc_dist = gpu_line.rstrip().split("\t")
             if (rname != g_rname or qname != g_qname):
-                sys.stderr.write("Sample order mismatch")
+                print(f"\033[91mSample order mismatch!\033[0m")
                 fail = True
             fail = fail or compare_dists(float(core_dist), float(g_core_dist))
             fail = fail or compare_dists(float(acc_dist), float(g_acc_dist))
@@ -55,7 +57,9 @@ subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --quer
 sys.stderr.write("Testing self distances match\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass --read-k --print > tmp.cpu.self.dists.txt", shell=True, check=True)
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass --read-k --print --use-gpu > tmp.gpu.self.dists.txt", shell=True, check=True)
-fail = compare_dists_files("tmp.cpu.self.dists.txt", "tmp.gpu.self.dists.txt")
+fail_self = compare_dists_files("tmp.cpu.self.dists.txt", "tmp.gpu.self.dists.txt")
+if fail_self:
+    print(f"\033[91mSelf distances mismatch!\033[0m")
 
 sys.stderr.write("Testing query distances on CPU\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print", shell=True, check=True)
@@ -65,7 +69,13 @@ subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --quer
 sys.stderr.write("Testing query distances match\n")
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print > tmp.cpu.query.dists.txt", shell=True, check=True)
 subprocess.run("python ../pp_sketch-runner.py --query --ref-db small_mass --query-db small_mass_plus1 --read-k --print --use-gpu > tmp.gpu.query.dists.txt", shell=True, check=True)
-fail = fail or compare_dists_files("tmp.cpu.query.dists.txt", "tmp.gpu.query.dists.txt")
+fail_query = compare_dists_files("tmp.cpu.query.dists.txt", "tmp.gpu.query.dists.txt")
+if fail_query:
+    print(f"\033[91mQuery distances mismatch!\033[0m")
 
-sys.stderr.write("Tests completed\n")
-sys.exit(fail)
+if fail_self or fail_query:
+    sys.stderr.write("\033[91mTests failed\033[0m")
+else:
+    print(f"\033[92mTests complete\033[0m")
+
+sys.exit(fail_self or fail_query)
