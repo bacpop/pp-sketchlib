@@ -147,10 +147,6 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
         }
         seq.move_next_seq();
     }
-    //printf("k=%d\n", (int)kmer_len);
-    //for (int i = 0; i < nbins; i++) {
-    //    printf("bin:%d sign:%lu\n", i, signs[i]);
-    //}
     double inv_minhash = inverse_minhash(signs);
 
     // Free memory from read_counter
@@ -193,10 +189,6 @@ std::tuple<robin_hood::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
                                                 binsize, nbins);
 
         minhash_sum += inverse_minhash(signs);
-        //printf("k=%d\n", (int)k);
-        //for (int i = 0; i < nbins; i++) {
-        //    printf("bin:%d sign:%lu\n", i, signs[i]);
-        //}
 
         // Apply densifying function
         densified |= densifybin(signs);

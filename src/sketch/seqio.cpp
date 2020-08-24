@@ -75,6 +75,8 @@ SeqBuf::SeqBuf(const std::vector<std::string>& filenames, const size_t kmer_len)
                 bool has_N = false;
                 for (char & c : sequence.back())
                 {
+                    // Convert all to uppercase. ntHash is ok with either
+                    // but this saves two checks on base compositions
                     c = ascii_toupper_char(c);
                     base_counts.total++;
                     if (base_counts.total < max_composition_sample) {

@@ -186,7 +186,6 @@ unsigned int add_count_min(unsigned int * d_countmin_table,
             if (cell_count < min_count) {
                 min_count = cell_count;
             }
-            __syncwarp();
             current_hash = current_hash >> table_width_bits;
         }
         hash_val = shifthash(hash_val, k, hash_nr / 2);
@@ -303,11 +302,9 @@ void reportSketchProgress(volatile int * blocks_complete,
 
 DeviceReads::DeviceReads(const SeqBuf& seq_in,
                          const size_t n_threads)
-    :d_reads(nullptr),
-     n_reads(seq_in.n_full_seqs()),
+    :n_reads(seq_in.n_full_seqs()),
      read_length(seq_in.max_length()),
      read_stride(seq_in.n_full_seqs_padded())  {
-    CUDA_CALL(cudaFree(d_reads)); // Initialises device if needed
 
     std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
     CUDA_CALL( cudaMalloc((void**)&d_reads, flattened_reads.size() * sizeof(char)));
@@ -381,7 +378,7 @@ void copyNtHashTablesToDevice() {
         N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 224..231
         N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 232..239
         N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, // 240..247
-        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r  // 248..255
+        N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr, N33r_ptr  // 248..255
     };
 
     static const uint64_t *d_addr_msTab31l[256] = {
@@ -416,7 +413,7 @@ void copyNtHashTablesToDevice() {
         N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 224..231
         N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 232..239
         N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, // 240..247
-        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l  // 248..255
+        N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr, N31l_ptr  // 248..255
     };
 
     CUDA_CALL(cudaMemcpyToSymbolAsync(d_msTab31l, d_addr_msTab31l, 256 * sizeof(uint64_t*)));
