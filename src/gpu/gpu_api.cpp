@@ -25,7 +25,6 @@
 #include "database/database.hpp"
 #include "sketch/sketch.hpp"
 
-static const int warp_size = 32;
 static const float mem_epsilon = 0.05;
 
 template<class T>

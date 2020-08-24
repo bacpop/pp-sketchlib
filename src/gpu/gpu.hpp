@@ -12,6 +12,8 @@
 
 #include "reference.hpp"
 
+static const int warp_size = 32;
+
 // Align structs
 // https://stackoverflow.com/a/12779757
 #if defined(__CUDACC__) // NVCC
