@@ -70,10 +70,15 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                   << num_sketch_threads
                   << " thread(s)"
                   << std::endl;
+        KmerSeeds kmer_seeds;
         if (codon_phased) {
             std::cerr << "NB: codon phased seeds are ON" << std::endl;
+            kmer_seeds = generate_phased_seeds(kmer_lengths);
+        } else {
+            for (k : kmer_lengths) {
+                kmer_seeds[k] = std::vector<unsigned int>(k, 1);
+            }
         }
-        KmerSeeds kmer_seeds = generate_phased_seeds(kmer_lengths);
 
         #pragma omp parallel for schedule(static) num_threads(num_threads)
         for (unsigned int i = 0; i < names.size(); i++) {
