@@ -32,9 +32,8 @@ steps:
 # to add C++ tests add the following line, and remove --no-cpp
 # pushd src && make && make install && popd
 - script: |
-    git apply 0001-Use-makefile-in-setup.py.patch
     source activate pp_env
-    python -m pip install --no-deps --ignore-installed .
+    python -m pip install --no-deps --ignore-installed .  --install-option="--env=azure"
   displayName: 'Build & install (setup.py)'
 
 - bash: cd test && python run_test.py --no-cpp

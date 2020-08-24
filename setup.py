@@ -12,6 +12,7 @@ import subprocess
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
 from distutils.version import LooseVersion
 
 
@@ -38,6 +39,17 @@ class CMakeExtension(Extension):
         self.sourcedir = os.path.abspath(sourcedir)
 
 class CMakeBuild(build_ext):
+    user_options = [
+        ('env=', None, 'Environment (conda, azure or none)'),
+    ]
+
+    def initialize_options(self):
+        build_ext.initialize_options(self)
+        self.env = None
+
+    def finalize_options(self):
+        build_ext.finalize_options(self)
+
     def run(self):
         try:
             out = subprocess.check_output(['cmake', '--version'])
@@ -79,8 +91,15 @@ class CMakeBuild(build_ext):
                                                               self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+        if self.env == 'conda':
+            subprocess.check_call(['make', 'python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', 'install_python', 'LIBLOC="' + os.environ['PREFIX'] + '"', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+        elif self.env == 'azure':
+            subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', 'install_python'], cwd=ext.sourcedir + '/src', env=env)
+        else:
+            subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+            subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
 
 here = path.abspath(path.dirname(__file__))
@@ -104,7 +123,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     python_requires='>=3.6.0',
     keywords='bacteria genomics population-genetics k-mer',
