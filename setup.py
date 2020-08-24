@@ -77,12 +77,14 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
+
+        target = os.getenv('SKETCHLIB_INSTALL', None)
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-        if os.environ['SKETCHLIB_INSTALL'] == 'conda':
+        if target == 'conda':
             subprocess.check_call(['make', 'python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'LIBLOC="' + os.environ['PREFIX'] + '"', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
-        elif os.environ['SKETCHLIB_INSTALL']== 'azure':
+        elif target == 'azure':
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         else:
