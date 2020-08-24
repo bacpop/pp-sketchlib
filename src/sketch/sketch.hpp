@@ -14,7 +14,7 @@
 
 #include "seqio.hpp"
 
-typedef robin_hood::unordered_flat_map<std::vector<unsigned>> KmerSeeds;
+typedef robin_hood::unordered_flat_map<size_t, std::vector<unsigned>> KmerSeeds;
 
 KmerSeeds generate_phased_seeds(std::vector<size_t> kmer_lengths);
 
