@@ -55,6 +55,14 @@ std::vector<SeqBuf> read_seq_batch(
 	return seq_in_batch;
 }
 
+inline size_t cap_batch_size(const size_t idx, const size_t total_size,
+						     size_t batch_size) {
+	if (idx + batch_size >= total_size) {
+		batch_size = total_size - i;
+	}
+	return(batch_size);
+}
+
 std::vector<Reference> create_sketches_cuda(const std::string& db_name,
                    const std::vector<std::string>& names,
                    const std::vector<std::vector<std::string>>& files,
@@ -90,37 +98,36 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
             min_count = std::numeric_limits<unsigned int>::max();
         }
 
+		size_t worker_threads = MAX(1, cpu_threads - 1);
+		size_t n_batches = files.size() / worker_threads +
+						  (files.size() % worker_threads ? 1 : 0);
+		size_t batch_size = cap_batch_size(0, files.size(), worker_threads);
+
 		// CPU threads read in sequence (asynchronously)
 		std::launch policy = std::launch::async;
 		if (cpu_threads == 1) {
 			// Gives serial behaviour if only one thread available
 			policy = std::launch::deferred;
 		}
-		auto file_it = files.begin();
+		auto file_it = files.cbegin();
 		std::future<std::vector<SeqBuf>> seq_reader =
 			std::async(std::launch::deferred, &read_seq_batch, std::ref(file_it),
-					   cpu_threads <= files.size() ? cpu_threads : files.size(),
-					   kmer_lengths.back(), cpu_threads);
+					   batch_size, kmer_lengths.back(), cpu_threads);
 
-		size_t worker_threads = MAX(1, cpu_threads - 1);
-		size_t n_batches = files.size() / worker_threads +
-						  (files.size() % worker_threads ? 1 : 0);
 		for (size_t i = 0; i < files.size(); i += worker_threads) {
 			std::cerr << "Sketching batch: "
 					  << i / worker_threads + 1
 					  << " of "
 					  << n_batches
 					  << std::endl;
-			size_t batch_size = worker_threads;
-			if (i + batch_size >= files.size()) {
-				batch_size = files.size() - i;
-			}
+			batch_size = cap_batch_size(i, files.size(), worker_threads);
 
 			// Get the next batch asynchronously
 			std::vector<SeqBuf> seq_in_batch = seq_reader.get();
 			if (file_it != files.cend()) {
 				seq_reader = std::async(policy, &read_seq_batch, std::ref(file_it),
-							 batch_size, kmer_lengths.back(), worker_threads);
+							 			cap_batch_size(i + worker_threads, files.size(), worker_threads),
+										kmer_lengths.back(), worker_threads);
 			}
 
 			// Run the sketch on the GPU (serially over the batch)

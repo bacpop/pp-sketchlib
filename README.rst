@@ -104,7 +104,7 @@ on a CPU node, or 2 minutes on a GPU. Assigning new queries is twice as fast.
 +--------------+-----------------+--------------------------------+
 | Read sketch  | CPU             |  1.2 genomes per minute        |
 |              +-----------------+--------------------------------+
-|              | CPU & GPU       |  32 genomes per minute         |
+|              | CPU & GPU       |  49 genomes per minute         |
 +--------------+-----------------+--------------------------------+
 | Distances    | CPU             |  1.4M distances per second     |
 |              +-----------------+--------------------------------+
