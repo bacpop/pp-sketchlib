@@ -10,7 +10,6 @@
 
 #include "reference.hpp"
 
-#include "sketch/sketch.hpp"
 #include "dist/dist.hpp"
 #include "random/random_match.hpp"
 
@@ -31,8 +30,9 @@ Reference::Reference()
 
 Reference::Reference(const std::string& name,
                      SeqBuf& sequence,
-                     const std::vector<size_t>& kmer_lengths,
+                     const KmerSeeds& kmers,
                      const size_t sketchsize64,
+                     const bool codon_phased,
                      const bool use_rc,
                      const uint8_t min_count,
                      const bool exact)
@@ -50,11 +50,12 @@ Reference::Reference(const std::string& name,
     _missing_bases = sequence.missing_bases();
 
     double minhash_sum = 0;
-    for (auto kmer_it = kmer_lengths.begin(); kmer_it != kmer_lengths.end(); kmer_it++)
+    for (auto kmer_it = kmers.cbegin(); kmer_it != kmers.cend(); kmer_it++)
     {
         double minhash = 0; bool densified;
-        std::tie(usigs[*kmer_it], minhash, densified) =
-            sketch(sequence, sketchsize64, *kmer_it, _bbits, _use_rc, min_count, exact);
+        std::tie(usigs[kmer_it->first], minhash, densified) =
+            sketch(sequence, sketchsize64, kmer_it->second, _bbits, codon_phased,
+                   _use_rc, min_count, exact);
 
         minhash_sum += minhash;
         _densified |= densified; // Densified at any k-mer length

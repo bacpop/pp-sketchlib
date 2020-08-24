@@ -19,30 +19,32 @@
 
 // Initialisation
 // Create new file
-Database::Database(const std::string& filename)
-    :_filename(filename),
-    _h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
-{
+Database::Database(const std::string& filename, const bool codon_phased)
+    :_h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
+    _filename(filename), _version_hash(SKETCH_VERSION), _codon_phased(codon_phased) {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 
     _version_hash = SKETCH_VERSION;
     HighFive::Attribute sketch_version_a =
         sketch_group.createAttribute<std::string>("sketch_version", HighFive::DataSpace::From(_version_hash));
     sketch_version_a.write(_version_hash);
+    HighFive::Attribute codon_phased_a =
+        sketch_group.createAttribute<bool>("codon_phased", HighFive::DataSpace::From(_codon_phased));
+    codon_phased_a.write(_codon_phased);
 }
 
 // Open an existing file
 Database::Database(HighFive::File& h5_file)
-    :_h5_file(h5_file)
-{
-    _filename = _h5_file.getName();
+    :_h5_file(h5_file), _filename(_h5_file.getName()),
+    _version_hash(SKETCH_VERSION), _codon_phased(false) {
 
-    _version_hash = DEFAULT_VERSION;
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches");
     std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
     for (const auto& attr : attributes_keys) {
         if (attr == "sketch_version") {
             sketch_group.getAttribute("sketch_version").read(_version_hash);
+        } else if (attr == "codon_phased") {
+            sketch_group.getAttribute("codon_phased").read(_codon_phased);
         }
     }
 }

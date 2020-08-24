@@ -49,6 +49,7 @@ void constructDatabase(const std::string& db_name,
                        const std::vector<std::vector<std::string>>& file_names,
                        std::vector<size_t> kmer_lengths,
                        const size_t sketch_size,
+                       const bool codon_phased = false,
                        const bool calc_random = true,
                        const bool use_rc = true,
                        size_t min_count = 0,
@@ -59,6 +60,10 @@ void constructDatabase(const std::string& db_name,
     std::vector<Reference> ref_sketches;
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
+        if (codon_phased) {
+            throw std::runtime_error(
+                "Codon phased seeds not yet implemented for GPU sketching");
+        }
         ref_sketches = create_sketches_cuda(db_name,
                                             sample_names,
                                             file_names,
@@ -74,6 +79,7 @@ void constructDatabase(const std::string& db_name,
                                         file_names,
                                         kmer_lengths,
                                         sketch_size,
+                                        codon_phased,
                                         use_rc,
                                         min_count,
                                         exact,
@@ -85,6 +91,7 @@ void constructDatabase(const std::string& db_name,
                                     file_names,
                                     kmer_lengths,
                                     sketch_size,
+                                    codon_phased,
                                     use_rc,
                                     min_count,
                                     exact,
@@ -119,8 +126,10 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
                      " results may not be compatible" << std::endl;
     }
 
-    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
-    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
+    std::vector<Reference> ref_sketches =
+        load_sketches(ref_db_name, ref_names, kmer_lengths, false);
+    std::vector<Reference> query_sketches =
+        load_sketches(query_db_name, query_names, kmer_lengths, false);
 
     RandomMC random;
     if (random_correct) {
@@ -171,8 +180,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
                          const bool core = true,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
-                         const int device_id = 0)
-{
+                         const int device_id = 0) {
     if (!same_db_version(ref_db_name, query_db_name)) {
         std::cerr << "WARNING: versions of input databases sketches are different," \
                      " results may not be compatible" << std::endl;
@@ -284,6 +292,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("files"),
         py::arg("klist"),
         py::arg("sketch_size"),
+        py::arg("codon_phased") = false,
         py::arg("calc_random") = true,
         py::arg("use_rc") = true,
         py::arg("min_count") = 0,

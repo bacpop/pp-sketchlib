@@ -33,6 +33,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::vector<std::string>>& files,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   const bool codon_phased,
                    const bool use_rc,
                    size_t min_count,
                    const bool exact,
@@ -42,11 +43,9 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 
     // Try loading sketches from file
     bool resketch = true;
-    if (file_exists(db_name + ".h5"))
-    {
+    if (file_exists(db_name + ".h5")) {
         sketches = load_sketches(db_name, names, kmer_lengths);
-        if (sketches.size() == names.size())
-        {
+        if (sketches.size() == names.size()) {
             resketch = false;
         }
     }
@@ -71,12 +70,16 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                   << num_sketch_threads
                   << " thread(s)"
                   << std::endl;
+        if (codon_phased) {
+            std::cerr << "NB: codon phased seeds are ON" << std::endl;
+        }
+        KmerSeeds kmer_seeds = generate_phased_seeds(kmer_lengths);
 
         #pragma omp parallel for schedule(static) num_threads(num_threads)
         for (unsigned int i = 0; i < names.size(); i++) {
             SeqBuf seq_in(files[i], kmer_lengths.back());
-            sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
-                                    use_rc, min_count, exact);
+            sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
+                                    codon_phased, use_rc, min_count, exact);
         }
 
         // Save sketches and check for densified sketches
@@ -86,7 +89,10 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         {
             sketch_db.add_sketch(*sketch_it);
             if (sketch_it->densified()) {
-                std::cerr << "NOTE: " << sketch_it->name() << " required densification" << std::endl;
+                std::cerr << "NOTE: "
+                          << sketch_it->name()
+                          << " required densification"
+                          << std::endl;
             }
         }
     }

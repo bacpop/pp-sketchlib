@@ -12,13 +12,21 @@
 
 #include "seqio.hpp"
 
-std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
-                                                        const uint64_t sketchsize,
-                                                        const size_t kmer_len,
-                                                        const size_t bbits,
-                                                        const bool use_canonical = true,
-                                                        const uint8_t min_count = 0,
-                                                        const bool exact = false);
+typedef robin_hood::unordered_flat_map<std::vector<unsigned>> KmerSeeds;
+
+KmerSeeds generate_phased_seeds(std::vector<size_t> kmer_lengths);
+
+std::tuple<std::vector<uint64_t>, double, bool>
+    sketch(
+        SeqBuf &seq,
+        const uint64_t sketchsize,
+        const std::vector<unsigned>& kmer_seed,
+        const size_t bbits,
+        const bool codon_phased = false,
+        const bool use_canonical = true,
+        const uint8_t min_count = 0,
+        const bool exact = false
+    );
 
 #ifdef GPU_AVAILABLE
 class GPUCountMin;

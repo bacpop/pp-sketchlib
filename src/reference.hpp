@@ -19,7 +19,7 @@
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
 
-#include "sketch/seqio.hpp"
+#include "sketch/sketch.hpp"
 
 class RandomMC;
 
@@ -30,8 +30,9 @@ class Reference
         // Read and run sketch
         Reference(const std::string& name,
                   SeqBuf& sequence,
-                  const std::vector<size_t>& kmer_lengths,
+                  const KmerSeeds& kmers,
                   const size_t sketchsize64,
+                  const bool codon_phased,
                   const bool use_rc,
                   const uint8_t min_count,
                   const bool exact);
