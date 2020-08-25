@@ -25,11 +25,11 @@ parser = argparse.ArgumentParser(description=description,
 parser.add_argument('--ref-db', help='Prefix of db to test')
 parser.add_argument('--results', help='Prefix of results to compare against')
 
-parser.add_argument('--warn-diff', type=float, default = 0.002,
+parser.add_argument('--warn-diff', type=float, default = 0.02,
                     help='Absolute difference to WARN for')
 parser.add_argument('--warn-diff-frac', type=float, default = 0.02,
                     help='Percentage difference to WARN for')
-parser.add_argument('--error-diff', type=float, default = 0.01,
+parser.add_argument('--error-diff', type=float, default = 0.1,
                     help='Absolute difference to ERROR for')
 parser.add_argument('--error-diff-frac', type=float, default = 0.05,
                     help='Percentage difference to ERROR for')
