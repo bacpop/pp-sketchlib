@@ -25,11 +25,11 @@ parser = argparse.ArgumentParser(description=description,
 parser.add_argument('--ref-db', help='Prefix of db to test')
 parser.add_argument('--results', help='Prefix of results to compare against')
 
-parser.add_argument('--warn-diff', type=float, default = 0.02,
+parser.add_argument('--warn-diff', type=float, default = 0.0005,
                     help='Absolute difference to WARN for')
 parser.add_argument('--warn-diff-frac', type=float, default = 0.02,
                     help='Percentage difference to WARN for')
-parser.add_argument('--error-diff', type=float, default = 0.1,
+parser.add_argument('--error-diff', type=float, default = 0.002,
                     help='Absolute difference to ERROR for')
 parser.add_argument('--error-diff-frac', type=float, default = 0.05,
                     help='Percentage difference to ERROR for')
@@ -74,10 +74,10 @@ for i, (ref, query) in enumerate(names):
         if oldDistMat[i, j] != 0 and distMat[i, j] != 0:
             diff = distMat[i, j] - oldDistMat[i, j]
             diff_fraction = 2*(diff)/(oldDistMat[i, j] + distMat[i, j])
-            if (abs(diff) > args.warn_diff or abs(diff_fraction) > args.warn_diff_frac):
+            if (abs(diff) > args.warn_diff and abs(diff_fraction) > args.warn_diff_frac):
                 sys.stderr.write(dist + " mismatches for " + ref + "," + query + "\n")
                 sys.stderr.write("expected: " + str(oldDistMat[i, j]) + "; calculated: " + str(distMat[i, j]) + "\n")
-            if (abs(diff) > args.error_diff or abs(diff_fraction) > args.error_diff_frac):
+            if (abs(diff) > args.error_diff and abs(diff_fraction) > args.error_diff_frac):
                 sys.stderr.write("Difference outside tolerance")
                 sys.exit(1)
 
