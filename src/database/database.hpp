@@ -37,7 +37,7 @@ class Database
         std::string version() const { return _version_hash; }
         bool codon_phased() const { return _codon_phased; }
         bool check_version(const Database& db2) const {
-            if (_codon_phased ^ db2.codon_phased()) {
+            if (_codon_phased != db2.codon_phased()) {
                 throw std::runtime_error("One DB uses phased seeds, the other does not");
             }
             return _version_hash == db2.version(); }

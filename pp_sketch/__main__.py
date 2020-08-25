@@ -124,6 +124,7 @@ def get_options():
     sketchGroup.add_argument('--sketch-size', default=10000, type=int, help='K-mer sketch size [default = 10000]')
     sketchGroup.add_argument('--strand', default=True, action='store_false', help='Set to ignore complementary strand sequence '
                                                                                 'e.g. for RNA viruses with preserved strand')
+    sketchGroup.add_argument('--codon-phased', default=False, action='store_true', help='Use codon-phased seeds [default = False]')
     sketchGroup.add_argument('--min-count', default=20, type=int, help='Minimum k-mer count from reads [default = 20]')
     sketchGroup.add_argument('--exact-counter', default=False, action='store_true',
                             help='Use an exact rather than approximate k-mer counter '
@@ -221,9 +222,15 @@ def main():
             sys.exit(1)
 
         pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers,
-                                       int(round(args.sketch_size/64)), not args.no_random,
-                                       args.strand, args.min_count, args.exact_counter, args.cpus,
-                                       args.use_gpu, args.gpu_id)
+                                       int(round(args.sketch_size/64)),
+                                       args.codon_phased,
+                                       not args.no_random,
+                                       args.strand,
+                                       args.min_count,
+                                       args.exact_counter,
+                                       args.cpus,
+                                       args.use_gpu,
+                                       args.gpu_id)
 
     #
     # Join two databases
@@ -241,7 +248,12 @@ def main():
             v2 = hdf2['sketches'].attrs['sketch_version']
             if (v1 != v2):
                 sys.stderr.write("Databases have been written with different sketch versions, "
-                                 "joining not recommended\n")
+                                 "joining not recommended (but proceeding anyway)\n")
+            p1 = hdf1['sketches'].attrs['codon_phased']
+            p2 = hdf2['sketches'].attrs['codon_phased']
+            if (p1 != p2):
+                sys.stderr.write("One database uses codon-phased seeds - cannot join "
+                                 "with a standard seed database\n")
         except RuntimeError as e:
             sys.stderr.write("Unable to check sketch version\n")
 
