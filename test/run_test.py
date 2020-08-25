@@ -25,19 +25,19 @@ if not os.path.isfile("12754_4#89.contigs_velvet.fa"):
 # python tests
 # create sketches
 sys.stderr.write("Testing sketching via python\n")
-subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
-subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db_phased --codon-phased --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db_phased --codon-phased --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
 # calculate distances
 sys.stderr.write("Testing distances via python\n")
-subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4", shell=True, check=True) # checks if can be run
+subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4 --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db --results ppsketch_ref", shell=True, check=True) # checks results match
-subprocess.run("poppunk_sketch --query --ref-db test_db_phased --query-db test_db_phased --min-k 15 --k-step 4", shell=True, check=True) # checks if can be run
+subprocess.run("poppunk_sketch --query --ref-db test_db_phased --query-db test_db_phased --min-k 15 --k-step 4 --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db_phased --results ppsketch_ref_phased", shell=True, check=True) # checks results match
-subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4 --sparse --threshold 0.01", shell=True, check=True) # checks if can be run
+subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --min-k 15 --k-step 4 --sparse --threshold 0.01 --cpus 2", shell=True, check=True) # checks if can be run
 # Joining
 sys.stderr.write("Testing join via python\n")
-subprocess.run("poppunk_sketch --sketch --rfile db1_refs.txt --ref-db db1 --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
-subprocess.run("poppunk_sketch --sketch --rfile db2_refs.txt --ref-db db2 --sketch-size 10000 --min-k 15 --k-step 4", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile db1_refs.txt --ref-db db1 --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile db2_refs.txt --ref-db db2 --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
 subprocess.run("poppunk_sketch --join --ref-db db1 --query-db db2 --output joined", shell=True, check=True)
 # Matrix
 sys.stderr.write("Testing matrix ops via python\n")

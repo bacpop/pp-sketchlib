@@ -22,8 +22,8 @@ description = 'Run poppunk sketching/distances'
 parser = argparse.ArgumentParser(description=description,
                                     prog='poppunk_sketch')
 
-parser.add_argument('--ref-db', 'Prefix of db to test')
-parser.add_argument('--results', 'Prefix of results to compare against')
+parser.add_argument('--ref-db', help='Prefix of db to test')
+parser.add_argument('--results', help='Prefix of results to compare against')
 
 parser.add_argument('--warn-diff', type=float, default = 0.0002,
                     help='Absolute difference to WARN for')
