@@ -38,7 +38,7 @@ args = parser.parse_args()
 
 # Generate distances
 rList = []
-ref = h5py.File(ref_db + ".h5", 'r')
+ref = h5py.File(args.ref_db + ".h5", 'r')
 for sample_name in list(ref['sketches'].keys()):
     rList.append(sample_name)
 
