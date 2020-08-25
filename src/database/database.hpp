@@ -24,8 +24,10 @@ const size_t DEFAULT_LENGTH = 3000000;
 class Database
 {
     public:
-        Database(const std::string& filename, const bool codon_phased); // Overwrite or create new H5 file
-        Database(HighFive::File& _h5_file); // Open a H5 file
+        // Overwrite or create new H5 file
+        Database(const std::string& filename, const bool codon_phased = false);
+        // Open a H5 file
+        Database(HighFive::File& _h5_file);
 
         void add_sketch(const Reference& ref); // Write a new sketch to the HDF5
         Reference load_sketch(const std::string& name); // Retrieve a sketch

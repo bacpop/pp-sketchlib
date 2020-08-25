@@ -21,16 +21,19 @@
 // Initialisation
 // Create new file
 Database::Database(const std::string& filename, const bool codon_phased)
-    :_h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
+    :_h5_file(HighFive::File(filename.c_str(),
+    HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate)),
     _filename(filename), _version_hash(SKETCH_VERSION), _codon_phased(codon_phased) {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 
     _version_hash = SKETCH_VERSION;
     HighFive::Attribute sketch_version_a =
-        sketch_group.createAttribute<std::string>("sketch_version", HighFive::DataSpace::From(_version_hash));
+        sketch_group.createAttribute<std::string>("sketch_version",
+                                     HighFive::DataSpace::From(_version_hash));
     sketch_version_a.write(_version_hash);
     HighFive::Attribute codon_phased_a =
-        sketch_group.createAttribute<bool>("codon_phased", HighFive::DataSpace::From(_codon_phased));
+        sketch_group.createAttribute<bool>("codon_phased",
+                                     HighFive::DataSpace::From(_codon_phased));
     codon_phased_a.write(_codon_phased);
 }
 
