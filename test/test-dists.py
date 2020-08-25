@@ -77,7 +77,7 @@ for i, (ref, query) in enumerate(names):
             if (abs(diff) > args.warn_diff or abs(diff_fraction) > args.warn_diff_frac):
                 sys.stderr.write(dist + " mismatches for " + ref + "," + query + "\n")
                 sys.stderr.write("expected: " + str(oldDistMat[i, j]) + "; calculated: " + str(distMat[i, j]) + "\n")
-            if (abs(diff) > args.error_diff or abs(diff_fraction) > args.error_diff_fract):
+            if (abs(diff) > args.error_diff or abs(diff_fraction) > args.error_diff_frac):
                 sys.stderr.write("Difference outside tolerance")
                 sys.exit(1)
 
