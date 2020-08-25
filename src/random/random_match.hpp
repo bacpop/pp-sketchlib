@@ -35,6 +35,7 @@ class RandomMC {
 		RandomMC(const std::vector<Reference>& sketches,
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
+				   const bool codon_phased,
 				   const bool use_rc,
 				   const int num_threads);
 		// load MC from database (see database.cpp)

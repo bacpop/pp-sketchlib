@@ -16,7 +16,8 @@
 
 typedef robin_hood::unordered_flat_map<size_t, std::vector<unsigned>> KmerSeeds;
 
-KmerSeeds generate_phased_seeds(std::vector<size_t> kmer_lengths);
+KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
+                         const bool codon_phased);
 
 std::tuple<std::vector<uint64_t>, double, bool>
     sketch(

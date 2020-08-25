@@ -27,24 +27,33 @@ inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) {
 }
 
 // Codon phased seeds ([1,0,0]_k-1, 1)
-KmerSeeds generate_phased_seeds(std::vector<size_t> kmer_lengths) {
+KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
+                         const bool codon_phased) {
     std::sort(kmer_lengths.begin(), kmer_lengths.end());
     if (kmer_lengths.front() < 2) {
         throw std::runtime_error("Minimum k must be 2 or higher");
     }
 
     KmerSeeds phased;
-    std::vector<unsigned> spaced = {1,0,0,1};
-    size_t curr_k = 2;
-    for (auto k : kmer_lengths) {
-        while (curr_k < k) {
-            spaced.push_back(0);
-            spaced.push_back(0);
-            spaced.push_back(1);
-            curr_k++;
+    if (codon_phased) {
+        std::vector<unsigned> spaced = {1,0,0,1};
+        size_t curr_k = 2;
+        for (auto k : kmer_lengths) {
+            while (curr_k < k) {
+                spaced.push_back(0);
+                spaced.push_back(0);
+                spaced.push_back(1);
+                curr_k++;
+            }
+            phased[k] = spaced;
         }
-        phased[k] = spaced;
+    } else {
+        for (auto k : kmer_lengths) {
+            std::vector<unsigned int> dense_seed(k, 1);
+            kmer_seeds[k] = std::move(dense_seed);
+        }
     }
+
     return(phased);
 }
 

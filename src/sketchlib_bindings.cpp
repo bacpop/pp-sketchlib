@@ -102,6 +102,7 @@ void constructDatabase(const std::string& db_name,
                                         db_name,
                                         default_n_clusters,
                                         default_n_MC,
+                                        codon_phased,
                                         use_rc,
                                         num_threads);
     }
@@ -237,11 +238,16 @@ void addRandomToDb(const std::string& db_name,
                       const std::vector<size_t> kmer_lengths,
                       const bool use_rc = true,
                       const size_t num_threads = 1) {
-    std::vector<Reference> ref_sketches = load_sketches(db_name, sample_names, kmer_lengths, false);
+    std::string db_version; bool codon_phased;
+    std::tie(db_version, codon_phased) = get_db_attr(db_name);
+
+    std::vector<Reference> ref_sketches =
+        load_sketches(db_name, sample_names, kmer_lengths, false);
     RandomMC random = calculate_random(ref_sketches,
                                        db_name,
                                        default_n_clusters,
                                        default_n_MC,
+                                       codon_phased,
                                        use_rc,
                                        num_threads);
 }

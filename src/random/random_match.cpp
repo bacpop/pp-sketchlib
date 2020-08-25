@@ -19,6 +19,7 @@
 
 // A, C, G, T
 // Just in case we ever add N (or U, heaven forbid)
+// (ntHash and SeqIO treat U as T)
 #define N_BASES 4
 const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
@@ -57,13 +58,16 @@ RandomMC::RandomMC(const bool use_rc) : _n_clusters(0), _no_adjustment(false),
 RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				   unsigned int n_clusters,
 				   const unsigned int n_MC,
+				   const bool codon_phased,
 				   const bool use_rc,
 				   const int num_threads)
 	: _no_adjustment(false), _no_MC(false), _use_rc(use_rc) {
-	std::cerr << "Calculating random match chances using Monte Carlo" << std::endl;
+	std::cerr << "Calculating random match chances using Monte Carlo"
+	          << std::endl;
 
 	if (n_clusters >= sketches.size()) {
-		std::cerr << "Cannot make more base frequency clusters than sketches" << std::endl;
+		std::cerr << "Cannot make more base frequency clusters than sketches"
+		          << std::endl;
 		n_clusters = sketches.size() - 1;
 	}
 	if (n_clusters < 2) {
@@ -75,7 +79,8 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	_use_rc = sketches[0].rc();
 
     // Run k-means on the base frequencies, save the results in a hash table
-	std::tie(_cluster_table, _cluster_centroids) = cluster_frequencies(sketches, _n_clusters, num_threads);
+	std::tie(_cluster_table, _cluster_centroids) =
+		cluster_frequencies(sketches, _n_clusters, num_threads);
 
 	// Decide which k-mer lengths to use assuming equal base frequencies
 	RandomMC default_adjustment(use_rc);
@@ -83,10 +88,11 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	size_t kmer_size = min_kmer + 1;
 	const double min_random = static_cast<double>(1)/(sketchsize64 * 64);
 	while (kmer_size <= max_kmer) {
-		double match_chance = default_adjustment.random_match(sketches[0],
-															  0,
-															  sketches[0].seq_length(),
-															  kmer_size);
+		double match_chance =
+			default_adjustment.random_match(sketches[0],
+											0,
+											sketches[0].seq_length(),
+											kmer_size);
 		if (match_chance > min_random) {
 			kmer_lengths.push_back(kmer_size);
 		} else {
@@ -98,6 +104,7 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	_max_k = kmer_lengths.back();
 
 	// Generate random sequences and sketch them (in parallel)
+	KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 	std::vector<std::vector<Reference>> random_seqs(n_clusters);
 	Xoshiro generator(1);
 	#pragma omp parallel for collapse(2) firstprivate(generator) schedule(static) num_threads(num_threads)
@@ -115,7 +122,8 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 				// Sketch it
 				random_seqs[r_idx].push_back(
 					Reference("random" + std::to_string(r_idx * n_MC + copies),
-							  random_seq, kmer_lengths, sketchsize64, use_rc, 0, false));
+							  random_seq, kmer_seeds, sketchsize64, codon_phased,
+							  use_rc, 0, false));
 		}
 	}
 

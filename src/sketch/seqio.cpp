@@ -40,6 +40,7 @@ void track_composition(const char c,
             bases.g++;
             break;
         case 'T':
+        case 'U' :
             bases.t++;
             break;
     }
