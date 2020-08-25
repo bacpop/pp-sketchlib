@@ -75,8 +75,9 @@ std::vector<Reference> create_sketches(const std::string& db_name,
             std::cerr << "NB: codon phased seeds are ON" << std::endl;
             kmer_seeds = generate_phased_seeds(kmer_lengths);
         } else {
-            for (k : kmer_lengths) {
-                kmer_seeds[k] = std::vector<unsigned int>(k, 1);
+            for (auto k : kmer_lengths) {
+                std::vector<unsigned int> dense_seed(k, 1);
+                kmer_seeds[k] = std::move(dense_seed);
             }
         }
 
