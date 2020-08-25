@@ -133,7 +133,7 @@ std::tuple<std::vector<uint64_t>, double, bool>
 
     // Rolling hash through string
     while (!seq.eof()) {
-        stHashIterator hashIt(*(seq.getseq()), kmer_seed, 1,
+        stHashIterator hashIt(*(seq.getseq()), {kmer_seed}, 1,
                               h, kmer_seed.size(), use_canonical, codon_phased);
         while (hashIt != hashIt.end()) {
             auto hash = (*hashIt)[0] % SIGN_MOD;
