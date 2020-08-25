@@ -34,7 +34,7 @@ KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
         throw std::runtime_error("Minimum k must be 2 or higher");
     }
 
-    KmerSeeds phased;
+    KmerSeeds seeds;
     if (codon_phased) {
         std::vector<unsigned> spaced = {1,0,0,1};
         size_t curr_k = 2;
@@ -45,16 +45,16 @@ KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
                 spaced.push_back(1);
                 curr_k++;
             }
-            phased[k] = spaced;
+            seeds[k] = spaced;
         }
     } else {
         for (auto k : kmer_lengths) {
             std::vector<unsigned int> dense_seed(k, 1);
-            kmer_seeds[k] = std::move(dense_seed);
+            seeds[k] = std::move(dense_seed);
         }
     }
 
-    return(phased);
+    return(seeds);
 }
 
 // Universal hashing function for densifybin
