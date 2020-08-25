@@ -30,14 +30,14 @@ inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) {
 KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
                          const bool codon_phased) {
     std::sort(kmer_lengths.begin(), kmer_lengths.end());
-    if (kmer_lengths.front() < 2) {
-        throw std::runtime_error("Minimum k must be 2 or higher");
+    if (kmer_lengths.front() < 3) {
+        throw std::runtime_error("Minimum k must be 3 or higher");
     }
 
     KmerSeeds seeds;
     if (codon_phased) {
-        std::vector<unsigned> spaced = {1,0,0,1};
-        size_t curr_k = 2;
+        std::vector<unsigned> spaced = {1,0,0,1,0,0,1};
+        size_t curr_k = 3;
         for (auto k : kmer_lengths) {
             while (curr_k < k) {
                 spaced.push_back(0);

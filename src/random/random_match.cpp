@@ -25,7 +25,7 @@ const char BASEMAP[N_BASES] = {'A', 'C', 'G', 'T'};
 const char RCMAP[N_BASES] = {'T', 'G', 'C', 'A'};
 
 // k-mer length parameters
-const size_t min_kmer = 6;
+const size_t min_kmer = 3;
 const size_t max_kmer = 31;
 
 // k-means parameters
