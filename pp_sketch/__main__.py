@@ -152,7 +152,7 @@ def get_options():
     query.add_argument('--kNN',
                         help='With --sparse, pick this number of nearest neighbours '
                              'to include in the output sparse distance matrix',
-                        type=float,
+                        type=int,
                         default=0)
     query.add_argument('--threshold',
                         help='With --sparse, pick distances under this value '
