@@ -197,6 +197,7 @@ void calculate_dists(const bool self,
 
 	const uint64_t* ref_start = ref + ref_idx * ref_strides.sample_stride;
 	const uint64_t* query_start = query + query_idx * query_strides.sample_stride;
+	const float tolerance = __fdividef(5.0f, __int2float_rz(64 * ref_strides.sketchsize64));
 
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
