@@ -17,6 +17,8 @@ std::tuple<float, float> fit_slope(const arma::mat& kmers,
                                    Reference * r1,
                                    Reference * r2) {
 
+    // Store core/accessory in dists, truncating at zero
+    float core_dist = 0, accessory_dist = 0;
     static const double tolerance = (5.0 / (r1->sketchsize64() * 64));
     try {
         arma::uvec truncation = arma::find(dists < tolerance, 1, "first");
@@ -28,8 +30,6 @@ std::tuple<float, float> fit_slope(const arma::mat& kmers,
             slopes = arma::solve(kmers, dists);
         }
 
-        // Store core/accessory in dists, truncating at zero
-        float core_dist = 0, accessory_dist = 0;
         if (slopes(1) < core_upper) {
             core_dist = 1 - exp(slopes(1));
         }
