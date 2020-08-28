@@ -27,12 +27,19 @@ bool same_db_version(const std::string& db1_name,
     return(db1.check_version(db2));
 }
 
+std::tuple<std::string, bool> get_db_attr(const std::string& db1_name) {
+    HighFive::File h5_db(db1_name + ".h5");
+    Database db(h5_db);
+    return(std::make_tuple(db.version(), db.codon_phased()));
+}
+
 // Create sketches, save to file
 std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::string>& names,
                    const std::vector<std::vector<std::string>>& files,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   const bool codon_phased,
                    const bool use_rc,
                    size_t min_count,
                    const bool exact,
@@ -42,11 +49,9 @@ std::vector<Reference> create_sketches(const std::string& db_name,
 
     // Try loading sketches from file
     bool resketch = true;
-    if (file_exists(db_name + ".h5"))
-    {
+    if (file_exists(db_name + ".h5")) {
         sketches = load_sketches(db_name, names, kmer_lengths);
-        if (sketches.size() == names.size())
-        {
+        if (sketches.size() == names.size()) {
             resketch = false;
         }
     }
@@ -72,11 +77,16 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                   << " thread(s)"
                   << std::endl;
 
+        if (codon_phased) {
+            std::cerr << "NB: codon phased seeds are ON" << std::endl;
+        }
+        KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
+
         #pragma omp parallel for schedule(static) num_threads(num_threads)
         for (unsigned int i = 0; i < names.size(); i++) {
             SeqBuf seq_in(files[i], kmer_lengths.back());
-            sketches[i] = Reference(names[i], seq_in, kmer_lengths, sketchsize64,
-                                    use_rc, min_count, exact);
+            sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
+                                    codon_phased, use_rc, min_count, exact);
         }
 
         // Save sketches and check for densified sketches
@@ -86,7 +96,10 @@ std::vector<Reference> create_sketches(const std::string& db_name,
         {
             sketch_db.add_sketch(*sketch_it);
             if (sketch_it->densified()) {
-                std::cerr << "NOTE: " << sketch_it->name() << " required densification" << std::endl;
+                std::cerr << "NOTE: "
+                          << sketch_it->name()
+                          << " required densification"
+                          << std::endl;
             }
         }
     }
@@ -300,9 +313,11 @@ RandomMC calculate_random(const std::vector<Reference>& sketches,
                       const std::string& db_name,
                       const unsigned int n_clusters,
                       const unsigned int n_MC,
+                      const bool codon_phased,
                       const bool use_rc,
                       const int num_threads) {
-	RandomMC random(sketches, n_clusters, n_MC, use_rc, num_threads);
+	RandomMC random(sketches, n_clusters, n_MC, codon_phased,
+                    use_rc, num_threads);
 
     // Save to the database provided
     HighFive::File h5_db = open_h5(db_name + ".h5");

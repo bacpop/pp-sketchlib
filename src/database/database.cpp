@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <utility>
 
 #include "database.hpp"
 #include "hdf5_funcs.hpp"
@@ -19,30 +20,35 @@
 
 // Initialisation
 // Create new file
-Database::Database(const std::string& filename)
-    :_filename(filename),
-    _h5_file(HighFive::File(filename.c_str(), HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate))
-{
+Database::Database(const std::string& filename, const bool codon_phased)
+    :_h5_file(HighFive::File(filename.c_str(),
+    HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate)),
+    _filename(filename), _version_hash(SKETCH_VERSION), _codon_phased(codon_phased) {
     HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 
     _version_hash = SKETCH_VERSION;
     HighFive::Attribute sketch_version_a =
-        sketch_group.createAttribute<std::string>("sketch_version", HighFive::DataSpace::From(_version_hash));
+        sketch_group.createAttribute<std::string>("sketch_version",
+                                     HighFive::DataSpace::From(_version_hash));
     sketch_version_a.write(_version_hash);
+    HighFive::Attribute codon_phased_a =
+        sketch_group.createAttribute<bool>("codon_phased",
+                                     HighFive::DataSpace::From(_codon_phased));
+    codon_phased_a.write(_codon_phased);
 }
 
 // Open an existing file
 Database::Database(HighFive::File& h5_file)
-    :_h5_file(h5_file)
-{
-    _filename = _h5_file.getName();
+    :_h5_file(h5_file), _filename(_h5_file.getName()),
+    _version_hash(SKETCH_VERSION), _codon_phased(false) {
 
-    _version_hash = DEFAULT_VERSION;
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches");
     std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
     for (const auto& attr : attributes_keys) {
         if (attr == "sketch_version") {
             sketch_group.getAttribute("sketch_version").read(_version_hash);
+        } else if (attr == "codon_phased") {
+            sketch_group.getAttribute("codon_phased").read(_codon_phased);
         }
     }
 }
@@ -54,8 +60,7 @@ Database::Database(HighFive::File& h5_file)
 * be overwritten
 *
 */
-void Database::add_sketch(const Reference& ref)
-{
+void Database::add_sketch(const Reference& ref) {
     // Create group for sketches
     std::string sketch_name = "/sketches/" + ref.name();
     HighFive::Group sketch_group = _h5_file.createGroup(sketch_name, true);
@@ -102,8 +107,7 @@ void Database::add_sketch(const Reference& ref)
     }
 }
 
-Reference Database::load_sketch(const std::string& name)
-{
+Reference Database::load_sketch(const std::string& name) {
     // Read in attributes
     HighFive::Group sketch_group = _h5_file.getGroup("/sketches/" + name);
 
@@ -129,8 +133,7 @@ Reference Database::load_sketch(const std::string& name)
     }
 
     Reference new_ref(name, bbits, sketchsize64, seq_size, bases, missing_bases);
-    for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
-    {
+    for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
         std::vector<uint64_t> usigs;
         sketch_group.getDataSet(std::to_string(*kmer_it)).read(usigs);
         new_ref.add_kmer_sketch(usigs, *kmer_it);

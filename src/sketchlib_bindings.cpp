@@ -49,6 +49,7 @@ void constructDatabase(const std::string& db_name,
                        const std::vector<std::vector<std::string>>& file_names,
                        std::vector<size_t> kmer_lengths,
                        const size_t sketch_size,
+                       const bool codon_phased = false,
                        const bool calc_random = true,
                        const bool use_rc = true,
                        size_t min_count = 0,
@@ -59,6 +60,10 @@ void constructDatabase(const std::string& db_name,
     std::vector<Reference> ref_sketches;
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
+        if (codon_phased) {
+            throw std::runtime_error(
+                "Codon phased seeds not yet implemented for GPU sketching");
+        }
         ref_sketches = create_sketches_cuda(db_name,
                                             sample_names,
                                             file_names,
@@ -74,6 +79,7 @@ void constructDatabase(const std::string& db_name,
                                         file_names,
                                         kmer_lengths,
                                         sketch_size,
+                                        codon_phased,
                                         use_rc,
                                         min_count,
                                         exact,
@@ -85,6 +91,7 @@ void constructDatabase(const std::string& db_name,
                                     file_names,
                                     kmer_lengths,
                                     sketch_size,
+                                    codon_phased,
                                     use_rc,
                                     min_count,
                                     exact,
@@ -95,6 +102,7 @@ void constructDatabase(const std::string& db_name,
                                         db_name,
                                         default_n_clusters,
                                         default_n_MC,
+                                        codon_phased,
                                         use_rc,
                                         num_threads);
     }
@@ -109,8 +117,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
                          const bool jaccard = false,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
-                         const int device_id = 0)
-{
+                         const int device_id = 0) {
     if (jaccard && use_gpu) {
         throw std::runtime_error("Extracting Jaccard distances not supported on GPU");
     }
@@ -119,8 +126,10 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
                      " results may not be compatible" << std::endl;
     }
 
-    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
-    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
+    std::vector<Reference> ref_sketches =
+        load_sketches(ref_db_name, ref_names, kmer_lengths, false);
+    std::vector<Reference> query_sketches =
+        load_sketches(query_db_name, query_names, kmer_lengths, false);
 
     RandomMC random;
     if (random_correct) {
@@ -131,17 +140,14 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
 
     NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
-    if (use_gpu)
-    {
+    if (use_gpu) {
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             random,
                             device_id,
                             num_threads);
-    }
-    else
-    {
+    } else {
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
@@ -171,8 +177,7 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
                          const bool core = true,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
-                         const int device_id = 0)
-{
+                         const int device_id = 0) {
     if (!same_db_version(ref_db_name, query_db_name)) {
         std::cerr << "WARNING: versions of input databases sketches are different," \
                      " results may not be compatible" << std::endl;
@@ -189,17 +194,14 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
     }
     NumpyMatrix dists;
 #ifdef GPU_AVAILABLE
-    if (use_gpu)
-    {
+    if (use_gpu) {
         dists = query_db_cuda(ref_sketches,
 	                        query_sketches,
                             kmer_lengths,
                             random,
                             device_id,
                             num_threads);
-    }
-    else
-    {
+    } else {
         dists = query_db(ref_sketches,
                 query_sketches,
                 kmer_lengths,
@@ -236,11 +238,16 @@ void addRandomToDb(const std::string& db_name,
                       const std::vector<size_t> kmer_lengths,
                       const bool use_rc = true,
                       const size_t num_threads = 1) {
-    std::vector<Reference> ref_sketches = load_sketches(db_name, sample_names, kmer_lengths, false);
+    std::string db_version; bool codon_phased;
+    std::tie(db_version, codon_phased) = get_db_attr(db_name);
+
+    std::vector<Reference> ref_sketches =
+        load_sketches(db_name, sample_names, kmer_lengths, false);
     RandomMC random = calculate_random(ref_sketches,
                                        db_name,
                                        default_n_clusters,
                                        default_n_MC,
+                                       codon_phased,
                                        use_rc,
                                        num_threads);
 }
@@ -248,8 +255,7 @@ void addRandomToDb(const std::string& db_name,
 double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
-                   const size_t kmer_size)
-{
+                   const size_t kmer_size) {
     auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
     return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size, RandomMC()));
 }
@@ -284,6 +290,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("files"),
         py::arg("klist"),
         py::arg("sketch_size"),
+        py::arg("codon_phased") = false,
         py::arg("calc_random") = true,
         py::arg("use_rc") = true,
         py::arg("min_count") = 0,

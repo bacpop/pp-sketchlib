@@ -83,7 +83,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
     }
 
 	if (resketch) {
-		Database sketch_db(db_name + ".h5");
+		Database sketch_db(db_name + ".h5", false);
 		sketches.resize(names.size());
 
 		size_t mem_free, mem_total;

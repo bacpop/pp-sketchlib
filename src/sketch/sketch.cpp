@@ -26,39 +26,58 @@ inline uint64_t doublehash(uint64_t hash1, uint64_t hash2) {
     return (hash1 + hash2) % SIGN_MOD;
 }
 
-// Seeds for small k-mers
-// Make sure they are symmetric so RC works
-const unsigned int small_k = 9;
-robin_hood::unordered_map<int, std::vector<std::vector<unsigned> > > kmer_seeds({
-    {6, {{1,1,0,1,1,0,1,1}}},
-    {7, {{1,1,1,0,1,0,1,1,1}}},
-    {8, {{1,1,0,1,1,1,1,0,1,1}}},
-    {9, {{1,0,1,1,1,1,1,1,1,0,1}}}
-});
+// Codon phased seeds ([1,0,0]_k-1, 1)
+KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
+                         const bool codon_phased) {
+    std::sort(kmer_lengths.begin(), kmer_lengths.end());
+    if (kmer_lengths.front() < 3) {
+        throw std::runtime_error("Minimum k must be 3 or higher");
+    }
+
+    KmerSeeds seeds;
+    if (codon_phased) {
+        std::vector<unsigned> spaced = {1,0,0,1,0,0,1};
+        size_t curr_k = 3;
+        for (auto k : kmer_lengths) {
+            while (curr_k < k) {
+                spaced.push_back(0);
+                spaced.push_back(0);
+                spaced.push_back(1);
+                curr_k++;
+            }
+            seeds[k] = spaced;
+        }
+    } else {
+        for (auto k : kmer_lengths) {
+            std::vector<unsigned int> dense_seed(k, 1);
+            seeds[k] = std::move(dense_seed);
+        }
+    }
+
+    return(seeds);
+}
 
 // Universal hashing function for densifybin
-uint64_t univhash(uint64_t s, uint64_t t)
-{
+uint64_t univhash(uint64_t s, uint64_t t) {
 	uint64_t x = (1009) * s + (1000*1000+3) * t;
 	return (48271 * x + 11) % ((1ULL << 31) - 1);
 }
 
 void binsign(std::vector<uint64_t> &signs,
              const uint64_t sign,
-             const uint64_t binsize)
-{
+             const uint64_t binsize) {
 	uint64_t binidx = sign / binsize;
     signs[binidx] = MIN(signs[binidx], sign);
 }
 
-double inverse_minhash(std::vector<uint64_t> &signs)
-{
+double inverse_minhash(std::vector<uint64_t> &signs) {
     uint64_t minhash = signs[0];
     return(minhash / (double)SIGN_MOD);
 }
 
-void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs, size_t bbits)
-{
+void fillusigs(std::vector<uint64_t>& usigs,
+               const std::vector<uint64_t> &signs,
+               size_t bbits) {
 	for (size_t signidx = 0; signidx < signs.size(); signidx++)
     {
 		uint64_t sign = signs[signidx];
@@ -71,8 +90,7 @@ void fillusigs(std::vector<uint64_t>& usigs, const std::vector<uint64_t> &signs,
 	}
 }
 
-int densifybin(std::vector<uint64_t> &signs)
-{
+int densifybin(std::vector<uint64_t> &signs) {
 	uint64_t minval = UINT64_MAX;
 	uint64_t maxval = 0;
 	for (auto sign : signs) {
@@ -81,12 +99,10 @@ int densifybin(std::vector<uint64_t> &signs)
 	}
 	if (UINT64_MAX != maxval) { return 0; }
 	if (UINT64_MAX == minval) { return -1; }
-	for (uint64_t i = 0; i < signs.size(); i++)
-    {
+	for (uint64_t i = 0; i < signs.size(); i++) {
 		uint64_t j = i;
 		uint64_t nattempts = 0;
-		while (UINT64_MAX == signs[j])
-        {
+		while (UINT64_MAX == signs[j]) {
 			j = univhash(i, nattempts) % signs.size();
 			nattempts++;
 		}
@@ -95,14 +111,15 @@ int densifybin(std::vector<uint64_t> &signs)
 	return 1;
 }
 
-std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
-                                                        const uint64_t sketchsize,
-                                                        const size_t kmer_len,
-                                                        const size_t bbits,
-                                                        const bool use_canonical,
-                                                        const uint8_t min_count,
-                                                        const bool exact)
-{
+std::tuple<std::vector<uint64_t>, double, bool>
+    sketch(SeqBuf &seq,
+            const uint64_t sketchsize,
+            const std::vector<unsigned>& kmer_seed,
+            const size_t bbits,
+            const bool codon_phased,
+            const bool use_canonical,
+            const uint8_t min_count,
+            const bool exact) {
     const uint64_t nbins = sketchsize * NBITS(uint64_t);
     const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
@@ -111,8 +128,7 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
     // nullptr is used as we don't get optional until C++17
     KmerCounter * read_counter = nullptr;
     unsigned h = 1;
-    if (seq.is_reads() && min_count > 0)
-    {
+    if (seq.is_reads() && min_count > 0) {
         if (exact)
         {
             read_counter = new HashCounter(min_count);
@@ -124,23 +140,14 @@ std::tuple<std::vector<uint64_t>, double, bool> sketch(SeqBuf &seq,
         }
     }
 
-    // Use spaced seeds for small k
-    unsigned int seed_length = kmer_len; bool ss = false;
-    if (kmer_len <= small_k) {
-        seed_length = kmer_seeds[kmer_len][0].size();
-        ss = true;
-    }
-
     // Rolling hash through string
-    while (!seq.eof())
-    {
-        stHashIterator hashIt(*(seq.getseq()), kmer_seeds[kmer_len], kmer_seeds[kmer_len].size(),
-                              h, seed_length, use_canonical, ss);
-        while (hashIt != hashIt.end())
-        {
+    while (!seq.eof()) {
+        stHashIterator hashIt(*(seq.getseq()), {kmer_seed}, 1,
+                              h, kmer_seed.size(), use_canonical, codon_phased);
+        while (hashIt != hashIt.end()) {
             auto hash = (*hashIt)[0] % SIGN_MOD;
-            if (read_counter == nullptr || read_counter->add_count(hashIt) >= read_counter->min_count())
-            {
+            if (read_counter == nullptr ||
+                read_counter->add_count(hashIt) >= read_counter->min_count()) {
                 binsign(signs, hash, binsize);
             }
             ++hashIt;

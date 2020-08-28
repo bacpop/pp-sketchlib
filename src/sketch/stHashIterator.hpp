@@ -53,7 +53,7 @@ public:
      * @param ss use spaced seeds
     */
     stHashIterator(const std::string& seq, const std::vector<std::vector<unsigned> >& seed, unsigned h, unsigned h2, unsigned k, bool rc, bool ss):
-    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_ss(ss), 
+    m_seq(seq), m_seed(seed), m_h(h), m_h2(h2), m_k(k), m_rc(rc), m_ss(ss),
     m_hVec(new uint64_t[h * h2]), m_minhVec(new uint64_t[h2]), m_hStn(new bool[h * h2]), m_pos(0)
     {
         init();
@@ -68,7 +68,7 @@ public:
         }
         unsigned locN=0;
         if (m_ss) {
-            while (m_pos<m_seq.length()-m_k+1 
+            while (m_pos<m_seq.length()-m_k+1
                 && (m_rc ? !NTMSMC64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, m_rhVal, locN, m_hVec, m_minhVec, m_hStn)
                 : !NTMSM64(m_seq.data()+m_pos, m_seed, m_k, m_h, m_h2, m_fhVal, locN, m_hVec, m_minhVec)))
                 m_pos+=locN+1;

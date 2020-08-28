@@ -27,6 +27,7 @@ std::vector<Reference> create_sketches(const std::string& db_name,
                    const std::vector<std::vector<std::string>>& files,
                    const std::vector<size_t>& kmer_lengths,
                    const size_t sketchsize64,
+                   const bool codon_phased,
                    const bool use_rc,
                    size_t min_count,
                    const bool exact,
@@ -61,6 +62,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 
 bool same_db_version(const std::string& db1_name,
                      const std::string& db2_name);
+std::tuple<std::string, bool> get_db_attr(const std::string& db1_name);
 
 std::vector<Reference> load_sketches(const std::string& db_name,
                                      const std::vector<std::string>& names,
@@ -71,6 +73,7 @@ RandomMC calculate_random(const std::vector<Reference>& sketches,
                       const std::string& db_name,
                       const unsigned int n_clusters,
                       const unsigned int n_MC,
+                      const bool codon_phased,
                       const bool use_rc,
                       const int num_threads);
 
