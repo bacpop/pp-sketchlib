@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <stdlib.h>
 #include <iostream>
+#include <vectorclass.h>
 
 #include "dist.hpp"
 
@@ -32,8 +33,7 @@
  * It uses 12 arithmetic operations, one of which is a multiply.
  * http://en.wikipedia.org/wiki/Hamming_weight#Efficient_implementation
  */
-static inline uint64_t popcount64(uint64_t x)
-{
+static inline uint64_t popcount64(uint64_t x) {
 	uint64_t m1 = 0x5555555555555555ll;
 	uint64_t m2 = 0x3333333333333333ll;
 	uint64_t m4 = 0x0F0F0F0F0F0F0F0Fll;
@@ -50,22 +50,33 @@ static inline uint64_t popcount64(uint64_t x)
 size_t calc_intersize(const std::vector<uint64_t> * sketch1,
                       const std::vector<uint64_t> * sketch2,
                       const size_t sketchsize64,
-                      const size_t bbits)
-{
+                      const size_t bbits) {
 	size_t samebits = 0;
-    for (size_t i = 0; i < sketchsize64; i++)
-    {
-		uint64_t bits = ~((uint64_t)0ULL);
-		for (size_t j = 0; j < bbits; j++)
-        {
-			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
+    for (size_t i = 0; i < sketchsize64; i++) {
+		static const uint64_t bits = ~((uint64_t)0ULL);
+		Vec8uq vecbits(bits);
+		for (size_t j = 0; j < bbits; j += 8) {
+			Vec8uq s1, s2;
+			s1.load(sketch1->data() + i * bbits + j);
+			s2.load(sketch2->data() + i * bbits + j);
+			vecbits &= ~(s1 ^ s2);
 		}
 
+		uint64_t bits[8];
+		vecbits.store(bits);
+		for (int j = 0; j < 8; j++) {
 #if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll)
-		samebits += __builtin_popcountll(bits);
+			samebits += __builtin_popcountll(bits[j]);
 #else
-		samebits += popcount64(bits);
+			samebits += popcount64(bits[j]);
 #endif
+		}
+	}
+	// Remove packed end overhang if bbits not a multiple of AVX-512 vector
+	// size (8 64-bit uints)
+	// TODO double-check the whole algorithm above
+	if (bbits % 8) {
+		samebits -= 64 * (8 - (bbits % 8));
 	}
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> bbits);

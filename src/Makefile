@@ -25,7 +25,7 @@ ifeq ($(UNAME_S),Darwin)
 	LDLIBS+= -pthread
 endif
 
-CPPFLAGS+=-I"." -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
+CPPFLAGS+=-I"." -Ivcl -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
 LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
