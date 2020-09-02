@@ -16,7 +16,7 @@ int main (int argc, char* argv[])
     Reference ref(argv[1], ref_seq, kmer_seeds, 156, false, true, 0, false);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
     SeqBuf query_seq({argv[4]}, kmer_lengths.back());
-    Reference query(argv[3], query_seq, kmer_seeds, 156, false true, 0, false);
+    Reference query(argv[3], query_seq, kmer_seeds, 156, false, true, 0, false);
 
     RandomMC random_match(true);
 
