@@ -25,9 +25,9 @@ std::tuple<float, float> fit_slope(const arma::mat& kmers,
         arma::colvec slopes;
         if (truncation.n_elem > 0) {
             slopes = arma::solve(kmers.head_rows(truncation[0]),
-                                 dists.head(truncation[0]));
+                                 log(dists.head(truncation[0])));
         } else {
-            slopes = arma::solve(kmers, dists);
+            slopes = arma::solve(kmers, log(dists));
         }
 
         if (slopes(1) < core_upper) {
@@ -53,13 +53,12 @@ std::tuple<float, float> regress_kmers(Reference * r1,
     // Vector of points
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i) {
-        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers.at(i, 1), random));
+        dists[i] = r1->jaccard_dist(*r2, (int)kmers.at(i, 1), random);
     }
     return(fit_slope(kmers, dists, r1, r2));
 }
 
-// This is basically copied from above -
-// I don't know if there's an easier
+// Using random vector
 std::tuple<float, float> regress_kmers(Reference * r1,
                                        Reference * r2,
                                        const arma::mat& kmers,
@@ -67,7 +66,7 @@ std::tuple<float, float> regress_kmers(Reference * r1,
     // Vector of points
     arma::vec dists(kmers.n_rows);
     for (unsigned int i = 0; i < dists.n_elem; ++i) {
-        dists[i] = log(r1->jaccard_dist(*r2, (int)kmers.at(i, 1), random[i]));
+        dists[i] = r1->jaccard_dist(*r2, (int)kmers.at(i, 1), random[i]);
     }
     return(fit_slope(kmers, dists, r1, r2));
 }
