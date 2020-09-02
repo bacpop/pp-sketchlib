@@ -14,6 +14,8 @@
 
 #include "sketch/bitfuncs.hpp"
 
+const size_t avx_size = 8;
+
 // Start of macros and method copied from https://github.com/kimwalisch/libpopcnt
 
 #ifdef __GNUC__
@@ -52,19 +54,22 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
                       const size_t sketchsize64,
                       const size_t bbits) {
 	size_t samebits = 0;
-    for (size_t i = 0; i < sketchsize64; i++) {
+    for (size_t i = 0; i < sketchsize64; i += avx_size) {
 		static const uint64_t bits = ~((uint64_t)0ULL);
 		Vec8uq vecbits(bits);
-		for (size_t j = 0; j < bbits; j += 8) {
+
+		for (size_t j = 0; j < bbits; ++j) {
 			Vec8uq s1, s2;
-			s1.load(sketch1->data() + i * bbits + j);
-			s2.load(sketch2->data() + i * bbits + j);
+			for (int bin = 0; bin < avx_size; ++bin) {
+				s1.insert(bin, (*sketch1)[(i + bin) * bbits + j]);
+				s2.insert(bin, (*sketch1)[(i + bin) * bbits + j]);
+			}
 			vecbits &= ~(s1 ^ s2);
 		}
 
-		uint64_t bits[8];
+		uint64_t bits[avx_size];
 		vecbits.store(bits);
-		for (int j = 0; j < 8; j++) {
+		for (int j = 0; j < avx_size; j++) {
 #if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll)
 			samebits += __builtin_popcountll(bits[j]);
 #else
