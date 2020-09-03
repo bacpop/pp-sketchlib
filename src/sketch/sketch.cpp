@@ -78,12 +78,10 @@ double inverse_minhash(std::vector<uint64_t> &signs) {
 void fillusigs(std::vector<uint64_t>& usigs,
                const std::vector<uint64_t> &signs,
                size_t bbits) {
-	for (size_t signidx = 0; signidx < signs.size(); signidx++)
-    {
+	for (size_t signidx = 0; signidx < signs.size(); signidx++) {
 		uint64_t sign = signs[signidx];
 		int leftshift = (signidx % NBITS(uint64_t));
-		for (size_t i = 0; i < bbits; i++)
-        {
+		for (size_t i = 0; i < bbits; i++) {
 			uint64_t orval = (BITATPOS(sign, i) << leftshift);
 			usigs[signidx/NBITS(uint64_t) * bbits + i] |= orval;
 		}
