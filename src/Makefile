@@ -1,5 +1,5 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -mavx512f -mfma -mavx512vl -mavx512bw -mavx512dq -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++17 -fopenmp -mavx512f -mfma -mavx512vl -mavx512bw -mavx512dq -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
   CUDAFLAGS = -g -G
