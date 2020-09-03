@@ -197,6 +197,7 @@ void calculate_dists(const bool self,
 
 	const uint64_t* ref_start = ref + ref_idx * ref_strides.sample_stride;
 	const uint64_t* query_start = query + query_idx * query_strides.sample_stride;
+	const float tolerance = __fdividef(5.0f, __int2float_rz(64 * ref_strides.sketchsize64));
 
 	// Calculate Jaccard distances over k-mer lengths
 	float xsum = 0; float ysum = 0; float xysum = 0;
@@ -232,7 +233,12 @@ void calculate_dists(const bool self,
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
 												  ref_idx_lookup[ref_idx] * random_strides.cluster_inner_stride +
 												  query_idx_lookup[query_idx] * random_strides.cluster_outer_stride];
-			float y = __logf(observed_excess(jaccard_obs, jaccard_expected, 1.0f));
+			float jaccard = observed_excess(jaccard_obs, jaccard_expected, 1.0f);
+			// Stop regression if distances =~ 0
+			if (jaccard < tolerance) {
+				break;
+			}
+			float y = __logf(jaccard);
 			//printf("i:%d j:%d k:%d r:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, jaccard_expected, jaccard_obs, y);
 
 			// Running totals for regression

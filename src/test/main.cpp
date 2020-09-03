@@ -11,11 +11,12 @@ int main (int argc, char* argv[])
     // Runs a test of functionality
 
     std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
+    KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, false);
     SeqBuf ref_seq({argv[2]}, kmer_lengths.back());
-    Reference ref(argv[1], ref_seq, kmer_lengths, 156, true, 0, false);
+    Reference ref(argv[1], ref_seq, kmer_seeds, 156, false, true, 0, false);
     // Reference ref_copy(argv[1], argv[2], kmer_lengths);
     SeqBuf query_seq({argv[4]}, kmer_lengths.back());
-    Reference query(argv[3], query_seq, kmer_lengths, 156, true, 0, false);
+    Reference query(argv[3], query_seq, kmer_seeds, 156, false, true, 0, false);
 
     RandomMC random_match(true);
 
@@ -40,6 +41,7 @@ int main (int argc, char* argv[])
                                {{argv[2]}, {argv[4]}},
                                kmer_lengths,
                                156,
+                               false,
                                true,
                                0,
                                false,
@@ -70,6 +72,7 @@ int main (int argc, char* argv[])
                     files,
                     kmer_lengths,
                     156,
+                    false,
                     true,
                     0,
                     false,
@@ -84,7 +87,7 @@ int main (int argc, char* argv[])
     }
 
     // Save random matches to db
-    RandomMC random(listeria_sketches, 3, 5, true, 4);
+    RandomMC random(listeria_sketches, 3, 5, false, true, 4);
     try {
         listeria_db.save_random(random);
     } catch (const std::exception& e) {
