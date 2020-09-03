@@ -14,8 +14,6 @@
 
 #include "sketch/bitfuncs.hpp"
 
-const size_t avx_size = 8;
-
 // Start of macros and method copied from https://github.com/kimwalisch/libpopcnt
 
 #ifdef __GNUC__
@@ -53,35 +51,31 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
                       const std::vector<uint64_t> * sketch2,
                       const size_t sketchsize64,
                       const size_t bbits) {
-	size_t samebits = 0;
-    for (size_t i = 0; i < sketchsize64; i += avx_size) {
+    size_t samebits = 0;
+    for (size_t i = 0; i < (sketchsize64 / avx_size); i++) {
 		static const uint64_t bits = ~((uint64_t)0ULL);
 		Vec8uq vecbits(bits);
-
 		for (size_t j = 0; j < bbits; ++j) {
 			Vec8uq s1, s2;
-			for (int bin = 0; bin < avx_size; ++bin) {
-				s1.insert(bin, (*sketch1)[(i + bin) * bbits + j]);
-				s2.insert(bin, (*sketch1)[(i + bin) * bbits + j]);
-			}
+		    s1.load(sketch1->data() + i * bbits * avx_size + j);
+		    s2.load(sketch2->data() + i * bbits * avx_size + j);
 			vecbits &= ~(s1 ^ s2);
 		}
 
 		uint64_t bits[avx_size];
 		vecbits.store(bits);
-		for (int j = 0; j < avx_size; j++) {
-#if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll)
-			samebits += __builtin_popcountll(bits[j]);
-#else
-			samebits += popcount64(bits[j]);
-#endif
+
+		// Using _mm512_popcnt_epi64() is fastest
+		// But vpopcntq/AVX512VPOPCNTDQ only on Xeon Phi, not CPUs
+		samebits += __builtin_popcountll(bits[0]);
+		samebits += __builtin_popcountll(bits[1]);
+		samebits += __builtin_popcountll(bits[2]);
+		samebits += __builtin_popcountll(bits[3]);
+		samebits += __builtin_popcountll(bits[4]);
+		samebits += __builtin_popcountll(bits[5]);
+		samebits += __builtin_popcountll(bits[6]);
+		samebits += __builtin_popcountll(bits[7]);
 		}
-	}
-	// Remove packed end overhang if bbits not a multiple of AVX-512 vector
-	// size (8 64-bit uints)
-	// TODO double-check the whole algorithm above
-	if (bbits % 8) {
-		samebits -= 64 * (8 - (bbits % 8));
 	}
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> bbits);
@@ -91,3 +85,33 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
 	size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
 	return ret;
 }
+
+/*
+size_t calc_intersize(const std::vector<uint64_t> * sketch1,
+                      const std::vector<uint64_t> * sketch2,
+                      const size_t sketchsize64,
+                      const size_t bbits) {
+	size_t samebits = 0;
+    for (size_t i = 0; i < sketchsize64; i++)
+    {
+		uint64_t bits = ~((uint64_t)0ULL);
+		for (size_t j = 0; j < bbits; j++)
+        {
+			bits &= ~((*sketch1)[i * bbits + j] ^ (*sketch2)[i * bbits + j]);
+		}
+
+#if GNUC_PREREQ(4, 2) || __has_builtin(__builtin_popcountll)
+		samebits += __builtin_popcountll(bits);
+#else
+		samebits += popcount64(bits);
+#endif
+	}
+	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
+	const size_t expected_samebits = (maxnbits >> bbits);
+	if (expected_samebits) {
+		return samebits;
+	}
+	size_t ret = observed_excess(samebits, expected_samebits, maxnbits);
+	return ret;
+}
+*/

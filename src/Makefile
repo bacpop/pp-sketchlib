@@ -1,5 +1,5 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -mavx512f -mfma -mavx512vl -mavx512bw -mavx512dq -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
   CUDAFLAGS = -g -G
@@ -7,7 +7,7 @@ else ifdef PROFILE
   CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
   CUDAFLAGS = -O2 -g -lineinfo
 else
-  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
+  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fno-trapping-math -fno-math-errno -fPIC -fvisibility=hidden
 endif
 
 UNAME_S := $(shell uname -s)

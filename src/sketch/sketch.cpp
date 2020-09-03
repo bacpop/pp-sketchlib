@@ -75,6 +75,28 @@ double inverse_minhash(std::vector<uint64_t> &signs) {
     return(minhash / (double)SIGN_MOD);
 }
 
+std::vector<uint64_t> scatter_avx(const std::vector<uint64_t>& usigs,
+                                  const size_t bbits) {
+	std::vector<uint64_t> usigs_scatter = usigs;
+    size_t bin_idx = 0; size_t scatter_idx = 0;
+    for (size_t i = 0; i < usigs.size(); i++) {
+        for (size_t j = 0; j < avx_size; j++) {
+            usigs_scatter[i] = usigs[j];
+            scatter_idx += bbits;
+        }
+        if (++bin_idx % bbits == 0) {
+            bin_idx = (bbits * avx_size) * (bin_idx / (bbits * avx_size));
+        }
+        scatter_idx = bin_idx;
+        // can also be written as:
+        //usigs_scatter[i] =
+        //    usigs[(i % avx_size) * bbits +
+        //          ((i % (bbits * avx_size)) / avx_size) +
+        //          (i %/% (bbits * avx_size)) * (bbits * avx_size)];
+    }
+    return(usigs_scatter);
+}
+
 void fillusigs(std::vector<uint64_t>& usigs,
                const std::vector<uint64_t> &signs,
                size_t bbits) {
@@ -86,6 +108,7 @@ void fillusigs(std::vector<uint64_t>& usigs,
 			usigs[signidx/NBITS(uint64_t) * bbits + i] |= orval;
 		}
 	}
+    usigs = scatter_avx(usigs, bbits);
 }
 
 int densifybin(std::vector<uint64_t> &signs) {
