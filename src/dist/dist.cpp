@@ -62,20 +62,19 @@ size_t calc_intersize(const std::vector<uint64_t> * sketch1,
 			vecbits &= ~(s1 ^ s2);
 		}
 
-		uint64_t bits[avx_size];
-		vecbits.store(bits);
+		uint64_t out_bits[avx_size];
+		vecbits.store(out_bits);
 
 		// Using _mm512_popcnt_epi64() is fastest
 		// But vpopcntq/AVX512VPOPCNTDQ only on Xeon Phi, not CPUs
-		samebits += __builtin_popcountll(bits[0]);
-		samebits += __builtin_popcountll(bits[1]);
-		samebits += __builtin_popcountll(bits[2]);
-		samebits += __builtin_popcountll(bits[3]);
-		samebits += __builtin_popcountll(bits[4]);
-		samebits += __builtin_popcountll(bits[5]);
-		samebits += __builtin_popcountll(bits[6]);
-		samebits += __builtin_popcountll(bits[7]);
-		}
+		samebits += __builtin_popcountll(out_bits[0]);
+		samebits += __builtin_popcountll(out_bits[1]);
+		samebits += __builtin_popcountll(out_bits[2]);
+		samebits += __builtin_popcountll(out_bits[3]);
+		samebits += __builtin_popcountll(out_bits[4]);
+		samebits += __builtin_popcountll(out_bits[5]);
+		samebits += __builtin_popcountll(out_bits[6]);
+		samebits += __builtin_popcountll(out_bits[7]);
 	}
 	const size_t maxnbits = sketchsize64 * NBITS(uint64_t);
 	const size_t expected_samebits = (maxnbits >> bbits);
