@@ -10,10 +10,8 @@ pool:
   vmImage: 'ubuntu-latest'
 strategy:
   matrix:
-    Python36:
-      python.version: '3.6'
-    Python37:
-      python.version: '3.7'
+    Python38:
+      python.version: '3.8'
 
 steps:
 - task: UsePythonVersion@0
@@ -35,6 +33,13 @@ steps:
 # pushd src && make && make install && popd
 - script: |
     source activate pp_env
+    export SKETCHLIB_INSTALL=azure
+    python -m pip install --no-deps --ignore-installed .
+  displayName: 'Build & install (setup.py)'
+
+- script: |
+    source activate pp_env
+    export SKETCHLIB_INSTALL=azure
     python -m pip install --no-deps --ignore-installed .
     cd test && python run_test.py --no-cpp
-  displayName: 'Install and run_test.py'
+  displayName: 'Run tests (run_test.py)'

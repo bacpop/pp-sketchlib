@@ -22,11 +22,20 @@ outputFiles = [
     "test_db.h5",
     "listeria.h5",
     "sample.h5",
-    "full.h5"
+    "full.h5",
+    "db1.h5",
+    "db2.h5",
+    "joined.h5",
+    "tmp.cpu.query.dists.txt",
+    "tmp.gpu.query.dists.txt",
+    "tmp.cpu.self.dists.txt",
+    "tmp.gpu.self.dists.txt"
 ]
 for delFile in outputFiles:
-    os.remove(delFile)
+    if os.path.isfile(delFile):
+        os.remove(delFile)
 
 for ref in refs:
-    os.remove(ref)
+    if os.path.isfile(ref):
+        os.remove(ref)
 

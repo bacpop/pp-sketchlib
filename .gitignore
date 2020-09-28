@@ -4,11 +4,14 @@
 
 # test files
 *.h5
+!small_mass.h5
+!small_mass_plus1.h5
 *.fa
 
 # C++
 sketch_test
 read_test
+version.h
 
 # Prerequisites
 *.d
