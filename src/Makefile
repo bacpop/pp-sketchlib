@@ -49,10 +49,11 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 
 # web specific options
 web: CXX = emcc
+web: CPPFLAGS += -DWEB_SKETCH
 web: CXXFLAGS += -s USE_ZLIB=1
 web: LDFLAGS = -s USE_ZLIB=1 --preload-file 12673_8_24.fa
 
-web: version.h web_sketch.o seqio.o sketch.o countmin.o
+web: version.h web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
 	$(LINK.cpp) $^ -o pp-sketch.html
 
 all: $(PROGRAMS)

@@ -8,8 +8,8 @@
 using json = nlohmann::json;
 
 #include "version.h"
-#include "seqio.hpp"
-#include "sketch.hpp"
+#include "sketch/seqio.hpp"
+#include "sketch/sketch.hpp"
 
 // Defaults to change when I figure out how to do this
 const int sketchsize64 = 156;
@@ -37,7 +37,7 @@ int main (int argc, char* argv[]) {
 
     printf("Sketching\n");
     for (auto kmer_it = kmer_seeds.cbegin(); kmer_it != kmer_seeds.cend(); ++kmer_it) {
-        double minhash = 0; bool k_densified;
+        double minhash = 0; bool k_densified = false;
         std::vector<uint64_t> kmer_sketch;
         std::tie(kmer_sketch, minhash, densified) =
             sketch(sequence, sketchsize64, kmer_it->second, bbits,
