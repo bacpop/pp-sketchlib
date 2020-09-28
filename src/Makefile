@@ -52,7 +52,7 @@ web: CXX = emcc
 web: CXXFLAGS += -s USE_ZLIB=1
 web: LDFLAGS = -s USE_ZLIB=1 --preload-file 12673_8_24.fa
 
-web: web_sketch.o seqio.o sketch.o countmin.o
+web: version.h web_sketch.o seqio.o sketch.o countmin.o
 	$(LINK.cpp) $^ -o pp-sketch.html
 
 all: $(PROGRAMS)
