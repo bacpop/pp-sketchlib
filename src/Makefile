@@ -49,17 +49,19 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 
 # web specific options
 web: CXX = emcc
+# debug flags
+#web: CXXFLAGS = -g -s ASSERTIONS=1  -s DISABLE_EXCEPTION_CATCHING=0 -O0 -flto --bind -s USE_ZLIB=1 -Wall -Wextra -std=c++14
+web: CXXFLAGS = -O3 -flto --bind -s USE_ZLIB=1 -Wall -Wextra -std=c++14
 web: CPPFLAGS += -DWEB_SKETCH
-web: CXXFLAGS += -s USE_ZLIB=1
-web: LDFLAGS = -s USE_ZLIB=1 --preload-file 12673_8_24.fa
+web: LDFLAGS = -lworkerfs.js -s USE_ZLIB=1
 
-web: version.h web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
-	$(LINK.cpp) $^ -o pp-sketch.html
+web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
+	$(LINK.cpp) $^ -o web/web_sketch.js
 
 all: $(PROGRAMS)
 
 clean:
-	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) pp-sketch.* *.o *.so version.h ~* $(PROGRAMS)
+	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) web_sketch.js *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
@@ -83,6 +85,8 @@ version.h:
 	cat sketch/*.cpp sketch/*.hpp gpu/sketch.cu | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
 database/database.o: version.h
+
+web/web_sketch.o: version.h
 
 python: $(PYTHON_LIB)
 
