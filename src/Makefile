@@ -58,7 +58,7 @@ web: web_sketch.o seqio.o sketch.o countmin.o
 all: $(PROGRAMS)
 
 clean:
-	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) *.o *.so version.h ~* $(PROGRAMS)
+	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) pp-sketch.* *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)

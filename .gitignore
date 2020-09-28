@@ -2,6 +2,9 @@
 .DS_Store
 \.vscode/
 
+# web
+src/pp-sketch.*
+
 # test files
 *.h5
 !small_mass.h5
