@@ -138,7 +138,7 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
     // These could be the same but out of order, which could be dealt with
     // using a sort, except the return order of the distances wouldn't be as
     // expected. self iff ref_names == query_names as input
-    if (ref_names == query_names) {
+    if (ref_sketches == query_sketches) {
         // calculate dists
         size_t dist_rows =
             static_cast<size_t>(0.5 * (ref_sketches.size()) *
