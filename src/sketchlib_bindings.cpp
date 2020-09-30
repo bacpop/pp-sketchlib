@@ -183,45 +183,10 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
                          const size_t num_threads = 1,
                          const bool use_gpu = false,
                          const int device_id = 0) {
-    if (!same_db_version(ref_db_name, query_db_name)) {
-        std::cerr << "WARNING: versions of input databases sketches are different," \
-                     " results may not be compatible" << std::endl;
-    }
-
-    std::vector<Reference> ref_sketches = load_sketches(ref_db_name, ref_names, kmer_lengths, false);
-    std::vector<Reference> query_sketches = load_sketches(query_db_name, query_names, kmer_lengths, false);
-
-    RandomMC random;
-    if (random_correct) {
-        random = get_random(ref_db_name, ref_sketches[0].rc());
-    } else {
-        random = RandomMC();
-    }
-    NumpyMatrix dists;
-#ifdef GPU_AVAILABLE
-    if (use_gpu) {
-        dists = query_db_cuda(ref_sketches,
-	                        query_sketches,
-                            kmer_lengths,
-                            random,
-                            device_id,
-                            num_threads);
-    } else {
-        dists = query_db(ref_sketches,
-                query_sketches,
-                kmer_lengths,
-                random,
-                false,
-                num_threads);
-    }
-#else
-    dists = query_db(ref_sketches,
-                    query_sketches,
-                    kmer_lengths,
-                    random,
-                    false,
-                    num_threads);
-#endif
+    NumpyMatrix dists = queryDatabase(ref_db_name, query_db_name,
+                                      ref_names, query_names, kmer_lengths,
+                                      random_correct, false, num_threads,
+                                      use_gpu, device_id);
 
     unsigned int dist_col = 0;
     if (!core) {
@@ -233,7 +198,10 @@ sparse_coo sparseQuery(const std::string& ref_db_name,
                                             dummy_query_ref,
                                             dummy_query_query,
                                             num_threads);
-    sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN, num_threads);
+    sparse_coo sparse_return = sparsify_dists(long_form,
+                                              dist_cutoff,
+                                              kNN,
+                                              num_threads);
 
     return(sparse_return);
 }
@@ -261,8 +229,13 @@ double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
                    const size_t kmer_size) {
-    auto sketch_vec = load_sketches(db_name, {sample1, sample2}, {kmer_size}, false);
-    return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1), kmer_size, RandomMC()));
+    auto sketch_vec = load_sketches(db_name,
+                                    {sample1, sample2},
+                                    {kmer_size},
+                                    false);
+    return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1),
+                                         kmer_size,
+                                         RandomMC()));
 }
 
 // Wrapper which makes a ref to the python/numpy array
@@ -270,7 +243,10 @@ sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix>& denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
                          const unsigned int num_threads) {
-    sparse_coo coo_idx = sparsify_dists(denseDists, distCutoff, kNN, num_threads);
+    sparse_coo coo_idx = sparsify_dists(denseDists,
+                                        distCutoff,
+                                        kNN,
+                                        num_threads);
     return coo_idx;
 }
 
@@ -280,7 +256,11 @@ Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix>& distMat,
                                 const double x_max,
                                 const double y_max,
                                 const unsigned int num_threads = 1) {
-    Eigen::VectorXf assigned = assign_threshold(distMat, slope, x_max, y_max, num_threads);
+    Eigen::VectorXf assigned = assign_threshold(distMat,
+                                                slope,
+                                                x_max,
+                                                y_max,
+                                                num_threads);
     return(assigned);
 }
 
