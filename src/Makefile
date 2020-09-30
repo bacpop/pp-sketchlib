@@ -51,7 +51,7 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 web: CXX = emcc
 # debug flags
 #web: CXXFLAGS = -g -s ASSERTIONS=1  -s DISABLE_EXCEPTION_CATCHING=0 -O0 -flto --bind -s USE_ZLIB=1 -Wall -Wextra -std=c++14
-web: CXXFLAGS = -O3 -flto --bind -s USE_ZLIB=1 -Wall -Wextra -std=c++14
+web: CXXFLAGS = -O3 -flto --bind -s USE_ZLIB=1 -s MODULARIZE=1 -Wall -Wextra -std=c++14
 web: CPPFLAGS += -DWEB_SKETCH
 web: LDFLAGS = -lworkerfs.js -s USE_ZLIB=1
 
