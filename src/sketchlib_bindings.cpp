@@ -128,8 +128,13 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
 
     std::vector<Reference> ref_sketches =
         load_sketches(ref_db_name, ref_names, kmer_lengths, false);
-    std::vector<Reference> query_sketches =
-        load_sketches(query_db_name, query_names, kmer_lengths, false);
+    std::vector<Reference> query_sketches;
+    if (ref_db_name == query_db_name && ref_names == query_names) {
+        query_sketches = ref_sketches;
+    } else {
+        std::vector<Reference> query_sketches =
+            load_sketches(query_db_name, query_names, kmer_lengths, false);
+    }
 
     RandomMC random;
     if (random_correct) {
