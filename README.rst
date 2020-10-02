@@ -32,9 +32,18 @@ Or install locally::
 
     python setup.py install
 
-For this option you will need a C++14 compiler (``GCC >=7.2.0`` or ``Clang``),
-``pybind11``, ``hdf5`` and ``CMake (>=3.12)``. If you wish to compile the GPU code
-you will also need the CUDA toolkit installed (tested on 10.2 and 11.0).
+For this option you will need (all available through conda):
+
+- a C++14 compiler (``GCC >=7.2.0`` or ``Clang``)
+- ``CMake (>=3.12)``
+- ``pybind11``
+- ``hdf5``
+- ``highfive```
+- ``Eigen`` (>=v3.0)
+- ``armadillo``
+
+If you wish to compile the GPU code you will also need the CUDA toolkit
+installed (tested on 10.2 and 11.0).
 
 Usage
 =====
@@ -117,6 +126,12 @@ GPU tested using an NVIDIA RTX 2080 Ti GPU (4352 CUDA cores @ 1.35GHz).
 NB: The distance speeds can be increased (linearly) by decreasing number of
 k-mers or number of bins. The values above are for eight k-mer lengths
 and 10000 bins.
+
+.. note::
+    If your results are slower than this you may wish to compile the library
+    yourself. The version on conda is optimised for portability over speed,
+    and we have observed much greater speeds compiling with ``--march=native``,
+    which will be used with ``python setup.py install``.
 
 API
 ===
