@@ -130,7 +130,7 @@ and 10000 bins.
 .. note::
     If your results are slower than this you may wish to compile the library
     yourself. The version on conda is optimised for portability over speed,
-    and we have observed much greater speeds compiling with ``--march=native``,
+    and we have observed greater speeds compiling with ``--march=native``,
     which will be used with ``python setup.py install``.
 
 API
