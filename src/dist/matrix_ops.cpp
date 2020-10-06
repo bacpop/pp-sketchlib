@@ -202,7 +202,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     return squareDists;
 }
 
-Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists, 
+Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
                                const unsigned int num_threads) {
     if (squareDists.rows() != squareDists.cols()) {
         throw std::runtime_error("square_to_long input must be a square matrix");
