@@ -50,8 +50,8 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 # web specific options
 web: CXX = emcc
 # debug flags
-#web: CXXFLAGS = -g -s ASSERTIONS=1  -s DISABLE_EXCEPTION_CATCHING=0 -O0 -flto --bind -s USE_ZLIB=1 -Wall -Wextra -std=c++14
-web: CXXFLAGS = -Os -flto --bind -s STRICT=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_ZLIB=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -Wall -Wextra -std=c++14
+web: CXXFLAGS = -g -s ASSERTIONS=1  -s DISABLE_EXCEPTION_CATCHING=0 -O0 -flto --bind -s STRICT=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_ZLIB=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s "EXPORTED_FUNCTIONS=['_json_sketch', '_malloc']" -s USE_ES6_IMPORT_META=0 -Wall -Wextra -std=c++14
+#web: CXXFLAGS = -Os -flto --bind -s STRICT=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_ZLIB=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s "EXPORTED_FUNCTIONS=['_json_sketch', '_malloc']" -s USE_ES6_IMPORT_META=0 -Wall -Wextra -std=c++14
 web: CPPFLAGS += -DWEB_SKETCH
 web: LDFLAGS = --no-entry -lworkerfs.js -s USE_ZLIB=1
 

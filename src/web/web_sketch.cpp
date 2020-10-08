@@ -14,7 +14,18 @@ using json = nlohmann::json;
 #include "sketch/seqio.hpp"
 #include "sketch/sketch.hpp"
 
-std::string json_sketch(const std::string file,
+extern "C" {
+  std::string json_sketch (const std::string file,
+                        const size_t kmer_min,
+                        const size_t kmer_max,
+                        const size_t kmer_step,
+                        const int bbits,
+                        const int sketchsize64,
+                        const bool codon_phased,
+                        const bool use_rc);
+}
+
+std::string json_sketch (const std::string file,
                         const size_t kmer_min,
                         const size_t kmer_max,
                         const size_t kmer_step,
