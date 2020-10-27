@@ -50,18 +50,34 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 # web specific options
 web: CXX = emcc
 # debug flags
-web: CXXFLAGS = -g -s ASSERTIONS=1  -s DISABLE_EXCEPTION_CATCHING=0 -O0 -flto --bind -s STRICT=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_ZLIB=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s "EXPORTED_FUNCTIONS=['_json_sketch', '_malloc']" -s USE_ES6_IMPORT_META=0 -Wall -Wextra -std=c++14
-#web: CXXFLAGS = -Os -flto --bind -s STRICT=1 -s ALLOW_MEMORY_GROWTH=1 -s USE_ZLIB=1 -s EXPORT_ES6=1 -s MODULARIZE=1 -s "EXPORTED_FUNCTIONS=['_json_sketch', '_malloc']" -s USE_ES6_IMPORT_META=0 -Wall -Wextra -std=c++14
+web: CXXFLAGS = -g -O0 -s ASSERTIONS=1  \
+				-s DISABLE_EXCEPTION_CATCHING=0 \
+				-flto --bind -s STRICT=1 \
+				-s ALLOW_MEMORY_GROWTH=1 \
+				-s USE_ZLIB=1 \
+				-s MODULARIZE=1 \
+				-s "EXPORTED_FUNCTIONS=['_malloc']" \
+				-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+				-s EXPORT_NAME=WebSketch \
+				-Wall -Wextra -std=c++14
 web: CPPFLAGS += -DWEB_SKETCH
-web: LDFLAGS = --no-entry -lworkerfs.js -s USE_ZLIB=1
+web: LDFLAGS = -lnodefs.js -lworkerfs.js
+
+WEB_OUT=web/web_sketch
+WASM_FILENAME=${WEB_OUT}.wasm
+WASM_LOOKUP='wasmBinaryFile = locateFile'
+WEB_OBJS=${WEB_OUT}.js ${WEB_OUT}.html ${WEB_OUT}.wasm
 
 web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
-	$(LINK.cpp) $^ -o web/web_sketch.js
+	$(LINK.cpp) $^ -o ${WEB_OUT}.js
+	sed -i.old '1s;^;\/* eslint-disable *\/;' ${WEB_OUT}.js
+	sed -i.old "s|${WASM_FILENAME}|/${WASM_FILENAME}|" ${WEB_OUT}.js
+	sed -i.old "s|${WASM_LOOKUP}|// ${WASM_LOOKUP}|" ${WEB_OUT}.js
 
 all: $(PROGRAMS)
 
 clean:
-	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) web_sketch.js *.o *.so version.h ~* $(PROGRAMS)
+	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) $(WEB_OBJS) *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
