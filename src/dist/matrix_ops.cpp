@@ -58,7 +58,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
     std::vector<long> i_vec;
     std::vector<long> j_vec;
     if (distCutoff > 0) {
-        for (long i = denseDists.rows() - 1; i >= 0; i--) {
+        for (long i = 0; i < denseDists.rows(); i++) {
             for (long j = i + 1; j < denseDists.cols(); j++) {
                 if (denseDists(i, j) < distCutoff) {
                     dists.push_back(denseDists(i, j));
@@ -72,7 +72,7 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
         // May be >k if repeats, often zeros
         for (long i = 0; i < denseDists.rows(); i++) {
             unsigned long unique_neighbors = 0;
-            float prev_value = 0;
+            float prev_value = -1;
             for (auto j : sort_indexes(denseDists.row(i))) {
                 if (j == i) {
                     continue; // Ignore diagonal which will always be one of the closest
