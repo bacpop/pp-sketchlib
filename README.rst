@@ -1,6 +1,6 @@
-************
-pp-sketchlib
-************
+*******************
+pp-sketchlib |logo|
+*******************
 |Build status| |Anaconda package|
 
 .. |Build status| image:: https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master
@@ -11,10 +11,10 @@ pp-sketchlib
 
 Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
-.. image:: https://poppunk.net/assets/images/sketchlib_logo.png
+.. |logo| image:: https://poppunk.net/assets/images/sketchlib_logo.png
    :alt: pp-sketchlib
-   :width: 200
-   :align: center
+   :height: 139
+   :align: right
 
 Installation
 ============
