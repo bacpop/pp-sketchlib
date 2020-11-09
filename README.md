@@ -16,7 +16,7 @@ conda install -c bioconda pp-sketchlib
 ```
 
 **NOTE**
-    If you are getting UnsatisfiableError` or similar version conflicts try following the
+    If you are getting `UnsatisfiableError` or similar version conflicts try following the
     [tips on conda-forge](https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>).
     It may also help if you downgrade your version of conda (to 4.5). Installing into
     a new environment is recommended.
@@ -29,7 +29,7 @@ python setup.py install
 
 For this option you will need (all available through conda):
 
-- a C++14 compiler (`GCC >=7.2.0` or `Clang)
+- a C++14 compiler (`GCC >=7.2.0` or `Clang`)
 - `CMake (>=3.12)`
 - `pybind11`
 - `hdf5`
@@ -56,7 +56,7 @@ sample2    sample2.fa
 sample3    sample3_1.fq.gz     sample3_2.fq.gz
 ```
 
-Calculate core and accessory distances between databases with `--query. If all-vs-all, only the upper triangle is calculated,
+Calculate core and accessory distances between databases with `--query`. If all-vs-all, only the upper triangle is calculated,
 for example:
 
 ```
@@ -100,7 +100,7 @@ Both CPU parallelism and the GPU will be used, so be sure to add
 both `--cpus` and `--use-gpu` for maximum speed. This is particularly efficient
 when sketching.
 
-You can set the `--gpu-id if you have more than one device, which may be necessary on
+You can set the `--gpu-id` if you have more than one device, which may be necessary on
 cluster systems. This mode can also benefit from having multiple CPU cores available too.
 
 ### Benchmarks
@@ -203,7 +203,7 @@ Datasets:
 
 - `centroids` - k-means centroids of base frequency clusters.
 - `matches_keys` - k-mer lengths at which random match chances were calculated.
-- matches_values` - random match chances. Flattened matrices in the same order
+- `matches_values` - random match chances. Flattened matrices in the same order
   as the k-mer keys, and row-major across centroid pairs.
 - `table_keys` - sample order of `table_values`.
 - `table_values` - centroid ID assigned to each sample.
@@ -350,7 +350,7 @@ The overall method was described in the following paper:
 
 Lees JA, Harris SR, Tonkin-Hill G, Gladstone RA, Lo SW, Weiser JN, Corander J, Bentley SD, Croucher NJ. Fast and flexible
 bacterial genomic epidemiology with PopPUNK. *Genome Research* **29**:1-13 (2019).
-doi:[10.1101/gr.241455.118](https://dx.doi.org/10.1101/gr.241455.118)`
+doi:[10.1101/gr.241455.118](https://dx.doi.org/10.1101/gr.241455.118)
 
 This extension uses parts of the following methods, and in some cases their code (license included where required):
 
