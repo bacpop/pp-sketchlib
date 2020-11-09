@@ -13,7 +13,7 @@ Library of sketching functions used by `PopPUNK <https://www.poppunk.net>`__.
 
 .. |logo| image:: https://poppunk.net/assets/images/sketchlib_logo.png
    :alt: pp-sketchlib
-   :height: 139
+   :scale: 20%
    :align: middle
 
 Installation
