@@ -132,7 +132,7 @@ NumpyMatrix queryDatabase(const std::string& ref_db_name,
     if (ref_db_name == query_db_name && ref_names == query_names) {
         query_sketches = ref_sketches;
     } else {
-        std::vector<Reference> query_sketches =
+        query_sketches =
             load_sketches(query_db_name, query_names, kmer_lengths, false);
     }
 
