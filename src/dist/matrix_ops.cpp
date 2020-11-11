@@ -15,6 +15,8 @@
 
 #include "api.hpp"
 
+const float epsilon = 1E-10;
+
 // Prototypes for cppying functions run in threads
 void square_block(const Eigen::VectorXf& longDists,
                   NumpyMatrix& squareMatrix,
@@ -76,11 +78,13 @@ sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
             for (auto j : sort_indexes(denseDists.row(i))) {
                 if (j == i) {
                     continue; // Ignore diagonal which will always be one of the closest
-                } else if (unique_neighbors < kNN || denseDists(i, j) == prev_value) {
+                {
+                bool new_val = abs(denseDists(i, j) - prev_value) < epsilon;
+                if (unique_neighbors < kNN || new_val) {
                     dists.push_back(denseDists(i, j));
                     i_vec.push_back(i);
                     j_vec.push_back(j);
-                    if (denseDists(i, j) != prev_value) {
+                    if (!new_val) {
                         unique_neighbors++;
                         prev_value = denseDists(i, j);
                     }
