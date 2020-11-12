@@ -137,6 +137,10 @@ NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
     size_t nqqSamples = 0;
     if (qrDists.size() > 0) {
         nqqSamples = rows_to_samples(qqDists);
+        // If one query, qqDists = [0] or None, so may come back as zero
+        if (nqqSamples < 1 && qrDists.size() > 0) {
+            nqqSamples = 1;
+        }
         if (qrDists.size() != nrrSamples * nqqSamples) {
             throw std::runtime_error("Shape of reference, query and ref vs query matrices mismatches");
         }
