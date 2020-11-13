@@ -16,6 +16,7 @@ dependencies:
   - highfive
   - hdf5
   - h5py
+  - nlohmann_json
   - openblas
   - armadillo
   - libgfortran-ng
