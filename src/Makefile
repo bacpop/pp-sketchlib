@@ -64,7 +64,6 @@ web: CPPFLAGS += -DWEB_SKETCH
 web: LDFLAGS = -lnodefs.js -lworkerfs.js
 
 WEB_OUT=web/web_sketch
-WASM_FILENAME=web_sketch.wasm
 WEB_OBJS=${WEB_OUT}.js ${WEB_OUT}.html ${WEB_OUT}.wasm
 
 web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
