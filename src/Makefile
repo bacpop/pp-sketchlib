@@ -70,8 +70,6 @@ WEB_OBJS=${WEB_OUT}.js ${WEB_OUT}.html ${WEB_OUT}.wasm
 web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
 	$(LINK.cpp) $^ -o ${WEB_OUT}.js
 	sed -i.old '1s;^;\/* eslint-disable *\/;' ${WEB_OUT}.js
-	sed -i.old "s|${WASM_FILENAME}|/${WASM_FILENAME}|" ${WEB_OUT}.js
-	sed -i.old "s|wasmBinaryFile=locateFile|// wasmBinaryFile=locateFile|" ${WEB_OUT}.js
 
 all: $(PROGRAMS)
 
