@@ -47,10 +47,33 @@ SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sket
 GPU_SKETCH_OBJS=gpu/gpu_api.o
 CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 
+# web specific options
+web: CXX = emcc
+# debug flags
+web: CXXFLAGS = -Os -s ASSERTIONS=1  \
+				-s DISABLE_EXCEPTION_CATCHING=0 \
+				-flto --bind -s STRICT=1 \
+				-s ALLOW_MEMORY_GROWTH=1 \
+				-s USE_ZLIB=1 \
+				-s MODULARIZE=1 \
+				-s "EXPORTED_FUNCTIONS=['_malloc']" \
+				-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+				-s EXPORT_NAME=WebSketch \
+				-Wall -Wextra -std=c++14
+web: CPPFLAGS += -DWEB_SKETCH
+web: LDFLAGS = -lnodefs.js -lworkerfs.js
+
+WEB_OUT=web/web_sketch
+WEB_OBJS=${WEB_OUT}.js ${WEB_OUT}.html ${WEB_OUT}.wasm
+
+web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
+	$(LINK.cpp) $^ -o ${WEB_OUT}.js
+	sed -i.old '1s;^;\/* eslint-disable *\/;' ${WEB_OUT}.js
+
 all: $(PROGRAMS)
 
 clean:
-	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) *.o *.so version.h ~* $(PROGRAMS)
+	$(RM) $(SKETCH_OBJS) $(GPU_SKETCH_OBJS) $(CUDA_OBJS) $(WEB_OBJS) *.o *.so version.h ~* $(PROGRAMS)
 
 install: all
 	install -d $(BINDIR)
@@ -74,6 +97,8 @@ version.h:
 	cat sketch/*.cpp sketch/*.hpp gpu/sketch.cu | openssl sha1 | awk '{print "#define SKETCH_VERSION \"" $$2 "\""}' > version.h
 
 database/database.o: version.h
+
+web/web_sketch.o: version.h
 
 python: $(PYTHON_LIB)
 
