@@ -107,6 +107,7 @@ set_target_properties("${TARGET_NAME}" PROPERTIES
 # Link libraries
 if(CMAKE_CUDA_COMPILER)
     target_link_libraries("${TARGET_NAME}" PRIVATE "${TARGET_NAME}_CUDA")
+    set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
                                                z hdf5_cpp hdf5 openblas lapack gfortran m dl)

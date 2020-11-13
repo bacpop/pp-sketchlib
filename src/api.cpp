@@ -135,16 +135,14 @@ NumpyMatrix query_db(std::vector<Reference>& ref_sketches,
         dist_cols = 2;
     }
 
-    // Check if ref = query, then run as self mode
-    // Note: this only checks names. Need to ensure k-mer lengths matching elsewhere
-    std::sort(ref_sketches.begin(), ref_sketches.end());
-    std::sort(query_sketches.begin(), query_sketches.end());
-
+    // These could be the same but out of order, which could be dealt with
+    // using a sort, except the return order of the distances wouldn't be as
+    // expected. self iff ref_names == query_names as input
     if (ref_sketches == query_sketches) {
-
         // calculate dists
         size_t dist_rows =
-         static_cast<size_t>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
+            static_cast<size_t>(0.5 * (ref_sketches.size()) *
+                                (ref_sketches.size() - 1));
         distMat.resize(dist_rows, dist_cols);
 
         arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);

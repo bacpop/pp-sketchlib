@@ -181,20 +181,15 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 void checkSketchParamsMatch(const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
 	const size_t bbits,
-	const size_t sketchsize64)
-{
-	for (auto sketch_it = sketches.cbegin(); sketch_it != sketches.cend(); sketch_it++)
-	{
-		if (sketch_it->bbits() != bbits)
-		{
+	const size_t sketchsize64) {
+	for (auto sketch_it = sketches.cbegin(); sketch_it != sketches.cend(); sketch_it++) {
+		if (sketch_it->bbits() != bbits){
 			throw std::runtime_error("Mismatching bbits in sketches");
 		}
-		if (sketch_it->sketchsize64() != sketchsize64)
-		{
+		if (sketch_it->sketchsize64() != sketchsize64) {
 			throw std::runtime_error("Mismatching sketchsize64 in sketches");
 		}
-		if (sketch_it->kmer_lengths() != kmer_lengths)
-		{
+		if (sketch_it->kmer_lengths() != kmer_lengths) {
 			throw std::runtime_error("Mismatching k-mer lengths in sketches");
 		}
 	}
@@ -345,8 +340,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	const std::vector<size_t>& kmer_lengths,
 	RandomMC& random_match,
 	const int device_id,
-	const unsigned int num_cpu_threads)
-{
+	const unsigned int num_cpu_threads) {
 	size_t mem_free, mem_total;
 	std::tie(mem_free, mem_total) = initialise_device(device_id);
     std::cerr << "Calculating distances on GPU device " << device_id << std::endl;
@@ -364,14 +358,11 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	SketchStrides query_strides = ref_strides;
 
 	long long dist_rows; long n_samples = 0;
-	if (ref_sketches == query_sketches)
-    {
+	if (ref_sketches == query_sketches) {
 		self = true;
 		dist_rows = static_cast<long long>(0.5*(ref_sketches.size())*(ref_sketches.size() - 1));
 		n_samples = ref_sketches.size();
-	}
-	else
-	{
+	} else {
 		// Also check query sketches are compatible
 		checkSketchParamsMatch(query_sketches, kmer_lengths, bbits, sketchsize64);
 		dist_rows = ref_sketches.size() * query_sketches.size();

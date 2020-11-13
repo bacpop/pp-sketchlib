@@ -34,6 +34,11 @@ subprocess.run("python test-dists.py --ref-db test_db --results ppsketch_ref", s
 subprocess.run("poppunk_sketch --query --ref-db test_db_phased --query-db test_db_phased --min-k 15 --k-step 4 --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db_phased --results ppsketch_ref_phased", shell=True, check=True) # checks results match
 
+sys.stderr.write("Ref v query distance smoke test\n")
+subprocess.run("poppunk_sketch --sketch --rfile rlist.txt --ref-db r_db --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
+subprocess.run("poppunk_sketch --sketch --rfile qlist.txt --ref-db q_db --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
+subprocess.run("poppunk_sketch --query --ref-db r_db --query-db q_db --read-k", shell=True, check=True) # checks if can be run
+
 sys.stderr.write("Sparse distance smoke test\n")
 subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --read-k --sparse --kNN 2", shell=True, check=True) # checks if can be run
 subprocess.run("poppunk_sketch --query --ref-db test_db --query-db test_db --read-k --sparse --threshold 0.01", shell=True, check=True) # checks if can be run
