@@ -50,7 +50,7 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 # web specific options
 web: CXX = emcc
 # debug flags
-web: CXXFLAGS = -g -O0 -s ASSERTIONS=1  \
+web: CXXFLAGS = -Os -s ASSERTIONS=1  \
 				-s DISABLE_EXCEPTION_CATCHING=0 \
 				-flto --bind -s STRICT=1 \
 				-s ALLOW_MEMORY_GROWTH=1 \
@@ -64,15 +64,14 @@ web: CPPFLAGS += -DWEB_SKETCH
 web: LDFLAGS = -lnodefs.js -lworkerfs.js
 
 WEB_OUT=web/web_sketch
-WASM_FILENAME=${WEB_OUT}.wasm
-WASM_LOOKUP='wasmBinaryFile = locateFile'
+WASM_FILENAME=web_sketch.wasm
 WEB_OBJS=${WEB_OUT}.js ${WEB_OUT}.html ${WEB_OUT}.wasm
 
 web: web/web_sketch.o sketch/seqio.o sketch/sketch.o sketch/countmin.o
 	$(LINK.cpp) $^ -o ${WEB_OUT}.js
 	sed -i.old '1s;^;\/* eslint-disable *\/;' ${WEB_OUT}.js
 	sed -i.old "s|${WASM_FILENAME}|/${WASM_FILENAME}|" ${WEB_OUT}.js
-	sed -i.old "s|${WASM_LOOKUP}|// ${WASM_LOOKUP}|" ${WEB_OUT}.js
+	sed -i.old "s|wasmBinaryFile=locateFile|// wasmBinaryFile=locateFile|" ${WEB_OUT}.js
 
 all: $(PROGRAMS)
 
