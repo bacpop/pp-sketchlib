@@ -50,6 +50,8 @@ std::string json_sketch (const std::string file,
         minhash_sum += minhash;
         densified |= k_densified; // Densified at any k-mer length
     }
+    sketch_json["codon_phased"] = codon_phased;
+    sketch_json["densified"] = densified;
     sketch_json["bbits"] = bbits;
     sketch_json["sketchsize64"] = sketchsize64;
     BaseComp<double> composition = sequence.get_composition();
