@@ -7,7 +7,7 @@
 #include <emscripten/bind.h>
 using namespace emscripten;
 
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 #include "version.h"
