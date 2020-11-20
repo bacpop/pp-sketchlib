@@ -7,6 +7,7 @@
 #include <vector>
 #include <climits>
 #include <limits>
+#include <cstddef>
 #include <cstdint>
 
 #define XOSHIRO_WIDTH 4
