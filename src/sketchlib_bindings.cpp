@@ -97,14 +97,20 @@ void constructDatabase(const std::string& db_name,
                                     exact,
                                     num_threads);
 #endif
-    if (calc_random && ref_sketches.size() >= default_n_clusters) {
-        RandomMC random = calculate_random(ref_sketches,
-                                        db_name,
-                                        default_n_clusters,
-                                        default_n_MC,
-                                        codon_phased,
-                                        use_rc,
-                                        num_threads);
+    if (calc_random) {
+        if (ref_sketches.size() >= default_n_clusters) {
+            RandomMC random = calculate_random(ref_sketches,
+                                            db_name,
+                                            default_n_clusters,
+                                            default_n_MC,
+                                            codon_phased,
+                                            use_rc,
+                                            num_threads);
+        } else {
+            std::cerr <<
+            "Too few input genomes to calculate random match chances" <<
+            std::endl;
+        }
     }
 }
 
