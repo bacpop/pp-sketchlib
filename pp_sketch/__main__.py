@@ -359,10 +359,9 @@ def main():
         rList = getSampleNames(args.ref_db)
         ref = h5py.File(args.ref_db + ".h5", 'r')
         db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
-        use_rc = ref['sketches/' + rList[0]].attrs['use_rc']
         ref.close()
 
-        pp_sketchlib.addRandom(args.ref_db, rList, db_kmers, use_rc, args.cpus)
+        pp_sketchlib.addRandom(args.ref_db, rList, db_kmers, args.strand, args.cpus)
 
     sys.exit(0)
 
