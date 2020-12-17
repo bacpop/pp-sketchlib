@@ -200,6 +200,7 @@ void calculate_dists(const bool self,
 	const float tolerance = __fdividef(5.0f, __int2float_rz(64 * ref_strides.sketchsize64));
 
 	// Calculate Jaccard distances over k-mer lengths
+	int kmer_used = 0;
 	float xsum = 0; float ysum = 0; float xysum = 0;
 	float xsquaresum = 0; float ysquaresum = 0;
 	for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
@@ -242,6 +243,7 @@ void calculate_dists(const bool self,
 			//printf("i:%d j:%d k:%d r:%f jac:%f y:%f\n", ref_idx, query_idx, kmer_idx, jaccard_expected, jaccard_obs, y);
 
 			// Running totals for regression
+			kmer_used++;
 			int kmer = kmers[kmer_idx];
 			xsum += kmer;
 			ysum += y;
@@ -264,11 +266,10 @@ void calculate_dists(const bool self,
 								 xysum,
 								 xsquaresum,
 								 ysquaresum,
-								 kmer_n);
+								 kmer_used);
 
 		update_progress(dist_idx, dist_n, blocks_complete);
 	}
-	__syncwarp();
 }
 
 /***************
@@ -278,18 +279,19 @@ void calculate_dists(const bool self,
 ***************/
 
 // Sets up data structures and loads them onto the device
-DeviceMemory::DeviceMemory(SketchStrides& ref_strides,
-					  SketchStrides& query_strides,
-					  std::vector<Reference>& ref_sketches,
-					  std::vector<Reference>& query_sketches,
-					  const SketchSlice& sample_slice,
-					  const FlatRandom& flat_random,
-					  const std::vector<uint16_t>& ref_random_idx,
-					  const std::vector<uint16_t>& query_random_idx,
-					  const std::vector<size_t>& kmer_lengths,
-					  long long dist_rows,
-					  const bool self,
-					  const int cpu_threads)
+DeviceMemory::DeviceMemory(
+	SketchStrides& ref_strides,
+	SketchStrides& query_strides,
+	std::vector<Reference>& ref_sketches,
+	std::vector<Reference>& query_sketches,
+	const SketchSlice& sample_slice,
+	const FlatRandom& flat_random,
+	const std::vector<uint16_t>& ref_random_idx,
+	const std::vector<uint16_t>& query_random_idx,
+	const std::vector<size_t>& kmer_lengths,
+	long long dist_rows,
+	const bool self,
+	const int cpu_threads)
 	: _n_dists(dist_rows * 2),
 	  d_query_sketches(nullptr),
 	  d_query_random(nullptr) {
@@ -373,7 +375,6 @@ DeviceMemory::~DeviceMemory() {
 }
 
 std::vector<float> DeviceMemory::read_dists() {
-	cudaDeviceSynchronize();
 	std::vector<float> dists(_n_dists);
 	CUDA_CALL(cudaMemcpy(dists.data(),
 						 d_dist_mat,
@@ -408,7 +409,7 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
 void reportDistProgress(volatile int * blocks_complete,
-					long long dist_rows) {
+						long long dist_rows) {
 	long long progress_blocks = 1 << progressBitshift;
 	int now_completed = 0; float kern_progress = 0;
 	if (dist_rows > progress_blocks) {
@@ -470,6 +471,7 @@ std::vector<float> dispatchDists(
 	}
 
 	// Load memory onto device
+	std::cout << "H -> D" << std::endl;
 	DeviceMemory device_arrays
 	(
 		ref_strides,
@@ -548,11 +550,11 @@ std::vector<float> dispatchDists(
 	}
 
 	reportDistProgress(blocks_complete, dist_rows);
+	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	// Copy results back to host
+	CUDA_CALL(cudaDeviceSynchronize());
 	std::vector<float> dist_results = device_arrays.read_dists();
-
-	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	return(dist_results);
 }

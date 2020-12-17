@@ -30,7 +30,7 @@ python setup.py install
 For this option you will need (all available through conda):
 
 - a C++14 compiler (`GCC >=7.2.0` or `Clang`)
-- `CMake (>=3.12)`
+- `CMake (>=3.18)`
 - `pybind11`
 - `hdf5`
 - `highfive`
@@ -375,3 +375,32 @@ Blais, E. & Blanchette, M.\
 Common Substrings in Random Strings.\
 Combinatorial Pattern Matching 129–140 (2006).\
 doi:[10.1007/11780441_13](https://doi.org/10.1007/11780441_13>)
+
+## Building and testing notes (for developers)
+Run `python setup.py build --debug` to build with debug flags on
+
+You can set an environment variable `SKETCHLIB_INSTALL` to affect `python setup.py`:
+
+- Empty: uses cmake
+- `conda`: sets library location to the conda environment, and uses `src/Makefile` (used to be used in conda-forge recipe)
+- `azure`: Uses `src/Makefile`
+
+### cmake
+Now requires v3.19. If nvcc version is 11.0 or higher, sm8.6 with device link time optimisation will be used.
+Otherwise, code is generated for sm7.0 and sm7.5.
+
+### make
+See `src/Makefile`. Targets are:
+
+- `all` (default): builds test executables `sketch_test`, `matrix_test`, `read_test` and `gpu_dist_test`
+- `python`: builds the python extension, same as cmake
+- `web`: builds the webassembly (requires `emcc` installed and activated)
+- `install`: installs executables (don't use this)
+- `python_install`: installs python extension
+- `clean`: removes all intermediate build files and executables
+
+Modifiers:
+
+- `DEBUG=1` runs with debug flags
+- `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
+- `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)

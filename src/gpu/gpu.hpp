@@ -114,7 +114,7 @@ class DeviceMemory {
 
 	private:
 		DeviceMemory ( const DeviceMemory & ) = delete;
-    DeviceMemory ( DeviceMemory && ) = delete;
+		DeviceMemory ( DeviceMemory && ) = delete;
 
 		size_t _n_dists;
 		uint64_t * d_ref_sketches;

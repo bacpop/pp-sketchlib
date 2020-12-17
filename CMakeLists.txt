@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.19)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
+cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
 
 # Set sketch version
 file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
@@ -25,9 +26,16 @@ if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
+endif()
+
+# Set paths for non standard lib/ and include/ locations
+if(DEFINED ENV{CONDA_PREFIX})
+    include_directories($ENV{CONDA_PREFIX}/include)
+    link_directories($ENV{CONDA_PREFIX}/lib)
+    link_directories($ENV{CONDA_PREFIX}/lib/intel64)
 endif()
 
 # Add libraries
@@ -39,13 +47,6 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(OpenMP)
-
-# Set paths for non standard lib/ and include/ locations
-if(DEFINED ENV{CONDA_PREFIX})
-    include_directories($ENV{CONDA_PREFIX}/include)
-    link_directories($ENV{CONDA_PREFIX}/lib)
-    link_directories($ENV{CONDA_PREFIX}/lib/intel64)
-endif()
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
@@ -61,13 +62,16 @@ if(CMAKE_CUDA_COMPILER)
     # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
     # --cudart static: static linking of the CUDA libraries
     # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
-    set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr")
+    set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr")
     # Turn on link time optimisation if available
     if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
-        string(APPEND CUDA_OPTS " -dlto -arch=sm_75")
+        string(APPEND CUDA_OPTS " -dlto -arch=sm_86")
     else()
         string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75")
     endif()
+    if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+        string(APPEND CUDA_OPTS " -G")
+    endif(CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
@@ -77,7 +81,9 @@ if(CMAKE_CUDA_COMPILER)
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
-                 CUDA_VISIBILITY_PRESET "hidden")
+                 CUDA_VISIBILITY_PRESET "hidden"
+		         CUDA_RUNTIME_LIBRARY Static)
+	         #CUDA_ARCHITECTURES OFF) # set off as done explicitly above (due to dlto complexities)
     # CPU code/gcc compiled code needed by cuda lib
     target_sources("${TARGET_NAME}" PRIVATE src/gpu/gpu_api.cpp)
 else()
@@ -108,6 +114,7 @@ set_target_properties("${TARGET_NAME}" PROPERTIES
 if(CMAKE_CUDA_COMPILER)
     target_link_libraries("${TARGET_NAME}" PRIVATE "${TARGET_NAME}_CUDA")
     set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+    #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
                                                z hdf5_cpp hdf5 openblas lapack gfortran m dl)
