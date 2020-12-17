@@ -13,6 +13,7 @@
 #include <tuple>
 #include "robin_hood.h"
 
+#define ARMA_ALLOW_FAKE_GCC
 #define ARMA_DONT_USE_WRAPPER
 #include <armadillo>
 

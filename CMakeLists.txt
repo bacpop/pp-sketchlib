@@ -26,9 +26,16 @@ if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
+endif()
+
+# Set paths for non standard lib/ and include/ locations
+if(DEFINED ENV{CONDA_PREFIX})
+    include_directories($ENV{CONDA_PREFIX}/include)
+    link_directories($ENV{CONDA_PREFIX}/lib)
+    link_directories($ENV{CONDA_PREFIX}/lib/intel64)
 endif()
 
 # Add libraries
@@ -40,13 +47,6 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(OpenMP)
-
-# Set paths for non standard lib/ and include/ locations
-if(DEFINED ENV{CONDA_PREFIX})
-    include_directories($ENV{CONDA_PREFIX}/include)
-    link_directories($ENV{CONDA_PREFIX}/lib)
-    link_directories($ENV{CONDA_PREFIX}/lib/intel64)
-endif()
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
@@ -82,7 +82,7 @@ if(CMAKE_CUDA_COMPILER)
                  CUDA_SEPARABLE_COMPILATION ON
                  CUDA_RESOLVE_DEVICE_SYMBOLS ON   # try and ensure device link with nvcc
                  CUDA_VISIBILITY_PRESET "hidden"
-		 CUDA_RUNTIME_LIBRARY Static)
+		         CUDA_RUNTIME_LIBRARY Static)
 	         #CUDA_ARCHITECTURES OFF) # set off as done explicitly above (due to dlto complexities)
     # CPU code/gcc compiled code needed by cuda lib
     target_sources("${TARGET_NAME}" PRIVATE src/gpu/gpu_api.cpp)

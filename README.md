@@ -386,7 +386,7 @@ You can set an environment variable `SKETCHLIB_INSTALL` to affect `python setup.
 - `azure`: Uses `src/Makefile`
 
 ### cmake
-Now requires v3.18. If nvcc version is 11.0 or higher, sm8.6 with device link time optimisation will be used.
+Now requires v3.19. If nvcc version is 11.0 or higher, sm8.6 with device link time optimisation will be used.
 Otherwise, code is generated for sm7.0 and sm7.5.
 
 ### make

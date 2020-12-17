@@ -46,7 +46,7 @@ Reference::Reference(const std::string& name,
     _bases = sequence.get_composition();
     _missing_bases = sequence.missing_bases();
 
-    double minhash_sum = 0;
+    double minhash_sum = 0.0;
     for (auto kmer_it = kmers.cbegin(); kmer_it != kmers.cend(); ++kmer_it)
     {
         double minhash = 0; bool densified;
