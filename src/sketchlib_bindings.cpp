@@ -234,14 +234,21 @@ void addRandomToDb(const std::string& db_name,
 double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
-                   const size_t kmer_size) {
+                   const size_t kmer_size,
+                   bool random_correct = false) {
     auto sketch_vec = load_sketches(db_name,
                                     {sample1, sample2},
                                     {kmer_size},
                                     false);
+    RandomMC random;
+    if (random_correct) {
+        random = get_random(db_name, sketch_vec[0].rc());
+    } else {
+        random = RandomMC();
+    }
     return(sketch_vec.at(0).jaccard_dist(sketch_vec.at(1),
                                          kmer_size,
-                                         RandomMC()));
+                                         random));
 }
 
 // Wrapper which makes a ref to the python/numpy array
@@ -327,7 +334,8 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("db_name"),
         py::arg("ref_name"),
         py::arg("query_name"),
-        py::arg("kmer_length"));
+        py::arg("kmer_length"),
+        py::arg("random_correct"));
 
   m.def("squareToLong", &squareToLong, py::return_value_policy::reference_internal, "Convert dense square matrices to long form",
         py::arg("distMat").noconvert(),
