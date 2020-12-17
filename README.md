@@ -377,6 +377,8 @@ Combinatorial Pattern Matching 129–140 (2006).\
 doi:[10.1007/11780441_13](https://doi.org/10.1007/11780441_13>)
 
 ## Building and testing notes (for developers)
+Run `python setup.py build --debug` to build with debug flags on
+
 You can set an environment variable `SKETCHLIB_INSTALL` to affect `python setup.py`:
 
 - Empty: uses cmake
