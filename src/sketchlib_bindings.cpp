@@ -235,7 +235,7 @@ double jaccardDist(const std::string& db_name,
                    const std::string& sample1,
                    const std::string& sample2,
                    const size_t kmer_size,
-                   bool random_correct = false) {
+                   bool random_correct) {
     auto sketch_vec = load_sketches(db_name,
                                     {sample1, sample2},
                                     {kmer_size},
@@ -335,7 +335,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("ref_name"),
         py::arg("query_name"),
         py::arg("kmer_length"),
-        py::arg("random_correct"));
+        py::arg("random_correct") = false);
 
   m.def("squareToLong", &squareToLong, py::return_value_policy::reference_internal, "Convert dense square matrices to long form",
         py::arg("distMat").noconvert(),
