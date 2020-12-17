@@ -30,16 +30,16 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_86,code=sm_86
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
-	CUDA_LDFLAGS += -L/usr/local/cuda-11.0/lib64
+	CUDA_LDFLAGS += -L/usr/local/cuda-11.1/lib64
 endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
 # python specific options
-python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.5.0\" $(shell python3 -m pybind11 --includes)
+python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.5.3\" $(shell python3 -m pybind11 --includes)
 
 PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 
