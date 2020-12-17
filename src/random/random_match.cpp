@@ -110,20 +110,20 @@ RandomMC::RandomMC(const std::vector<Reference>& sketches,
 	#pragma omp parallel for collapse(2) firstprivate(generator) schedule(static) num_threads(num_threads)
 	for (unsigned int r_idx = 0; r_idx < n_clusters; r_idx++) {
 		for (unsigned int copies = 0; copies < n_MC; copies++) {
-				// Ensure generated sequence uses uncorrelated streams of RNG
-				for (int rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++) {
-					generator.jump();
-				}
-				// Make the sequence
-				SeqBuf random_seq(
-					generate_random_sequence(_cluster_centroids.row(r_idx),
-											 sketches[0].seq_length(),
-											 use_rc, generator));
-				// Sketch it
-				random_seqs[r_idx].push_back(
-					Reference("random" + std::to_string(r_idx * n_MC + copies),
-							  random_seq, kmer_seeds, sketchsize64, codon_phased,
-							  use_rc, 0, false));
+			// Ensure generated sequence uses uncorrelated streams of RNG
+			for (int rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++) {
+				generator.jump();
+			}
+			// Make the sequence
+			SeqBuf random_seq(
+				generate_random_sequence(_cluster_centroids.row(r_idx),
+										 sketches[0].seq_length(),
+										 use_rc, generator));
+			// Sketch it
+			random_seqs[r_idx].push_back(
+				Reference("random" + std::to_string(r_idx * n_MC + copies),
+						  random_seq, kmer_seeds, sketchsize64, codon_phased,
+						  use_rc, 0, false));
 		}
 	}
 
