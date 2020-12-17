@@ -30,9 +30,10 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_86,code=sm_86
+CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
+	CUDAFLAG += -gencode arch=compute_86,code=sm_86
 	CUDA_LDFLAGS += -L/usr/local/cuda-11.1/lib64
 endif
 
@@ -116,4 +117,4 @@ gpu/dist.cu.o:
 gpu/sketch.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c gpu/sketch.cu -o $@
 
-.PHONY: all clean install python install_python
+.PHONY: all clean install python install_python web
