@@ -165,7 +165,7 @@ void calculate_dists(const bool self,
 					 const SketchStrides query_strides,
 					 const RandomStrides random_strides,
 					 volatile int * blocks_complete,
-					 const bool no_shared) {
+					 const bool use_shared) {
 	// Calculate indices for query, ref and results
 	int ref_idx, query_idx, dist_idx;
 	if (self) {
@@ -211,7 +211,7 @@ void calculate_dists(const bool self,
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
 		// NB for query these reads will be coalesced, but for ref they won't, as can't
 		// coalesce both here (bin inner stride) and in jaccard (sample inner stride)
-		uint64_t* query_ptr;
+		const uint64_t* query_ptr;
 		extern __shared__ uint64_t query_shared[];
 		int query_strides;
 		if (use_shared) {
@@ -226,7 +226,7 @@ void calculate_dists(const bool self,
 			query_strides = 1;
 		} else {
 			query_ptr = query_start;
-			query_strides = query_strides.bin_stride
+			query_strides = query_strides.bin_stride;
 		}
 		__syncthreads();
 
@@ -442,9 +442,9 @@ std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
 
 	size_t mem_free = 0; size_t mem_total = 0;
 	CUDA_CALL(cudaMemGetInfo(&mem_free, &mem_total));
-	size_t shared_size = 0;
+	int shared_size = 0;
 	CUDA_CALL(cudaDeviceAttr(&shared_size, cudaDevAttrMaxSharedMemoryPerBlock, device_id));
-	return(std::make_tuple(mem_free, mem_total, shared_size));
+	return(std::make_tuple(mem_free, mem_total, static_cast<size_t>(shared_size)));
 }
 
 // Main function to run the distance calculations, reading/writing into device_arrays
@@ -464,7 +464,7 @@ std::vector<float> dispatchDists(
 	const std::vector<size_t>& kmer_lengths,
 	const bool self,
 	const int cpu_threads,
-    const size_t shared) {
+    const size_t shared_size) {
 	CUDA_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
 	CUDA_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
 
