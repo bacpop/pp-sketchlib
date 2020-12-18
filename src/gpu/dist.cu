@@ -501,7 +501,12 @@ std::vector<float> dispatchDists(
 	size_t sketch_size_bytes = query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t);
 	bool use_shared = true;
 	if (sketch_size_bytes > shared_size) {
-		std::cerr << "You are using a large sketch size, which may slow down computation on this device" << std::cout;
+		std::cerr << "You are using a large sketch size, which may slow down computation on this device"
+				  << std::endl;
+		std::cerr << "Reduce sketch size to "
+				  << std::floor(64 * shared_size / (query_strides.bbits*sizeof(uint64_t)))
+				  << "or less for better performance"
+				  << std::endl;
 		sketch_size_bytes = 0;
 		use_shared = false;
 	}
@@ -516,7 +521,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
+		CUDA_CALL(calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -535,7 +540,7 @@ std::vector<float> dispatchDists(
 				random_strides,
 				blocks_complete,
 				use_shared
-			);
+			));
 	} else {
 		std::tie(blockSize, blockCount) =
 			getBlockSize(sketch_subsample.ref_size,
@@ -545,7 +550,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
+		CUDA_CALL(calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -564,7 +569,7 @@ std::vector<float> dispatchDists(
 				random_strides,
 				blocks_complete,
 				use_shared
-			);
+			));
 	}
 
 	//reportDistProgress(blocks_complete, dist_rows);
