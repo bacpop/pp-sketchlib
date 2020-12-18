@@ -572,8 +572,8 @@ std::vector<float> dispatchDists(
 			));
 	}
 
-	//reportDistProgress(blocks_complete, dist_rows);
-	//fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
+	reportDistProgress(blocks_complete, dist_rows);
+	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	// Copy results back to host
 	CUDA_CALL(cudaDeviceSynchronize());
