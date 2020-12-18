@@ -521,7 +521,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		CUDA_CALL(calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
+		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -540,7 +540,7 @@ std::vector<float> dispatchDists(
 				random_strides,
 				blocks_complete,
 				use_shared
-			));
+			);
 	} else {
 		std::tie(blockSize, blockCount) =
 			getBlockSize(sketch_subsample.ref_size,
@@ -550,7 +550,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		CUDA_CALL(calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
+		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -569,9 +569,11 @@ std::vector<float> dispatchDists(
 				random_strides,
 				blocks_complete,
 				use_shared
-			));
+			);
 	}
 
+	// Check for error in kernel launch
+	CUDA_CALL(cudaGetLastError());
 	reportDistProgress(blocks_complete, dist_rows);
 	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
