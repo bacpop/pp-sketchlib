@@ -465,10 +465,11 @@ std::vector<uint64_t> get_signs(DeviceReads& reads, // use seqbuf.as_square_arra
         blocks_complete
     );
 
+	CUDA_CALL(cudaGetLastError());
     reportSketchProgress(blocks_complete, k, reads.count());
 
     // Copy signs back from device
-    cudaDeviceSynchronize();
+    CUDA_CALL(cudaDeviceSynchronize());
     CUDA_CALL( cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                           cudaMemcpyDefault));
     CUDA_CALL( cudaFree(d_signs));
