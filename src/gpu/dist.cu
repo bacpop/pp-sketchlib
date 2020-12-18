@@ -213,7 +213,7 @@ void calculate_dists(const bool self,
 		// coalesce both here (bin inner stride) and in jaccard (sample inner stride)
 		const uint64_t* query_ptr;
 		extern __shared__ uint64_t query_shared[];
-		int query_strides;
+		int query_bin_strides;
 		if (use_shared) {
 			size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
 			size_t sketch_stride = query_strides.bin_stride;
@@ -223,10 +223,10 @@ void calculate_dists(const bool self,
 				}
 			}
 			query_ptr = query_shared;
-			query_strides = 1;
+			query_bin_strides = 1;
 		} else {
 			query_ptr = query_start;
-			query_strides = query_strides.bin_stride;
+			query_bin_strides = query_strides.bin_stride;
 		}
 		__syncthreads();
 
@@ -238,7 +238,7 @@ void calculate_dists(const bool self,
 											 ref_strides.sketchsize64,
 											 ref_strides.bbits,
 											 ref_strides.bin_stride,
-											 query_strides);
+											 query_bin_strides);
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
@@ -443,7 +443,7 @@ std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
 	size_t mem_free = 0; size_t mem_total = 0;
 	CUDA_CALL(cudaMemGetInfo(&mem_free, &mem_total));
 	int shared_size = 0;
-	CUDA_CALL(cudaDeviceAttr(&shared_size, cudaDevAttrMaxSharedMemoryPerBlock, device_id));
+	CUDA_CALL(cudaDeviceGetAttribute(&shared_size, cudaDevAttrMaxSharedMemoryPerBlock, device_id));
 	return(std::make_tuple(mem_free, mem_total, static_cast<size_t>(shared_size)));
 }
 
