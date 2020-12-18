@@ -44,9 +44,7 @@ find_package(pybind11 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-find_package(OpenMP)
+find_package(OpenMP) # This links system openmp if present - conda sorts out rpath but take care
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
@@ -71,7 +69,7 @@ if(CMAKE_CUDA_COMPILER)
     endif()
     if(CMAKE_BUILD_TYPE MATCHES DEBUG)
         string(APPEND CUDA_OPTS " -G")
-    endif(CMAKE_COMPILER_IS_GNUCC)
+    endif()
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
