@@ -505,7 +505,7 @@ std::vector<float> dispatchDists(
 				  << std::endl;
 		std::cerr << "Reduce sketch size to "
 				  << std::floor(64 * shared_size / (query_strides.bbits*sizeof(uint64_t)))
-				  << "or less for better performance"
+				  << " or less for better performance"
 				  << std::endl;
 		sketch_size_bytes = 0;
 		use_shared = false;
