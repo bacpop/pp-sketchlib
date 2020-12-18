@@ -51,10 +51,9 @@ struct ALIGN(8) SketchSlice {
 	size_t query_size;
 };
 
-// defined in cuda.cuh
-std::tuple<size_t, size_t> initialise_device(const int device_id);
-
 // defined in dist.cu
+std::tuple<size_t, size_t, size_t> initialise_device(const int device_id);
+
 std::vector<uint64_t> flatten_by_bins(
 	const std::vector<Reference>& sketches,
 	const std::vector<size_t>& kmer_lengths,
@@ -69,7 +68,7 @@ std::vector<uint64_t> flatten_by_samples(
 	SketchStrides& strides,
 	const size_t start_sample_idx,
 	const size_t end_sample_idx,
-  const int cpu_threads = 1);
+    const int cpu_threads = 1);
 
 std::vector<float> dispatchDists(
 				   std::vector<Reference>& ref_sketches,
@@ -82,7 +81,8 @@ std::vector<float> dispatchDists(
 				   const SketchSlice& sketch_subsample,
 				   const std::vector<size_t>& kmer_lengths,
 				   const bool self,
-           const int cpu_threads);
+           		   const int cpu_threads,
+                   const size_t shared_size);
 
 // Memory on device for each operation
 class DeviceMemory {

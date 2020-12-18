@@ -164,7 +164,8 @@ void calculate_dists(const bool self,
 					 const SketchStrides ref_strides,
 					 const SketchStrides query_strides,
 					 const RandomStrides random_strides,
-					 volatile int * blocks_complete) {
+					 volatile int * blocks_complete,
+					 const bool no_shared) {
 	// Calculate indices for query, ref and results
 	int ref_idx, query_idx, dist_idx;
 	if (self) {
@@ -210,13 +211,22 @@ void calculate_dists(const bool self,
 		// (see https://stackoverflow.com/questions/15468059/copy-to-the-shared-memory-in-cuda)
 		// NB for query these reads will be coalesced, but for ref they won't, as can't
 		// coalesce both here (bin inner stride) and in jaccard (sample inner stride)
+		uint64_t* query_ptr;
 		extern __shared__ uint64_t query_shared[];
-		size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
-		size_t sketch_stride = query_strides.bin_stride;
-		if (threadIdx.x < warp_size) {
-			for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
-				query_shared[lidx] = query_start[lidx * sketch_stride];
+		int query_strides;
+		if (use_shared) {
+			size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
+			size_t sketch_stride = query_strides.bin_stride;
+			if (threadIdx.x < warp_size) {
+				for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
+					query_shared[lidx] = query_start[lidx * sketch_stride];
+				}
 			}
+			query_ptr = query_shared;
+			query_strides = 1;
+		} else {
+			query_ptr = query_start;
+			query_strides = query_strides.bin_stride
 		}
 		__syncthreads();
 
@@ -224,11 +234,11 @@ void calculate_dists(const bool self,
 		// Need to have conditional here to avoid block on __syncthreads() above
 		if (ref_idx < ref_n) {
 			// Calculate Jaccard distance at current k-mer length
-			float jaccard_obs = jaccard_dist(ref_start, query_shared,
+			float jaccard_obs = jaccard_dist(ref_start, query_ptr,
 											 ref_strides.sketchsize64,
 											 ref_strides.bbits,
 											 ref_strides.bin_stride,
-											 1);
+											 query_strides);
 
 			// Adjust for random matches
 			float jaccard_expected = random_table[kmer_idx * random_strides.kmer_stride +
@@ -426,13 +436,15 @@ void reportDistProgress(volatile int * blocks_complete,
 }
 
 // Initialise device and return info on its memory
-std::tuple<size_t, size_t> initialise_device(const int device_id) {
-	cudaSetDevice(device_id);
-	cudaDeviceReset();
+std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
+	CUDA_CALL(cudaSetDevice(device_id));
+	CUDA_CALL(cudaDeviceReset());
 
 	size_t mem_free = 0; size_t mem_total = 0;
-	cudaMemGetInfo(&mem_free, &mem_total);
-	return(std::make_tuple(mem_free, mem_total));
+	CUDA_CALL(cudaMemGetInfo(&mem_free, &mem_total));
+	size_t shared_size = 0;
+	CUDA_CALL(cudaDeviceAttr(&shared_size, cudaDevAttrMaxSharedMemoryPerBlock, device_id));
+	return(std::make_tuple(mem_free, mem_total, shared_size));
 }
 
 // Main function to run the distance calculations, reading/writing into device_arrays
@@ -451,11 +463,10 @@ std::vector<float> dispatchDists(
 	const SketchSlice& sketch_subsample,
 	const std::vector<size_t>& kmer_lengths,
 	const bool self,
-    const int cpu_threads) {
-	// Note this is a preference, which will be overridden if more __shared__
-	// space is needed
-	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-	cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+	const int cpu_threads,
+    const size_t shared) {
+	CUDA_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
+	CUDA_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
 
 	// Progress meter
 	volatile int *blocks_complete;
@@ -471,7 +482,6 @@ std::vector<float> dispatchDists(
 	}
 
 	// Load memory onto device
-	std::cout << "H -> D" << std::endl;
 	DeviceMemory device_arrays
 	(
 		ref_strides,
@@ -488,6 +498,14 @@ std::vector<float> dispatchDists(
 		cpu_threads
 	);
 
+	size_t sketch_size_bytes = query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t);
+	bool use_shared = true;
+	if (sketch_size_bytes > shared_size) {
+		std::cerr << "You are using a large sketch size, which may slow down computation on this device" << std::cout;
+		sketch_size_bytes = 0;
+		use_shared = false;
+	}
+
 	size_t blockSize, blockCount;
 	if (self) {
 		std::tie(blockSize, blockCount) =
@@ -498,8 +516,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_dists<<<blockCount, blockSize,
-						query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -516,7 +533,8 @@ std::vector<float> dispatchDists(
 				ref_strides,
 				ref_strides,
 				random_strides,
-				blocks_complete
+				blocks_complete,
+				use_shared
 			);
 	} else {
 		std::tie(blockSize, blockCount) =
@@ -527,8 +545,7 @@ std::vector<float> dispatchDists(
 
 		// Third argument is the size of __shared__ memory needed by a thread block
 		// This is equal to the query sketch size in bytes (at a single k-mer length)
-		calculate_dists<<<blockCount, blockSize,
-						query_strides.sketchsize64*query_strides.bbits*sizeof(uint64_t)>>>
+		calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>
 			(
 				self,
 				device_arrays.ref_sketches(),
@@ -545,12 +562,13 @@ std::vector<float> dispatchDists(
 				ref_strides,
 				query_strides,
 				random_strides,
-				blocks_complete
+				blocks_complete,
+				use_shared
 			);
 	}
 
-	reportDistProgress(blocks_complete, dist_rows);
-	fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
+	//reportDistProgress(blocks_complete, dist_rows);
+	//fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
 
 	// Copy results back to host
 	CUDA_CALL(cudaDeviceSynchronize());

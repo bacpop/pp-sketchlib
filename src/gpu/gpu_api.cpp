@@ -86,8 +86,7 @@ std::vector<Reference> create_sketches_cuda(const std::string& db_name,
 		Database sketch_db(db_name + ".h5", false);
 		sketches.resize(names.size());
 
-		size_t mem_free, mem_total;
-		std::tie(mem_free, mem_total) = initialise_device(device_id);
+		initialise_device(device_id);
 		std::cerr << "Sketching " << files.size() << " read sets on GPU device " << device_id << std::endl;
 		std::cerr << "also using " << cpu_threads << " CPU cores" << std::endl;
 
@@ -341,8 +340,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 	RandomMC& random_match,
 	const int device_id,
 	const unsigned int num_cpu_threads) {
-	size_t mem_free, mem_total;
-	std::tie(mem_free, mem_total) = initialise_device(device_id);
+	size_t mem_free, mem_total, shared_size;
+	std::tie(mem_free, mem_total, shared_size) = initialise_device(device_id);
     std::cerr << "Calculating distances on GPU device " << device_id << std::endl;
 
 	// Check sketches are compatible
@@ -431,7 +430,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 					sketch_subsample.ref_size++;
 				}
 
-				dist_results = dispatchDists(
+				dist_results =
+					dispatchDists(
 						ref_sketches,
 						ref_sketches,
 						ref_strides,
@@ -442,7 +442,8 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
 						sketch_subsample,
 						kmer_lengths,
 						chunk_i == chunk_j,
-						num_cpu_threads);
+						num_cpu_threads,
+						shared_size);
 
 				// Read intermediate dists out
 				if (chunks > 1) {
@@ -475,17 +476,19 @@ NumpyMatrix query_db_cuda(std::vector<Reference>& ref_sketches,
         sketch_subsample.ref_offset = 0;
         sketch_subsample.query_offset = 0;
 
-		dist_results = dispatchDists(ref_sketches,
-                                    query_sketches,
-                                    ref_strides,
-                                    query_strides,
-									flat_random,
-									ref_random_idx,
-									query_random_idx,
-                                    sketch_subsample,
-                                    kmer_lengths,
-                                    false,
-									num_cpu_threads);
+		dist_results =
+			dispatchDists(ref_sketches,
+						  query_sketches,
+						  ref_strides,
+						  query_strides,
+						  flat_random,
+						  ref_random_idx,
+						  query_random_idx,
+						  sketch_subsample,
+						  kmer_lengths,
+						  false,
+						  num_cpu_threads,
+						  shared_size);
 	}
 
 	NumpyMatrix dists_ret_matrix;
