@@ -33,7 +33,11 @@ KmerSeeds generate_seeds(std::vector<size_t> kmer_lengths,
                          const bool codon_phased) {
     std::sort(kmer_lengths.begin(), kmer_lengths.end());
     if (kmer_lengths.front() < 3) {
+#ifndef NOEXCEPT
         throw std::runtime_error("Minimum k must be 3 or higher");
+#else
+        abort();
+#endif
     }
 
     KmerSeeds seeds;

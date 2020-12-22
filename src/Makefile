@@ -50,9 +50,14 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o
 
 # web specific options
 web: CXX = emcc
-# debug flags
-web: CXXFLAGS = -Os -s ASSERTIONS=1  \
-				-s DISABLE_EXCEPTION_CATCHING=0 \
+# optimised compile options
+# NB turn exceptions back on for testing
+web: CXXFLAGS = -O3 -s ASSERTIONS=1  \
+				--closure 1 \
+				-DNOEXCEPT \
+				-DJSON_NOEXCEPTION \
+				-s DISABLE_EXCEPTION_CATCHING=1 \
+				-fno-exceptions \
 				-flto --bind -s STRICT=1 \
 				-s ALLOW_MEMORY_GROWTH=1 \
 				-s USE_ZLIB=1 \

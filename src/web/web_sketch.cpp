@@ -7,7 +7,10 @@
 #include <emscripten/bind.h>
 using namespace emscripten;
 
-#include <nlohmann/json.hpp>
+// This is using version in repo, as conda version has bugged version of
+// throws
+// Change back to <nlohmann/json.hpp> when conda version is updated
+#include <json.hpp>
 using json = nlohmann::json;
 
 #include "version.h"
@@ -31,9 +34,15 @@ std::string json_sketch (const std::string file,
     printf("Reading\n");
     printf("%s\n", file.c_str());
     SeqBuf sequence({file}, kmer_lengths.back());
+#ifndef NOEXCEPT
     if (sequence.nseqs() == 0) {
         throw std::runtime_error(file + " contains no sequence");
     }
+#else
+    if (sequence.nseqs() == 0) {
+        abort();
+    }
+#endif
 
     printf("Sketching\n");
     double minhash_sum = 0;

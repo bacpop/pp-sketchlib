@@ -136,12 +136,18 @@ void SeqBuf::reset() {
 }
 
 std::vector<char> SeqBuf::as_square_array(const size_t n_threads) const {
+#ifndef NOEXCEPT
     if (!_reads) {
         throw std::runtime_error(
         "Square arrays (for GPU sketches) only supported with reads as input");
     } else if (n_full_seqs() == 0) {
         throw std::runtime_error("Input contains no sequence!");
     }
+#else
+    if (!_reads || n_full_seqs() == 0) {
+        abort();
+    }
+#endif
 
     // Pad so that the stride is a multiple of 4
     // (needed to align memory addresses)
