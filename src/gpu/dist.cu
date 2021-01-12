@@ -21,9 +21,9 @@
 
 // internal headers
 #include "sketch/bitfuncs.hpp"
+#include "dist/matrix.hpp"
 #include "gpu.hpp"
 #include "cuda.cuh"
-#include "matrix.hpp"
 
 /******************
 *			      *
