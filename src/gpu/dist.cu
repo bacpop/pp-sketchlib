@@ -23,6 +23,7 @@
 #include "sketch/bitfuncs.hpp"
 #include "gpu.hpp"
 #include "cuda.cuh"
+#include "matrix.hpp"
 
 /******************
 *			      *

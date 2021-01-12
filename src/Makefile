@@ -5,7 +5,7 @@ ifdef DEBUG
   CUDAFLAGS = -g -G
 else ifdef PROFILE
   CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
-  CUDAFLAGS = -O2 -g -lineinfo
+  CUDAFLAGS = -O2 -pg -lineinfo
 else
   CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
 endif
@@ -33,7 +33,7 @@ CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${
 CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
-	CUDAFLAG += -gencode arch=compute_86,code=sm_86
+	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
 	CUDA_LDFLAGS += -L/usr/local/cuda-11.1/lib64
 endif
 

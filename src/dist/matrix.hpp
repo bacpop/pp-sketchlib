@@ -21,27 +21,39 @@ inline size_t rows_to_samples(const T& longMat) {
     return 0.5*(1 + sqrt(1 + 8*(longMat.rows())));
 }
 
-// These are inlined partially to avoid conflicting with the cuda
-// versions which have the same prototype
+#ifdef __NVCC__
+__host__ __device__
+#endif
 inline long calc_row_idx(const long long k, const long n) {
-	return n - 2 - floor(sqrt((double)(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+#ifndef __CUDA_ARCH__
+	return n - 2 - floor(sqrt(static_cast<double>(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+#else
+	// __ll2float_rn() casts long long to float, rounding to nearest
+	return n - 2 - floor(__dsqrt_rn(__ll2double_rz(-8*k + 4*n*(n-1)-7))/2 - 0.5);
+#endif
 }
 
+#ifdef __NVCC__
+__host__ __device__
+#endif
 inline long calc_col_idx(const long long k, const long i, const long n) {
 	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
 }
 
+#ifdef __NVCC__
+__host__ __device__
+#endif
 inline long long square_to_condensed(long i, long j, long n) {
     assert(j > i);
 	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
 }
 
-NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists, 
+NumpyMatrix long_to_square(const Eigen::VectorXf& rrDists,
                             const Eigen::VectorXf& qrDists,
                             const Eigen::VectorXf& qqDists,
                             unsigned int num_threads = 1);
 
-Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists, 
+Eigen::VectorXf square_to_long(const NumpyMatrix& squareDists,
                                const unsigned int num_threads);
 
 sparse_coo sparsify_dists(const NumpyMatrix& denseDists,
