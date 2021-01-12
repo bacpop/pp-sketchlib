@@ -21,7 +21,7 @@
 
 // internal headers
 #include "sketch/bitfuncs.hpp"
-#include "dist/matrix.hpp"
+#include "dist/matrix_idx.hpp"
 #include "gpu.hpp"
 #include "cuda.cuh"
 
@@ -120,24 +120,6 @@ void simple_linear_regression(float * core_dist,
 	} else {
 		*accessory_dist = 0;
 	}
-}
-
-// Functions to convert index position to/from squareform to condensed form
-__device__
-long calc_row_idx(const long long k, const long n) {
-	// __ll2float_rn() casts long long to float, rounding to nearest
-	return n - 2 - floor(__dsqrt_rn(__ll2double_rz(-8*k + 4*n*(n-1)-7))/2 - 0.5);
-}
-
-__device__
-long calc_col_idx(const long long k, const long i, const long n) {
-	return k + i + 1 - n*(n-1)/2 + (n-i)*((n-i)-1)/2;
-}
-
-__device__
-long long square_to_condensed(long i, long j, long n) {
-    assert(j > i);
-	return (n*i - ((i*(i+1)) >> 1) + j - 1 - i);
 }
 
 /******************
