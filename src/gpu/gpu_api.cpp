@@ -272,7 +272,7 @@ std::vector<uint64_t> flatten_by_bins(
 	std::vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
 	#pragma omp parallel for simd schedule(static) num_threads(cpu_threads)
 	for (int sample_idx = start_sample_idx; sample_idx < end_sample_idx; sample_idx++) {
-		auto flat_ref_it = flat_ref.begin() + sample_idx * strides.sample_stride;
+		auto flat_ref_it = flat_ref.begin() + (sample_idx - start_sample_idx) * strides.sample_stride;
 		for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++) {
 			std::copy(sketches[sample_idx].get_sketch(*kmer_it).cbegin(),
 					  sketches[sample_idx].get_sketch(*kmer_it).cend(),

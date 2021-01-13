@@ -1,13 +1,13 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
   CUDAFLAGS = -g -G
 else ifdef PROFILE
-  CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
-  CUDAFLAGS = -O2 -g -lineinfo
+  CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fvisibility=hidden
+  CUDAFLAGS = -O2 -pg -lineinfo
 else
-  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
+  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
 endif
 
 UNAME_S := $(shell uname -s)
@@ -33,14 +33,14 @@ CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${
 CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
-	CUDAFLAG += -gencode arch=compute_86,code=sm_86
+	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
 	CUDA_LDFLAGS += -L/usr/local/cuda-11.1/lib64
 endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
 # python specific options
-python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.6.0\" $(shell python3 -m pybind11 --includes)
+python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"1.6.1\" $(shell python3 -m pybind11 --includes)
 
 PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 

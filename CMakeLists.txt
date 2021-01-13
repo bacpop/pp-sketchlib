@@ -24,9 +24,9 @@ ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
 endif()
@@ -44,7 +44,7 @@ find_package(pybind11 REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
-find_package(OpenMP) # This links system openmp if present - conda sorts out rpath but take care
+#find_package(OpenMP) # This links system openmp if present - conda sorts out rpath but take care
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
@@ -115,7 +115,7 @@ if(CMAKE_CUDA_COMPILER)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
-                                               z hdf5_cpp hdf5 openblas lapack gfortran m dl)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
-endif()
+                                               z hdf5_cpp hdf5 gomp openblas lapack gfortran m dl)
+#if(OpenMP_CXX_FOUND)
+#    target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
+#endif()
