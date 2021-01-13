@@ -1,13 +1,13 @@
 
-CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
+CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
   CUDAFLAGS = -g -G
 else ifdef PROFILE
-  CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
+  CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fvisibility=hidden
   CUDAFLAGS = -O2 -pg -lineinfo
 else
-  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fPIC -fvisibility=hidden
+  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
 endif
 
 UNAME_S := $(shell uname -s)
