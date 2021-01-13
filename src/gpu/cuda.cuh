@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <stdio.h>
 
 #include <cuda.h>
