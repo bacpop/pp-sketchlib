@@ -32,7 +32,17 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const unsigned int num_threads = 1);
 
 Eigen::VectorXf assign_threshold(const NumpyMatrix &distMat,
-                                 int slope,
-                                 float x_max,
-                                 float y_max,
-                                 unsigned int num_threads = 1);
+                                 const int slope,
+                                 const float x_max,
+                                 const float y_max,
+                                 unsigned int num_threads);
+
+std::tuple<std::vector<long>, std::vector<long>, std::vector<long>>
+threshold_iterate(const NumpyMatrix &distMat,
+                  const std::vector<double> &offsets,
+                  const int slope,
+                  const float x0,
+                  const float y0,
+                  const float x1,
+                  const float y1,
+                  const int num_threads = 1);

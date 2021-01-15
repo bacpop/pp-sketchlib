@@ -33,7 +33,8 @@ void rectangle_block(const Eigen::VectorXf &longDists,
                      const size_t max_elems);
 
 //https://stackoverflow.com/a/12399290
-std::vector<long> sort_indexes(const Eigen::VectorXf &v)
+template <typename T>
+std::vector<long> sort_indexes(const T &v)
 {
 
   // initialize original index locations
@@ -116,10 +117,36 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
   return (std::make_tuple(i_vec, j_vec, dists));
 }
 
+// Unnormalised (signed_ distance between a point (x0, y0) and a line defined
+// by the two points (xmax, 0) and (0, ymax)
+// Divide by 1/sqrt(xmax^2 + ymax^2) to get distance
+inline float line_dist(const float x0,
+                       const float y0,
+                       const float x_max,
+                       const float y_max,
+                       const int slope)
+{
+  float boundary_side = 0;
+  if (slope == 2)
+  {
+    boundary_side = y0 * x_max + x0 * y_max - x_max * y_max;
+  }
+  else if (slope == 0)
+  {
+    boundary_side = x0 - x_max;
+  }
+  else if (slope == 1)
+  {
+    boundary_side = y0 - y_max;
+  }
+
+  return boundary_side;
+}
+
 Eigen::VectorXf assign_threshold(const NumpyMatrix &distMat,
-                                 int slope,
-                                 float x_max,
-                                 float y_max,
+                                 const int slope,
+                                 const float x_max,
+                                 const float y_max,
                                  unsigned int num_threads)
 {
   Eigen::VectorXf boundary_test(distMat.rows());
@@ -127,35 +154,95 @@ Eigen::VectorXf assign_threshold(const NumpyMatrix &distMat,
 #pragma omp parallel for schedule(static) num_threads(num_threads)
   for (long row_idx = 0; row_idx < distMat.rows(); row_idx++)
   {
-    float in_tri = 0;
-    if (slope == 2)
+    float in_tri = line_dist(distMat(row_idx, 0), distMat(row_idx, 1),
+                             x_max, y_max, slope);
+    float boundary_side;
+    if (in_tri == 0)
     {
-      in_tri = distMat(row_idx, 0) * distMat(row_idx, 1) -
-               (x_max - distMat(row_idx, 0)) * (y_max - distMat(row_idx, 1));
+      boundary_side = 0;
     }
-    else if (slope == 0)
+    else if (in_tri > 0)
     {
-      in_tri = distMat(row_idx, 0) - x_max;
-    }
-    else if (slope == 1)
-    {
-      in_tri = distMat(row_idx, 1) - y_max;
-    }
-
-    if (in_tri < 0)
-    {
-      boundary_test[row_idx] = -1;
-    }
-    else if (in_tri == 0)
-    {
-      boundary_test[row_idx] = 0;
+      boundary_side = 1;
     }
     else
     {
-      boundary_test[row_idx] = 1;
+      boundary_side = -1;
     }
+    boundary_test[row_idx] = boundary_side;
   }
   return (boundary_test);
+}
+
+std::tuple<std::vector<long>, std::vector<long>, std::vector<long>>
+threshold_iterate(const NumpyMatrix &distMat,
+                  const std::vector<double> &offsets,
+                  const int slope,
+                  const float x0,
+                  const float y0,
+                  const float x1,
+                  const float y1,
+                  const int num_threads)
+{
+  std::vector<long> i_vec;
+  std::vector<long> j_vec;
+  std::vector<long> offset_idx;
+  const float gradient = (y1 - y0) / (x1 - x0); // == tan(theta)
+  const size_t n_samples = rows_to_samples(distMat);
+
+  std::vector<float> boundary_dist(distMat.rows());
+  std::vector<long> boundary_order;
+  long sorted_idx = 0;
+  for (int offset_nr = 0; offset_nr < offsets.size(); ++offset_nr)
+  {
+    float x_intercept = x0 + offsets[offset_nr] * (1 / std::sqrt(1 + gradient));
+    float y_intercept = y0 + offsets[offset_nr] * (gradient / std::sqrt(1 + gradient));
+    float x_max, y_max;
+    if (slope == 2)
+    {
+      x_max = x_intercept + y_intercept * gradient;
+      y_max = y_intercept + x_intercept / gradient;
+    }
+    else if (slope == 0)
+    {
+      x_max = x_intercept;
+      y_max = 0;
+    }
+    else
+    {
+      x_max = 0;
+      y_max = y_intercept;
+    }
+
+    // printf("grad:%f xint:%f yint:%f x_max:%f y_max:%f\n",
+    //         gradient, x_intercept, y_intercept, x_max, y_max);
+    // Calculate the distances and sort them on the first loop entry
+    if (offset_nr == 0)
+    {
+#pragma omp parallel for schedule(static) num_threads(num_threads)
+      for (long row_idx = 0; row_idx < distMat.rows(); row_idx++)
+      {
+        boundary_dist[row_idx] = line_dist(distMat(row_idx, 0), distMat(row_idx, 1), x_max, y_max, slope);
+      }
+      boundary_order = sort_indexes(boundary_dist);
+    }
+
+    long row_idx = boundary_order[sorted_idx];
+    while (sorted_idx < boundary_order.size() &&
+           line_dist(distMat(row_idx, 0),
+                     distMat(row_idx, 1),
+                     x_max, y_max, slope) <= 0)
+    {
+      long i = calc_row_idx(row_idx, n_samples);
+      long j = calc_col_idx(row_idx, i, n_samples);
+      i_vec.push_back(i);
+      j_vec.push_back(j);
+      offset_idx.push_back(offset_nr);
+      sorted_idx++;
+      row_idx = boundary_order[sorted_idx];
+    }
+  }
+  return (std::make_tuple(i_vec, j_vec, offset_idx));
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,

@@ -310,6 +310,25 @@ Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix> &distMat,
   return (assigned);
 }
 
+std::tuple<std::vector<long>, std::vector<long>, std::vector<long>>
+thresholdIterate(const Eigen::Ref<NumpyMatrix> &distMat,
+                 const std::vector<double> &offsets,
+                 const int slope,
+                 const double x0,
+                 const double y0,
+                 const double x1,
+                 const double y1,
+                 const int num_threads)
+{
+  if (!std::is_sorted(offsets.begin(), offsets.end()))
+  {
+    throw std::runtime_error("Offsets to thresholdIterate must be sorted");
+  }
+  std::tuple<std::vector<long>, std::vector<long>, std::vector<long>> add_idx =
+      threshold_iterate(distMat, offsets, slope, x0, y0, x1, y1, num_threads);
+  return (add_idx);
+}
+
 PYBIND11_MODULE(pp_sketchlib, m)
 {
   m.doc() = "Sketch implementation for PopPUNK";
@@ -395,6 +414,16 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("slope"),
         py::arg("x_max"),
         py::arg("y_max"),
+        py::arg("num_threads") = 1);
+
+    m.def("thresholdIterate", &thresholdIterate, py::return_value_policy::reference_internal, "Move a 2D boundary to grow a network by adding edges at each offset",
+        py::arg("distMat").noconvert(),
+        py::arg("offsets"),
+        py::arg("slope"),
+        py::arg("x0"),
+        py::arg("y0"),
+        py::arg("x1"),
+        py::arg("y1"),
         py::arg("num_threads") = 1);
 
   // Exceptions

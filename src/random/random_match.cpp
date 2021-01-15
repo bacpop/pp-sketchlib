@@ -121,10 +121,12 @@ RandomMC::RandomMC(const std::vector<Reference> &sketches,
     for (unsigned int copies = 0; copies < n_MC; copies++)
     {
       // Ensure generated sequence uses uncorrelated streams of RNG
+#ifdef _OPENMP
       for (int rng_jump = 0; rng_jump < omp_get_thread_num(); rng_jump++)
       {
         generator.jump();
       }
+#endif
       // Make the sequence
       SeqBuf random_seq(
           generate_random_sequence(_cluster_centroids.row(r_idx),
@@ -430,7 +432,9 @@ cluster_frequencies(
   arma::mat means;
   bool success = false;
   int tries = 0;
+#ifdef _OPENMP
   omp_set_num_threads(num_threads);
+#endif
   while (!success && tries < max_tries)
   {
     tries++;
