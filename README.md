@@ -163,6 +163,9 @@ Available functions:
 - `sparsifyDists()` - Convert a square distance matrix into a sparse matrix, by applying a
   distance threshold or number of nearest neighbours (returns a sparse COO matrix).
 - `assignThreshold()` - Assign 2D core/accessory points either side of a decision boundary (returns a numpy vector).
+- `thresholdIterate1D()` - Move an assignment boundary normal to two points by a vector of offsets, getting the network edges which are iteratively added.
+- `thresholdIterate2d()` - Move an assignment boundary defined by y_max and a
+vector of xmax, getting the network edges which are iteratively added.
 
 ### hdf5 database files
 
