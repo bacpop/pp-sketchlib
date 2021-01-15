@@ -310,8 +310,7 @@ Eigen::VectorXf assignThreshold(const Eigen::Ref<NumpyMatrix> &distMat,
   return (assigned);
 }
 
-std::tuple<std::vector<long>, std::vector<long>, std::vector<long>>
-thresholdIterate(const Eigen::Ref<NumpyMatrix> &distMat,
+network_coo thresholdIterate1D(const Eigen::Ref<NumpyMatrix> &distMat,
                  const std::vector<double> &offsets,
                  const int slope,
                  const double x0,
@@ -322,10 +321,23 @@ thresholdIterate(const Eigen::Ref<NumpyMatrix> &distMat,
 {
   if (!std::is_sorted(offsets.begin(), offsets.end()))
   {
-    throw std::runtime_error("Offsets to thresholdIterate must be sorted");
+    throw std::runtime_error("Offsets to thresholdIterate1D must be sorted");
   }
   std::tuple<std::vector<long>, std::vector<long>, std::vector<long>> add_idx =
-      threshold_iterate(distMat, offsets, slope, x0, y0, x1, y1, num_threads);
+      threshold_iterate_1D(distMat, offsets, slope, x0, y0, x1, y1, num_threads);
+  return (add_idx);
+}
+
+network_coo thresholdIterate2D(const Eigen::Ref<NumpyMatrix> &distMat,
+                 const std::vector<float> &x_max,
+                 const float y_max)
+{
+  if (!std::is_sorted(x_max.begin(), x_max.end()))
+  {
+    throw std::runtime_error("x_max range to thresholdIterate2D must be sorted");
+  }
+  std::tuple<std::vector<long>, std::vector<long>, std::vector<long>> add_idx =
+      threshold_iterate_2D(distMat, x_max, y_max);
   return (add_idx);
 }
 
@@ -416,7 +428,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("y_max"),
         py::arg("num_threads") = 1);
 
-    m.def("thresholdIterate", &thresholdIterate, py::return_value_policy::reference_internal, "Move a 2D boundary to grow a network by adding edges at each offset",
+  m.def("thresholdIterate1D", &thresholdIterate1D, py::return_value_policy::reference_internal, "Move a 2D boundary to grow a network by adding edges at each offset",
         py::arg("distMat").noconvert(),
         py::arg("offsets"),
         py::arg("slope"),
@@ -425,6 +437,11 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("x1"),
         py::arg("y1"),
         py::arg("num_threads") = 1);
+
+  m.def("thresholdIterate2D", &thresholdIterate2D, py::return_value_policy::reference_internal, "Move a 2D boundary to grow a network by adding edges at each offset",
+        py::arg("distMat").noconvert(),
+        py::arg("x_max"),
+        py::arg("ymax"));
 
   // Exceptions
   py::register_exception<HighFive::Exception>(m, "HDF5Exception");
