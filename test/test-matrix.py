@@ -3,7 +3,7 @@ import numpy as np
 from math import sqrt
 
 # testing without install
-sys.path.insert(0, '../build/lib.macosx-10.9-x86_64-3.8')
+#sys.path.insert(0, '../build/lib.macosx-10.9-x86_64-3.8')
 import pp_sketchlib
 try:
     from pp_sketch.matrix import sparsify
