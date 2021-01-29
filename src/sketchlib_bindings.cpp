@@ -13,6 +13,7 @@ namespace py = pybind11;
 
 #include <highfive/H5Exception.hpp>
 
+#include "version.h"
 #include "api.hpp"
 
 NumpyMatrix longToSquare(const Eigen::Ref<Eigen::VectorXf> &distVec,
@@ -374,6 +375,9 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("num_threads") = 1);
+
+  m.attr("version") = VERSION_INFO;
+  m.attr("sketchVersion") = SKETCH_VERSION;
 
   // Exceptions
   py::register_exception<HighFive::Exception>(m, "HDF5Exception");

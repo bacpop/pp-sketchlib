@@ -23,6 +23,12 @@ if not os.path.isfile("12754_4#89.contigs_velvet.fa"):
     subprocess.run("tar xf example_set.tar.bz2", shell=True, check=True)
 
 # python tests
+
+# module attributes
+import pp_sketchlib
+print(pp_sketchlib.version)
+print(pp_sketchlib.sketchVersion)
+
 # create sketches
 sys.stderr.write("Sketch smoke test\n")
 subprocess.run("poppunk_sketch --sketch --rfile references.txt --ref-db test_db --sketch-size 10000 --min-k 15 --k-step 4 --cpus 2", shell=True, check=True)
