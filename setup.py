@@ -81,7 +81,6 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
-        os.environ['SKETCHLIB_BUILD_VERSION'] = find_version(ext.sourcedir + "/pp_sketch/__init__.py")
         target = os.getenv('SKETCHLIB_INSTALL', None)
         if target == 'conda':
             subprocess.check_call(['make', 'python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
