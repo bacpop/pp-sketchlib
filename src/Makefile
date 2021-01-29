@@ -1,5 +1,3 @@
-VERSION = ${SKETCHLIB_BUILD_VERSION}
-
 CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
@@ -41,7 +39,7 @@ endif
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
 # python specific options
-python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS -DVERSION_INFO=\"$(VERSION)" $(shell python3 -m pybind11 --includes)
+python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS $(shell python3 -m pybind11 --includes)
 
 PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 
