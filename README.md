@@ -12,7 +12,7 @@ Library of sketching functions used by [PopPUNK](https://www.poppunk.net>).
 Install using conda (recommended):
 
 ```
-conda install -c bioconda pp-sketchlib
+conda install -c conda-forge pp-sketchlib
 ```
 
 **NOTE**
