@@ -22,8 +22,9 @@
 // Create new file
 Database::Database(const std::string &filename, const bool codon_phased)
     : _h5_file(HighFive::File(filename.c_str(),
-                              HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate)),
-      _filename(filename), _version_hash(SKETCH_VERSION), _codon_phased(codon_phased)
+                              HighFive::File::Overwrite)),
+      _filename(filename), _version_hash(SKETCH_VERSION),
+      _codon_phased(codon_phased), _writable(true)
 {
   HighFive::Group sketch_group = _h5_file.createGroup("sketches");
 
@@ -39,9 +40,9 @@ Database::Database(const std::string &filename, const bool codon_phased)
 }
 
 // Open an existing file
-Database::Database(HighFive::File &h5_file)
-    : _h5_file(h5_file), _filename(_h5_file.getName()),
-      _version_hash(SKETCH_VERSION), _codon_phased(false)
+Database::Database(std::string &h5_filename, const bool writable)
+    : _h5_file(open_h5(h5_filename, writable)), _filename(_h5_file.getName()),
+      _version_hash(SKETCH_VERSION), _codon_phased(false), _writable(writable)
 {
 
   HighFive::Group sketch_group = _h5_file.getGroup("/sketches");
@@ -68,6 +69,10 @@ Database::Database(HighFive::File &h5_file)
 */
 void Database::add_sketch(const Reference &ref)
 {
+  if (!_writable) {
+    _h5_file = open_h5(_h5_file.getName(), true);
+  }
+
   // Create group for sketches
   std::string sketch_name = "/sketches/" + ref.name();
   HighFive::Group sketch_group = _h5_file.createGroup(sketch_name, true);
@@ -164,6 +169,9 @@ void Database::save_random(const RandomMC &random)
   // Open or create the random group
   if (!_h5_file.exist("random"))
   {
+    if (!_writable) {
+      _h5_file = open_h5(_h5_file.getName(), true);
+    }
     HighFive::Group random_group = _h5_file.createGroup("random");
 
     // Save the cluster table
@@ -226,7 +234,8 @@ RandomMC Database::load_random(const bool use_rc_default)
   return (random);
 }
 
-HighFive::File open_h5(const std::string &filename)
+HighFive::File open_h5(const std::string &filename, const bool write)
 {
-  return (HighFive::File(filename.c_str(), HighFive::File::ReadWrite));
+  return (HighFive::File(filename.c_str(),
+          write ? HighFive::File::ReadWrite : HighFive::File::ReadOnly));
 }
