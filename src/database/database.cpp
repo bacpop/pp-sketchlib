@@ -20,27 +20,9 @@
 
 // Initialisation
 // Create new file
-Database::Database(const std::string &filename, const bool codon_phased)
-    : _h5_file(HighFive::File(filename.c_str(),
-                              HighFive::File::Overwrite)),
-      _filename(filename), _version_hash(SKETCH_VERSION),
-      _codon_phased(codon_phased), _writable(true)
-{
-  HighFive::Group sketch_group = _h5_file.createGroup("sketches");
-
-  _version_hash = SKETCH_VERSION;
-  HighFive::Attribute sketch_version_a =
-      sketch_group.createAttribute<std::string>("sketch_version",
-                                                HighFive::DataSpace::From(_version_hash));
-  sketch_version_a.write(_version_hash);
-  HighFive::Attribute codon_phased_a =
-      sketch_group.createAttribute<bool>("codon_phased",
-                                         HighFive::DataSpace::From(_codon_phased));
-  codon_phased_a.write(_codon_phased);
-}
 
 // Open an existing file
-Database::Database(std::string &h5_filename, const bool writable)
+Database::Database(const std::string &h5_filename, const bool writable)
     : _h5_file(open_h5(h5_filename, writable)), _filename(_h5_file.getName()),
       _version_hash(SKETCH_VERSION), _codon_phased(false), _writable(writable)
 {
@@ -234,8 +216,31 @@ RandomMC Database::load_random(const bool use_rc_default)
   return (random);
 }
 
+// Open an existing file
 HighFive::File open_h5(const std::string &filename, const bool write)
 {
   return (HighFive::File(filename.c_str(),
           write ? HighFive::File::ReadWrite : HighFive::File::ReadOnly));
+}
+
+// Create a new HDF5 file with headline attributes
+Database new_db(const std::string &filename, const bool codon_phased)
+{
+  // Restrict scope of HDF5 so it is closed before reopening it
+  {
+    HighFive::File h5_file = HighFive::File(filename.c_str(),
+                                            HighFive::File::Overwrite);
+    HighFive::Group sketch_group = h5_file.createGroup("sketches");
+
+    std::string version_hash = SKETCH_VERSION;
+    HighFive::Attribute sketch_version_a =
+        sketch_group.createAttribute<std::string>("sketch_version",
+                                                  HighFive::DataSpace::From(version_hash));
+    sketch_version_a.write(version_hash);
+    HighFive::Attribute codon_phased_a =
+        sketch_group.createAttribute<bool>("codon_phased",
+                                          HighFive::DataSpace::From(codon_phased));
+    codon_phased_a.write(codon_phased);
+  }
+  return(Database(filename, true));
 }

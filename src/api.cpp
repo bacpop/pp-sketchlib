@@ -20,18 +20,15 @@ bool same_db_version(const std::string &db1_name,
                      const std::string &db2_name)
 {
   // Open databases
-  HighFive::File h5_db1(db1_name + ".h5");
-  Database db1(h5_db1);
-  HighFive::File h5_db2(db2_name + ".h5");
-  Database db2(h5_db2);
+  Database db1(db1_name + ".h5");
+  Database db2(db1_name + ".h5");
 
   return (db1.check_version(db2));
 }
 
 std::tuple<std::string, bool> get_db_attr(const std::string &db1_name)
 {
-  HighFive::File h5_db(db1_name + ".h5");
-  Database db(h5_db);
+  Database db(db1_name + ".h5");
   return (std::make_tuple(db.version(), db.codon_phased()));
 }
 
@@ -101,7 +98,7 @@ std::vector<Reference> create_sketches(const std::string &db_name,
 
     // Save sketches and check for densified sketches
     std::cerr << "Writing sketches to file" << std::endl;
-    Database sketch_db(db_name + ".h5");
+    Database sketch_db = new_db(db_name + ".h5", codon_phased);
     for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++)
     {
       sketch_db.add_sketch(*sketch_it);

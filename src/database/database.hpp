@@ -24,8 +24,6 @@ const size_t DEFAULT_LENGTH = 3000000;
 class Database
 {
 public:
-  // Overwrite or create new H5 file
-  Database(const std::string &filename, const bool codon_phased = false);
   // Open a H5 file
   Database(const std::string &h5_filename, const bool writable = false);
 
@@ -54,3 +52,4 @@ private:
 };
 
 HighFive::File open_h5(const std::string &filename, const bool write = true);
+Database new_db(const std::string &filename, const bool codon_phased);
