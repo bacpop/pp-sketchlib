@@ -236,14 +236,18 @@ void RandomMC::add_query(const Reference &query) {
   _cluster_table[query.name()] = closest_cluster(query);
 }
 
-bool add_refs(const std::vector<Reference> &sketches) {
+bool check_present(const std::vector<Reference> &sketches, bool update) {
   missing = false;
   if (self->mode() == RandomType::MonteCarlo) {
     for (auto ref == sketches.cbegin(); ref != sketches.cend(); ++ref) {
       auto in_random = _cluster_table().find(ref->name());
       if (in_random == _cluster_table().end()) {
         missing = true;
-        self->add_query(*ref);
+        if (update) {
+          self->add_query(*ref);
+        } else {
+          break;
+        }
       }
     }
   }

@@ -71,7 +71,7 @@ public:
   // Other functions for adding new data in
   uint16_t closest_cluster(const Reference &ref) const;
   void add_query(const Reference &query);
-  bool check_present(const std::vector<Reference> &sketches);
+  bool check_present(const std::vector<Reference> &sketches, bool update);
 
   // GPU helper functions to flatten
   std::vector<uint16_t>

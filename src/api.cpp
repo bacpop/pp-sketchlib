@@ -110,7 +110,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   }
 
   // Check all references are in the random object, add if not
-  bool missing = random_chance.add_refs(ref_sketches);
+  bool missing = random_chance.check_present(ref_sketches, true);
   if (missing) {
     std::cerr
         << "Some members of the reference database were not found "
