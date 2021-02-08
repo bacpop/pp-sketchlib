@@ -236,7 +236,7 @@ void RandomMC::add_query(const Reference &query) {
   _cluster_table[query.name()] = closest_cluster(query);
 }
 
-bool check_present(const std::vector<Reference> &sketches, bool update) {
+bool RandomMC::check_present(const std::vector<Reference> &sketches, bool update) {
   bool missing = false;
   if (mode() == RandomType::MonteCarlo) {
     for (auto ref = sketches.cbegin(); ref != sketches.cend(); ++ref) {
