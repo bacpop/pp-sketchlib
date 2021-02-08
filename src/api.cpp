@@ -10,15 +10,13 @@
 #include <H5Cpp.h>
 
 #include "api.hpp"
+#include "database/database.hpp"
 #include "gpu/gpu.hpp"
 #include "reference.hpp"
-#include "database/database.hpp"
 
 using namespace Eigen;
 
-bool same_db_version(const std::string &db1_name,
-                     const std::string &db2_name)
-{
+bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
   Database db1(db1_name + ".h5");
   Database db2(db1_name + ".h5");
@@ -26,71 +24,54 @@ bool same_db_version(const std::string &db1_name,
   return (db1.check_version(db2));
 }
 
-std::tuple<std::string, bool> get_db_attr(const std::string &db1_name)
-{
+std::tuple<std::string, bool> get_db_attr(const std::string &db1_name) {
   Database db(db1_name + ".h5");
   return (std::make_tuple(db.version(), db.codon_phased()));
 }
 
 // Create sketches, save to file
-std::vector<Reference> create_sketches(const std::string &db_name,
-                                       const std::vector<std::string> &names,
-                                       const std::vector<std::vector<std::string>> &files,
-                                       const std::vector<size_t> &kmer_lengths,
-                                       const size_t sketchsize64,
-                                       const bool codon_phased,
-                                       const bool use_rc,
-                                       size_t min_count,
-                                       const bool exact,
-                                       const size_t num_threads)
-{
+std::vector<Reference> create_sketches(
+    const std::string &db_name, const std::vector<std::string> &names,
+    const std::vector<std::vector<std::string>> &files,
+    const std::vector<size_t> &kmer_lengths, const size_t sketchsize64,
+    const bool codon_phased, const bool use_rc, size_t min_count,
+    const bool exact, const size_t num_threads) {
   // Store sketches in vector
   std::vector<Reference> sketches;
 
   // Try loading sketches from file
   bool resketch = true;
-  if (file_exists(db_name + ".h5"))
-  {
+  if (file_exists(db_name + ".h5")) {
     sketches = load_sketches(db_name, names, kmer_lengths);
-    if (sketches.size() == names.size())
-    {
+    if (sketches.size() == names.size()) {
       resketch = false;
     }
   }
 
   // If not found or not matching, sketch from scratch
-  if (resketch)
-  {
+  if (resketch) {
     sketches.resize(names.size());
 
     // Truncate min_count if above 8 bit range
-    if (min_count > std::numeric_limits<uint8_t>::max())
-    {
+    if (min_count > std::numeric_limits<uint8_t>::max()) {
       min_count = std::numeric_limits<uint8_t>::max();
     }
 
     size_t num_sketch_threads = num_threads;
-    if (sketches.size() < num_threads)
-    {
+    if (sketches.size() < num_threads) {
       num_sketch_threads = sketches.size();
     }
 
-    std::cerr << "Sketching "
-              << names.size()
-              << " genomes using "
-              << num_sketch_threads
-              << " thread(s)"
-              << std::endl;
+    std::cerr << "Sketching " << names.size() << " genomes using "
+              << num_sketch_threads << " thread(s)" << std::endl;
 
-    if (codon_phased)
-    {
+    if (codon_phased) {
       std::cerr << "NB: codon phased seeds are ON" << std::endl;
     }
     KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 
 #pragma omp parallel for schedule(static) num_threads(num_threads)
-    for (unsigned int i = 0; i < names.size(); i++)
-    {
+    for (unsigned int i = 0; i < names.size(); i++) {
       SeqBuf seq_in(files[i], kmer_lengths.back());
       sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
                               codon_phased, use_rc, min_count, exact);
@@ -99,14 +80,11 @@ std::vector<Reference> create_sketches(const std::string &db_name,
     // Save sketches and check for densified sketches
     std::cerr << "Writing sketches to file" << std::endl;
     Database sketch_db = new_db(db_name + ".h5", codon_phased);
-    for (auto sketch_it = sketches.begin(); sketch_it != sketches.end(); sketch_it++)
-    {
+    for (auto sketch_it = sketches.begin(); sketch_it != sketches.end();
+         sketch_it++) {
       sketch_db.add_sketch(*sketch_it);
-      if (sketch_it->densified())
-      {
-        std::cerr << "NOTE: "
-                  << sketch_it->name()
-                  << " required densification"
+      if (sketch_it->densified()) {
+        std::cerr << "NOTE: " << sketch_it->name() << " required densification"
                   << std::endl;
       }
     }
@@ -120,77 +98,67 @@ std::vector<Reference> create_sketches(const std::string &db_name,
 NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                      std::vector<Reference> &query_sketches,
                      const std::vector<size_t> &kmer_lengths,
-                     RandomMC &random_chance,
-                     const bool jaccard,
-                     const size_t num_threads)
-{
-  if (ref_sketches.size() < 1 or query_sketches.size() < 1)
-  {
+                     RandomMC &random_chance, const bool jaccard,
+                     const size_t num_threads) {
+  if (ref_sketches.size() < 1 or query_sketches.size() < 1) {
     throw std::runtime_error("Query with empty ref or query list!");
   }
   if (kmer_lengths[0] <
-      random_chance.min_supported_k(ref_sketches[0].seq_length()))
-  {
+      random_chance.min_supported_k(ref_sketches[0].seq_length())) {
     throw std::runtime_error("Smallest k-mer has no signal above random "
                              "chance; increase minimum k-mer length");
   }
 
-  std::cerr << "Calculating distances using " << num_threads
-            << " thread(s)" << std::endl;
+  // Check all references are in the random object, add if not
+  bool missing = random_chance.check_present(ref_sketches, true);
+  if (missing) {
+    std::cerr
+        << "Some members of the reference database were not found "
+           "in its random match chances. Consider refreshing with addRandom"
+        << std::endl;
+  }
+
+  std::cerr << "Calculating distances using " << num_threads << " thread(s)"
+            << std::endl;
 
   NumpyMatrix distMat;
   size_t dist_cols;
-  if (jaccard)
-  {
+  if (jaccard) {
     dist_cols = kmer_lengths.size();
-  }
-  else
-  {
+  } else {
     dist_cols = 2;
   }
 
   // These could be the same but out of order, which could be dealt with
   // using a sort, except the return order of the distances wouldn't be as
   // expected. self iff ref_names == query_names as input
-  if (ref_sketches == query_sketches)
-  {
+  if (ref_sketches == query_sketches) {
     // calculate dists
-    size_t dist_rows =
-        static_cast<size_t>(0.5 * (ref_sketches.size()) *
-                            (ref_sketches.size() - 1));
+    size_t dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
+                                           (ref_sketches.size() - 1));
     distMat.resize(dist_rows, dist_cols);
 
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
 // Iterate upper triangle
 #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
-    for (size_t i = 0; i < ref_sketches.size(); i++)
-    {
-      for (size_t j = i + 1; j < ref_sketches.size(); j++)
-      {
+    for (size_t i = 0; i < ref_sketches.size(); i++) {
+      for (size_t j = i + 1; j < ref_sketches.size(); j++) {
         size_t pos = square_to_condensed(i, j, ref_sketches.size());
-        if (jaccard)
-        {
-          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++)
-          {
-            distMat(pos, kmer_idx) =
-                ref_sketches[i].jaccard_dist(ref_sketches[j],
-                                             kmer_lengths[kmer_idx],
-                                             random_chance);
+        if (jaccard) {
+          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
+               kmer_idx++) {
+            distMat(pos, kmer_idx) = ref_sketches[i].jaccard_dist(
+                ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
           }
-        }
-        else
-        {
+        } else {
           std::tie(distMat(pos, 0), distMat(pos, 1)) =
-              ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j],
-                                                      kmer_mat,
+              ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j], kmer_mat,
                                                       random_chance);
         }
       }
     }
-  }
-  else
-  {
+  } else {
     // If ref != query, make a thread queue, with each element one ref
     // calculate dists
     size_t dist_rows = ref_sketches.size() * query_sketches.size();
@@ -201,40 +169,32 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     std::vector<size_t> query_lengths(query_sketches.size());
     std::vector<uint16_t> query_random_idxs(query_sketches.size());
 #pragma omp parallel for simd schedule(static) num_threads(num_threads)
-    for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++)
-    {
+    for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
       query_lengths[q_idx] = query_sketches[q_idx].seq_length();
-      query_random_idxs[q_idx] = random_chance.closest_cluster(query_sketches[q_idx]);
+      query_random_idxs[q_idx] =
+          random_chance.closest_cluster(query_sketches[q_idx]);
     }
 
 #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
-    for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++)
-    {
-      for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++)
-      {
+    for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
+      for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
         const long dist_row = q_idx * ref_sketches.size() + r_idx;
-        if (jaccard)
-        {
-          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size(); kmer_idx++)
-          {
-            double jaccard_random =
-                random_chance.random_match(ref_sketches[r_idx], query_random_idxs[q_idx],
-                                           query_lengths[q_idx], kmer_lengths[kmer_idx]);
-            distMat(dist_row, kmer_idx) =
-                query_sketches[q_idx].jaccard_dist(ref_sketches[r_idx],
-                                                   kmer_lengths[kmer_idx],
-                                                   jaccard_random);
+        if (jaccard) {
+          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
+               kmer_idx++) {
+            double jaccard_random = random_chance.random_match(
+                ref_sketches[r_idx], query_random_idxs[q_idx],
+                query_lengths[q_idx], kmer_lengths[kmer_idx]);
+            distMat(dist_row, kmer_idx) = query_sketches[q_idx].jaccard_dist(
+                ref_sketches[r_idx], kmer_lengths[kmer_idx], jaccard_random);
           }
-        }
-        else
-        {
-          std::vector<double> jaccard_random =
-              random_chance.random_matches(ref_sketches[r_idx], query_random_idxs[q_idx],
-                                           query_lengths[q_idx], kmer_lengths);
+        } else {
+          std::vector<double> jaccard_random = random_chance.random_matches(
+              ref_sketches[r_idx], query_random_idxs[q_idx],
+              query_lengths[q_idx], kmer_lengths);
           std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
-              query_sketches[q_idx].core_acc_dist<std::vector<double>>(ref_sketches[r_idx],
-                                                                       kmer_mat,
-                                                                       jaccard_random);
+              query_sketches[q_idx].core_acc_dist<std::vector<double>>(
+                  ref_sketches[r_idx], kmer_mat, jaccard_random);
         }
       }
     }
@@ -248,8 +208,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 std::vector<Reference> load_sketches(const std::string &db_name,
                                      const std::vector<std::string> &names,
                                      std::vector<size_t> kmer_lengths,
-                                     const bool messages)
-{
+                                     const bool messages) {
   // Vector of set size to store results
   std::vector<Reference> sketches(names.size());
   std::sort(kmer_lengths.begin(), kmer_lengths.end());
@@ -264,18 +223,16 @@ std::vector<Reference> load_sketches(const std::string &db_name,
 #endif
   H5::Exception::dontPrint();
 
-  try
-  {
+  try {
     // Open as read only
     Database prev_db(db_name + ".h5");
 
-    if (messages)
-    {
-      std::cerr << "Looking for existing sketches in " + db_name + ".h5" << std::endl;
+    if (messages) {
+      std::cerr << "Looking for existing sketches in " + db_name + ".h5"
+                << std::endl;
     }
     size_t i = 0;
-    for (auto name_it = names.cbegin(); name_it != names.end(); name_it++)
-    {
+    for (auto name_it = names.cbegin(); name_it != names.end(); name_it++) {
       sketches[i] = prev_db.load_sketch(*name_it);
 
       // Remove unwanted k-mer lengths from sketch dict
@@ -283,48 +240,41 @@ std::vector<Reference> load_sketches(const std::string &db_name,
       std::sort(loaded_sizes.begin(), loaded_sizes.end());
       auto kmer_it = kmer_lengths.begin();
       auto loaded_it = loaded_sizes.begin();
-      while (kmer_it != kmer_lengths.end() && loaded_it != loaded_sizes.end())
-      {
-        if (*kmer_it == *loaded_it)
-        {
+      while (kmer_it != kmer_lengths.end() && loaded_it != loaded_sizes.end()) {
+        if (*kmer_it == *loaded_it) {
           kmer_it++;
-        }
-        else
-        {
+        } else {
           sketches[i].remove_kmer_sketch(*loaded_it);
         }
         loaded_it++;
       }
       // throw if any of the requested k-mer lengths were not found
-      if (kmer_it != kmer_lengths.end())
-      {
+      if (kmer_it != kmer_lengths.end()) {
         std::stringstream old_kmers, new_kmers;
-        std::copy(loaded_sizes.begin(), loaded_sizes.end(), std::ostream_iterator<size_t>(old_kmers, ","));
-        std::copy(kmer_lengths.begin(), kmer_lengths.end(), std::ostream_iterator<size_t>(new_kmers, ","));
+        std::copy(loaded_sizes.begin(), loaded_sizes.end(),
+                  std::ostream_iterator<size_t>(old_kmers, ","));
+        std::copy(kmer_lengths.begin(), kmer_lengths.end(),
+                  std::ostream_iterator<size_t>(new_kmers, ","));
 
         std::string err_message = "k-mer lengths in old database (";
-        err_message += old_kmers.str() + ") do not match those requested (" + new_kmers.str() + ")";
+        err_message += old_kmers.str() + ") do not match those requested (" +
+                       new_kmers.str() + ")";
         throw std::runtime_error(err_message);
       }
 
       i++;
     }
-  }
-  catch (const HighFive::Exception &e)
-  {
+  } catch (const HighFive::Exception &e) {
     // Triggered if sketch not found
     std::cerr << "Missing sketch: " << e.what() << std::endl;
     sketches.clear();
-  }
-  catch (const std::exception &e)
-  {
+  } catch (const std::exception &e) {
     // Triggered if k-mer lengths mismatch
     std::cerr << "Mismatched data: " << e.what() << std::endl;
     sketches.clear();
   }
   // Other errors (likely not safe to continue)
-  catch (...)
-  {
+  catch (...) {
     std::cerr << "Error in reading previous database" << std::endl;
     sketches.clear();
     throw std::runtime_error("Database read error");
@@ -340,13 +290,10 @@ std::vector<Reference> load_sketches(const std::string &db_name,
 RandomMC calculate_random(const std::vector<Reference> &sketches,
                           const std::string &db_name,
                           const unsigned int n_clusters,
-                          const unsigned int n_MC,
-                          const bool codon_phased,
-                          const bool use_rc,
-                          const int num_threads)
-{
-  RandomMC random(sketches, n_clusters, n_MC, codon_phased,
-                  use_rc, num_threads);
+                          const unsigned int n_MC, const bool codon_phased,
+                          const bool use_rc, const int num_threads) {
+  RandomMC random(sketches, n_clusters, n_MC, codon_phased, use_rc,
+                  num_threads);
 
   // Save to the database provided
   Database db(db_name + ".h5", true);
@@ -355,9 +302,7 @@ RandomMC calculate_random(const std::vector<Reference> &sketches,
   return (random);
 }
 
-RandomMC get_random(const std::string &db_name,
-                    const bool use_rc_default)
-{
+RandomMC get_random(const std::string &db_name, const bool use_rc_default) {
   Database db(db_name + ".h5");
   RandomMC random = db.load_random(use_rc_default);
   return (random);
