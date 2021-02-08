@@ -418,6 +418,13 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
   }
 
   // Turn the random matches into an array (same for any ref, query or subsample thereof)
+  bool missing = random_chance.add_refs(ref_sketches);
+  if (missing) {
+    std::cerr
+        << "Some members of the reference database were not found "
+           "in its random match chances. Consider refreshing with addRandom"
+        << std::endl;
+  }
   FlatRandom flat_random = random_match.flattened_random(kmer_lengths, ref_sketches[0].seq_length());
   std::vector<uint16_t> ref_random_idx = random_match.lookup_array(ref_sketches);
 
