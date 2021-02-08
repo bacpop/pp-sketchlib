@@ -418,7 +418,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
   }
 
   // Turn the random matches into an array (same for any ref, query or subsample thereof)
-  bool missing = random_chance.check_present(ref_sketches, true);
+  bool missing = random_match.check_present(ref_sketches, true);
   if (missing) {
     std::cerr
         << "Some members of the reference database were not found "
