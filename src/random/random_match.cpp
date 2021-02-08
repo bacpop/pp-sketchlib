@@ -237,14 +237,14 @@ void RandomMC::add_query(const Reference &query) {
 }
 
 bool check_present(const std::vector<Reference> &sketches, bool update) {
-  missing = false;
-  if (self->mode() == RandomType::MonteCarlo) {
-    for (auto ref == sketches.cbegin(); ref != sketches.cend(); ++ref) {
+  bool missing = false;
+  if (mode() == RandomType::MonteCarlo) {
+    for (auto ref = sketches.cbegin(); ref != sketches.cend(); ++ref) {
       auto in_random = _cluster_table().find(ref->name());
       if (in_random == _cluster_table().end()) {
         missing = true;
         if (update) {
-          self->add_query(*ref);
+          add_query(*ref);
         } else {
           break;
         }
