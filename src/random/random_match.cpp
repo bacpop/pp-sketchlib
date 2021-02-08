@@ -240,8 +240,8 @@ bool RandomMC::check_present(const std::vector<Reference> &sketches, bool update
   bool missing = false;
   if (mode() == RandomType::MonteCarlo) {
     for (auto ref = sketches.cbegin(); ref != sketches.cend(); ++ref) {
-      auto in_random = _cluster_table().find(ref->name());
-      if (in_random == _cluster_table().end()) {
+      auto in_random = _cluster_table.find(ref->name());
+      if (in_random == _cluster_table.end()) {
         missing = true;
         if (update) {
           add_query(*ref);
