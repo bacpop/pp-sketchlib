@@ -266,6 +266,10 @@ def main():
             read_grp = hdf2['sketches']
             for dataset in read_grp:
                 join_grp.copy(read_grp[dataset], dataset)
+
+            if 'random' in hdf1 or 'random' in hdf2:
+                sys.stderr.write("Random matches found in one database, which will not be copied\n"
+                                 "Use --add-random to recalculate for the joined DB\n")
         except RuntimeError as e:
             sys.stderr.write("ERROR: " + str(e) + "\n")
             sys.stderr.write("Joining sketches failed\n")
