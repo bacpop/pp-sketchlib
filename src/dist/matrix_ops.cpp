@@ -174,8 +174,8 @@ NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
 #pragma omp parallel for schedule(static) num_threads(num_threads)
     for (long distIdx = 0; distIdx < qrDists.rows(); distIdx++)
     {
-      unsigned long i = static_cast<size_t>(distIdx / (float)nqqSamples + 0.001f);
-      unsigned long j = distIdx % nqqSamples + nrrSamples;
+      unsigned long i = distIdx % nrrSamples;
+      unsigned long j = static_cast<size_t>(distIdx / (float)nrrSamples + 0.001f) + nrrSamples;
       squareDists(i, j) = qrDists[distIdx];
       squareDists(j, i) = qrDists[distIdx];
     }

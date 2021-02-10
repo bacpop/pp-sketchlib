@@ -34,7 +34,8 @@ def check_res(res, expected):
 # Square to long
 rr_mat = np.array([1, 2, 3, 4, 5, 6], dtype=np.float32)
 qq_mat = np.array([8], dtype=np.float32)
-qr_mat = np.array([10, 20, 10, 20, 10, 20, 10, 20], dtype=np.float32)
+qr_mat = np.array([10, 11, 12, 13, 14, 15, 16, 17], dtype=np.float32)
+# NB r_idx is inner/fastest: q0r0, q0r1, q0r2, q0r3, q1r0, q1r1, q1r2, q1r3
 
 square1 = pp_sketchlib.longToSquare(rr_mat, 2)
 square2 = pp_sketchlib.longToSquareMulti(rr_mat, qr_mat, qq_mat)
@@ -45,12 +46,12 @@ square1_res = np.array([[0, 1, 2, 3],
                         [3, 5, 6, 0]], dtype=np.float32)
 
 
-square2_res = np.array([[0, 1, 2, 3, 10, 20],
-                        [1, 0, 4, 5, 10, 20],
-                        [2, 4, 0, 6, 10, 20],
-                        [3, 5, 6, 0, 10, 20],
-                        [10, 10, 10, 10, 0, 8],
-                        [20, 20, 20, 20, 8, 0]], dtype=np.float32)
+square2_res = np.array([[0, 1, 2, 3, 10, 14],
+                        [1, 0, 4, 5, 11, 15],
+                        [2, 4, 0, 6, 12, 16],
+                        [3, 5, 6, 0, 13, 17],
+                        [10, 11, 12, 13, 0, 8],
+                        [14, 15, 16, 17, 8, 0]], dtype=np.float32)
 
 check_res(square1_res, square1)
 check_res(square2_res, square2)
