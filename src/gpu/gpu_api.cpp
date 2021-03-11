@@ -91,7 +91,7 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
 
   if (resketch)
   {
-    Database sketch_db(db_name + ".h5", false);
+    Database sketch_db = new_db(db_name + ".h5", false);
     sketches.resize(names.size());
 
     initialise_device(device_id);
