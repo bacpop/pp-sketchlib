@@ -19,6 +19,10 @@
 #include <unistd.h>
 #include <vector>
 
+#if __CUDACC_VER_MAJOR__ >= 11
+#include <cuda/pipeline>
+#endif
+
 // internal headers
 #include "cuda.cuh"
 #include "dist/matrix_idx.hpp"
@@ -186,9 +190,17 @@ __global__ void calculate_dists(
     if (use_shared) {
       size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
       size_t sketch_stride = query_strides.bin_stride;
+#if __CUDACC_VER_MAJOR__ >= 11
+      pipeline pipe;
+#endif
       if (threadIdx.x < warp_size) {
         for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
+#if __CUDACC_VER_MAJOR__ >= 11
+          memcpy_async(query_shared[lidx],
+                       query_start[lidx * sketch_stride], pipe);
+#else
           query_shared[lidx] = query_start[lidx * sketch_stride];
+#endif
         }
       }
       query_ptr = query_shared;
@@ -197,7 +209,12 @@ __global__ void calculate_dists(
       query_ptr = query_start;
       query_bin_strides = query_strides.bin_stride;
     }
+#if __CUDACC_VER_MAJOR__ >= 11
+    pipe.commit();
+    pipe.wait_prior<0>();
+#else
     __syncthreads();
+#endif
 
     // Some threads at the end of the last block will have nothing to do
     // Need to have conditional here to avoid block on __syncthreads() above
