@@ -20,4 +20,4 @@ dependencies:
   - openblas
   - armadillo
   - libgfortran-ng
-  - cudatoolkit-dev
+  - cudatoolkit
