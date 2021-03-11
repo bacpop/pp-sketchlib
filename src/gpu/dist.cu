@@ -187,17 +187,17 @@ __global__ void calculate_dists(
     const uint64_t *query_ptr;
     extern __shared__ uint64_t query_shared[];
     int query_bin_strides;
-    if (use_shared) {
-      size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
-      size_t sketch_stride = query_strides.bin_stride;
 #if __CUDACC_VER_MAJOR__ >= 11
       cuda::barrier<cuda::thread_scope_block> barrier(10);
 #endif
+    if (use_shared) {
+      size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
+      size_t sketch_stride = query_strides.bin_stride;
       if (threadIdx.x < warp_size) {
         for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
 #if __CUDACC_VER_MAJOR__ >= 11
-          cuda::memcpy_async(query_shared[lidx],
-                             query_start[lidx * sketch_stride],
+          cuda::memcpy_async(query_shared + lidx,
+                             query_start + (lidx * sketch_stride),
                              sizeof(uint64_t),
                              barrier);
 #else
