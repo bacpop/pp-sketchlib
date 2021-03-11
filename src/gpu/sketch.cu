@@ -222,19 +222,19 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
                               const uint16_t min_count,
                               volatile int *blocks_complete) {
   int read_index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (read_index < n_reads) {
-    uint64_t fhVal, rhVal, hVal;
+  uint64_t fhVal, rhVal, hVal;
 
-    // Load reads in block into shared memory
-    extern __shared__ char read_shared[];
+  // Load reads in block into shared memory
+  extern __shared__ char read_shared[];
 #if __CUDACC_VER_MAJOR__ >= 11
-    auto block = cooperative_groups::this_thread_block();
-    __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
-    if (block.thread_rank() == 0) {
-      init(&barrier, block.size()); // Friend function initializes barrier
-    }
-    block.sync();
+  auto block = cooperative_groups::this_thread_block();
+  __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
+  if (block.thread_rank() == 0) {
+    init(&barrier, block.size()); // Friend function initializes barrier
+  }
+  block.sync();
 #endif
+  if (read_index < n_reads) {
     for (int base_idx = 0; base_idx < read_length; base_idx++) {
 #if __CUDACC_VER_MAJOR__ >= 11
       cuda::memcpy_async(read_shared + threadIdx.x + base_idx * blockDim.x,
@@ -246,12 +246,14 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
           read_seq[read_index + base_idx * read_stride];
 #endif
     }
+  }
 #if __CUDACC_VER_MAJOR__ >= 11
     barrier.arrive_and_wait();
 #else
     __syncthreads();
 #endif
 
+  if (read_index < n_reads) {
     // Get first valid k-mer
     if (use_rc) {
       NTC64(read_shared, k, fhVal, rhVal, hVal, blockDim.x);
@@ -277,8 +279,8 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
 
     // update progress meter
     update_progress(read_index, n_reads, blocks_complete);
-    __syncwarp();
   }
+  __syncwarp();
 }
 
 // Writes a progress meter using the device int which keeps
