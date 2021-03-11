@@ -193,7 +193,7 @@ __global__ void calculate_dists(
     auto block = cooperative_groups::this_thread_block();
     __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
     if (block.thread_rank() == 0) {
-        init(&barrier, block.size()); // Friend function initializes barrier
+      init(&barrier, block.size()); // Friend function initializes barrier
     }
     block.sync();
 #endif
@@ -273,9 +273,9 @@ __global__ void calculate_dists(
 }
 
 /***************
- *			   *
+ *			       *
  *	Host code  *
- *			   *
+ *			       *
  ***************/
 
 // Sets up data structures and loads them onto the device
