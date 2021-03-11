@@ -21,6 +21,7 @@
 
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/pipeline>
+#include <cuda_pipeline.h>
 #endif
 
 // internal headers
@@ -191,12 +192,12 @@ __global__ void calculate_dists(
       size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
       size_t sketch_stride = query_strides.bin_stride;
 #if __CUDACC_VER_MAJOR__ >= 11
-      pipeline pipe;
+      cuda::pipeline pipe;
 #endif
       if (threadIdx.x < warp_size) {
         for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
 #if __CUDACC_VER_MAJOR__ >= 11
-          memcpy_async(query_shared[lidx],
+          cuda::memcpy_async(query_shared[lidx],
                        query_start[lidx * sketch_stride], pipe);
 #else
           query_shared[lidx] = query_start[lidx * sketch_stride];
