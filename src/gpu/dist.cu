@@ -22,6 +22,7 @@
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
 #include <cooperative_groups.h>
+#pragma diag_suppress static_var_with_dynamic_init
 #endif
 
 // internal headers
