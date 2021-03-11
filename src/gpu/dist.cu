@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <vector>
 
+// memcpy_async
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
 #include <cooperative_groups.h>

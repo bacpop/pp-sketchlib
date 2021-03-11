@@ -8,6 +8,13 @@
 
 #include <stdint.h>
 
+// memcpy_async
+#if __CUDACC_VER_MAJOR__ >= 11
+#include <cuda/barrier>
+#include <cooperative_groups.h>
+#pragma diag_suppress static_var_with_dynamic_init
+#endif
+
 #include "cuda.cuh"
 #include "gpu.hpp"
 
@@ -220,11 +227,30 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
 
     // Load reads in block into shared memory
     extern __shared__ char read_shared[];
+#if __CUDACC_VER_MAJOR__ >= 11
+    auto block = cooperative_groups::this_thread_block();
+    __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
+    if (block.thread_rank() == 0) {
+      init(&barrier, block.size()); // Friend function initializes barrier
+    }
+    block.sync();
+#endif
     for (int base_idx = 0; base_idx < read_length; base_idx++) {
+#if __CUDACC_VER_MAJOR__ >= 11
+      cuda::memcpy_async(read_shared + threadIdx.x + base_idx * blockDim.x,
+                         read_seq + read_index + base_idx * read_stride,
+                         sizeof(char),
+                         barrier);
+#else
       read_shared[threadIdx.x + base_idx * blockDim.x] =
           read_seq[read_index + base_idx * read_stride];
+#endif
     }
+#if __CUDACC_VER_MAJOR__ >= 11
+    barrier.arrive_and_wait();
+#else
     __syncthreads();
+#endif
 
     // Get first valid k-mer
     if (use_rc) {
