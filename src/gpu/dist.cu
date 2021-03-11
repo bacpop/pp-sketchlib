@@ -21,6 +21,7 @@
 
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
+#include <cooperative_groups.h>
 #endif
 
 // internal headers
@@ -188,7 +189,12 @@ __global__ void calculate_dists(
     extern __shared__ uint64_t query_shared[];
     int query_bin_strides;
 #if __CUDACC_VER_MAJOR__ >= 11
-      cuda::barrier<cuda::thread_scope_block> barrier(10);
+    auto block = cooperative_groups::this_thread_block();
+    __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
+    if (block.thread_rank() == 0) {
+        init(&barrier, block.size()); // Friend function initializes barrier
+    }
+    block.sync();
 #endif
     if (use_shared) {
       size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
