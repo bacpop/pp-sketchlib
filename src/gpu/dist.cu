@@ -20,8 +20,7 @@
 #include <vector>
 
 #if __CUDACC_VER_MAJOR__ >= 11
-#include <cuda/pipeline>
-#include <cuda_pipeline.h>
+#include <cuda/barrier>
 #endif
 
 // internal headers
@@ -192,13 +191,15 @@ __global__ void calculate_dists(
       size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
       size_t sketch_stride = query_strides.bin_stride;
 #if __CUDACC_VER_MAJOR__ >= 11
-      cuda::pipeline pipe;
+      cuda::barrier<cuda::thread_scope_block> barrier(10);
 #endif
       if (threadIdx.x < warp_size) {
         for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
 #if __CUDACC_VER_MAJOR__ >= 11
           cuda::memcpy_async(query_shared[lidx],
-                       query_start[lidx * sketch_stride], pipe);
+                             query_start[lidx * sketch_stride],
+                             sizeof(uint64_t),
+                             barrier);
 #else
           query_shared[lidx] = query_start[lidx * sketch_stride];
 #endif
@@ -211,8 +212,7 @@ __global__ void calculate_dists(
       query_bin_strides = query_strides.bin_stride;
     }
 #if __CUDACC_VER_MAJOR__ >= 11
-    pipe.commit();
-    pipe.wait_prior<0>();
+    barrier.arrive_and_wait();
 #else
     __syncthreads();
 #endif
