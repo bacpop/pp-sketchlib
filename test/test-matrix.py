@@ -12,8 +12,7 @@ except ImportError as e:
     def sparsify(distMat, cutoff, kNN, threads):
         sparse_coordinates = pp_sketchlib.sparsifyDists(distMat,
                                                         distCutoff=cutoff,
-                                                        kNN=kNN,
-                                                        num_threads=threads)
+                                                        kNN=kNN)
         sparse_scipy = coo_matrix((sparse_coordinates[2],
                                 (sparse_coordinates[0], sparse_coordinates[1])),
                                 shape=distMat.shape,
