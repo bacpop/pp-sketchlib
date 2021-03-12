@@ -11,8 +11,7 @@ import pp_sketchlib
 def sparsify(distMat, cutoff, kNN, threads):
     sparse_coordinates = pp_sketchlib.sparsifyDists(distMat,
                                                     distCutoff=cutoff,
-                                                    kNN=kNN,
-                                                    num_threads=threads)
+                                                    kNN=kNN)
     sparse_scipy = ijv_to_coo(sparse_coordinates, distMat.shape, np.float32)
 
     # Mirror to fill in lower triangle

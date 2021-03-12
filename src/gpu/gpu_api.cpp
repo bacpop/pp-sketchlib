@@ -91,7 +91,7 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
 
   if (resketch)
   {
-    Database sketch_db(db_name + ".h5", false);
+    Database sketch_db = new_db(db_name + ".h5", false);
     sketches.resize(names.size());
 
     initialise_device(device_id);
@@ -296,7 +296,7 @@ std::vector<uint64_t> flatten_by_bins(
   // Iterate over each dimension to flatten
   std::vector<uint64_t> flat_ref(strides.sample_stride * num_sketches);
 #pragma omp parallel for simd schedule(static) num_threads(cpu_threads)
-  for (int sample_idx = start_sample_idx; sample_idx < end_sample_idx; sample_idx++)
+  for (size_t sample_idx = start_sample_idx; sample_idx < end_sample_idx; sample_idx++)
   {
     auto flat_ref_it = flat_ref.begin() + (sample_idx - start_sample_idx) * strides.sample_stride;
     for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)

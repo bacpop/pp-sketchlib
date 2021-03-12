@@ -19,7 +19,7 @@ using namespace Eigen;
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
   Database db1(db1_name + ".h5");
-  Database db2(db1_name + ".h5");
+  Database db2(db2_name + ".h5");
 
   return (db1.check_version(db2));
 }

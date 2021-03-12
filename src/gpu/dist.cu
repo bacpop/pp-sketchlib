@@ -19,6 +19,13 @@
 #include <unistd.h>
 #include <vector>
 
+// memcpy_async
+#if __CUDACC_VER_MAJOR__ >= 11
+#include <cuda/barrier>
+#include <cooperative_groups.h>
+#pragma diag_suppress static_var_with_dynamic_init
+#endif
+
 // internal headers
 #include "cuda.cuh"
 #include "dist/matrix_idx.hpp"
@@ -183,12 +190,27 @@ __global__ void calculate_dists(
     const uint64_t *query_ptr;
     extern __shared__ uint64_t query_shared[];
     int query_bin_strides;
+#if __CUDACC_VER_MAJOR__ >= 11
+    auto block = cooperative_groups::this_thread_block();
+    __shared__ cuda::barrier<cuda::thread_scope::thread_scope_block> barrier;
+    if (block.thread_rank() == 0) {
+      init(&barrier, block.size()); // Friend function initializes barrier
+    }
+    block.sync();
+#endif
     if (use_shared) {
       size_t sketch_bins = query_strides.bbits * query_strides.sketchsize64;
       size_t sketch_stride = query_strides.bin_stride;
       if (threadIdx.x < warp_size) {
         for (int lidx = threadIdx.x; lidx < sketch_bins; lidx += warp_size) {
+#if __CUDACC_VER_MAJOR__ >= 11
+          cuda::memcpy_async(query_shared + lidx,
+                             query_start + (lidx * sketch_stride),
+                             sizeof(uint64_t),
+                             barrier);
+#else
           query_shared[lidx] = query_start[lidx * sketch_stride];
+#endif
         }
       }
       query_ptr = query_shared;
@@ -197,7 +219,11 @@ __global__ void calculate_dists(
       query_ptr = query_start;
       query_bin_strides = query_strides.bin_stride;
     }
+#if __CUDACC_VER_MAJOR__ >= 11
+    barrier.arrive_and_wait();
+#else
     __syncthreads();
+#endif
 
     // Some threads at the end of the last block will have nothing to do
     // Need to have conditional here to avoid block on __syncthreads() above
@@ -248,9 +274,9 @@ __global__ void calculate_dists(
 }
 
 /***************
- *			   *
+ *			       *
  *	Host code  *
- *			   *
+ *			       *
  ***************/
 
 // Sets up data structures and loads them onto the device

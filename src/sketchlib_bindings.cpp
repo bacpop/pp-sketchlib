@@ -232,8 +232,7 @@ sparse_coo sparseQuery(const std::string &ref_db_name,
                                          num_threads);
   sparse_coo sparse_return = sparsify_dists(long_form,
                                             dist_cutoff,
-                                            kNN,
-                                            num_threads);
+                                            kNN);
 
   return (sparse_return);
 }
@@ -286,13 +285,11 @@ double jaccardDist(const std::string &db_name,
 // Wrapper which makes a ref to the python/numpy array
 sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                          const float distCutoff,
-                         const unsigned long int kNN,
-                         const unsigned int num_threads)
+                         const unsigned long int kNN)
 {
   sparse_coo coo_idx = sparsify_dists(denseDists,
                                       distCutoff,
-                                      kNN,
-                                      num_threads);
+                                      kNN);
   return coo_idx;
 }
 
@@ -373,8 +370,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
   m.def("sparsifyDists", &sparsifyDists, py::return_value_policy::reference_internal, "Transform all distances into a sparse matrix",
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
-        py::arg("kNN") = 0,
-        py::arg("num_threads") = 1);
+        py::arg("kNN") = 0);
 
   m.attr("version") = VERSION_INFO;
   m.attr("sketchVersion") = SKETCH_VERSION;
