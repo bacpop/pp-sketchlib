@@ -27,7 +27,8 @@ steps:
   displayName: Add conda to PATH
 
 - script: |
-    sudo dpkg -i cuda-repo-ubuntu1804_11.2.2-1_amd64.deb
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-11-2_11.2.2-1_amd64.deb
+    sudo dpkg -i cuda-11-2_11.2.2-1_amd64.deb
     sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
     sudo mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
@@ -43,6 +44,8 @@ steps:
 # pushd src && make && make install && popd
 - script: |
     source activate pp_env
+    export PATH=/usr/local/cuda-11.2/bin${PATH:+:${PATH}}
+    export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     export SKETCHLIB_INSTALL=azure
     python -m pip install --no-deps --ignore-installed .
   displayName: 'Build & install (setup.py)'
