@@ -21,3 +21,4 @@ dependencies:
   - armadillo
   - libgfortran-ng
   - nvcc_linux-64
+  - cudatoolkit>=11.2
