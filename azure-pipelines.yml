@@ -26,6 +26,12 @@ steps:
 - bash: echo "##vso[task.prependpath]$CONDA/bin"
   displayName: Add conda to PATH
 
+- script: |
+    sudo apt-get update
+    sudo apt-get -y install --no-install-recommends nvidia-cuda-toolkit
+    sudo apt-get clean
+  displayName: Install nvcc
+
 - bash: conda env create --quiet --file environment.yml
   displayName: Create Anaconda environment and install dependencies
 
