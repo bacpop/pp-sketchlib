@@ -45,6 +45,7 @@ steps:
     export PATH=/usr/local/cuda-11.2/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     export SKETCHLIB_INSTALL=azure
+    export CUDA_HOME=/usr/local/cuda-11.2
     python -m pip install --no-deps --ignore-installed .
   displayName: 'Build & install (setup.py)'
 
