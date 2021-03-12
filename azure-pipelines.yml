@@ -27,14 +27,12 @@ steps:
   displayName: Add conda to PATH
 
 - script: |
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-11-2_11.2.2-1_amd64.deb
-    sudo dpkg -i cuda-11-2_11.2.2-1_amd64.deb
-    sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
     sudo mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
+    sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+    sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
     sudo apt-get update
-    sudo apt-get -y install --no-install-recommends cuda
-    sudo apt-get clean
+    sudo apt-get -y install cuda
   displayName: Install nvcc
 
 - bash: conda env create --quiet --file environment.yml
