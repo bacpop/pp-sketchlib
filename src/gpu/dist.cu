@@ -88,34 +88,39 @@ __device__ void simple_linear_regression(float *core_dist,
                                          const float xysum,
                                          const float xsquaresum,
                                          const float ysquaresum, const int n) {
-  // CUDA fast-math intrinsics on floats, which give comparable accuracy
-  // Speed gain is fairly minimal, as most time spent on Jaccard distance
-  // __fmul_ru(x, y) = x * y and rounds up.
-  // __fpow(x, a) = x^a give 0 for x<0, so not using here (and it is slow)
-  float xbar = xsum / n;
-  float ybar = ysum / n;
-  float x_diff = xsquaresum - __fmul_ru(xsum, xsum) / n;
-  float y_diff = ysquaresum - __fmul_ru(ysum, ysum) / n;
-  float xstddev = __fsqrt_ru((xsquaresum - __fmul_ru(xsum, xsum) / n) / n);
-  float ystddev = __fsqrt_ru((ysquaresum - __fmul_ru(ysum, ysum) / n) / n);
-  float r =
-      __fdiv_ru(xysum - __fmul_ru(xsum, ysum) / n, __fsqrt_ru(x_diff * y_diff));
-  float beta = __fmul_ru(r, __fdiv_ru(ystddev, xstddev));
-  float alpha = __fmaf_ru(-beta, xbar, ybar); // maf: x * y + z
-
-  // Store core/accessory in dists, truncating at zero
-  // Memory should be initialised to zero so else block not strictly
-  // necessary, but better safe than sorry!
-  if (beta < 0) {
-    *core_dist = 1 - __expf(beta);
-  } else {
+  if (n < 2) {
     *core_dist = 0;
-  }
-
-  if (alpha < 0) {
-    *accessory_dist = 1 - __expf(alpha);
-  } else {
     *accessory_dist = 0;
+  } else {
+    // CUDA fast-math intrinsics on floats, which give comparable accuracy
+    // Speed gain is fairly minimal, as most time spent on Jaccard distance
+    // __fmul_ru(x, y) = x * y and rounds up.
+    // __fpow(x, a) = x^a give 0 for x<0, so not using here (and it is slow)
+    float xbar = xsum / n;
+    float ybar = ysum / n;
+    float x_diff = xsquaresum - __fmul_ru(xsum, xsum) / n;
+    float y_diff = ysquaresum - __fmul_ru(ysum, ysum) / n;
+    float xstddev = __fsqrt_ru((xsquaresum - __fmul_ru(xsum, xsum) / n) / n);
+    float ystddev = __fsqrt_ru((ysquaresum - __fmul_ru(ysum, ysum) / n) / n);
+    float r =
+        __fdiv_ru(xysum - __fmul_ru(xsum, ysum) / n, __fsqrt_ru(x_diff * y_diff));
+    float beta = __fmul_ru(r, __fdiv_ru(ystddev, xstddev));
+    float alpha = __fmaf_ru(-beta, xbar, ybar); // maf: x * y + z
+
+    // Store core/accessory in dists, truncating at zero
+    // Memory should be initialised to zero so else block not strictly
+    // necessary, but better safe than sorry!
+    if (beta < 0) {
+      *core_dist = 1 - __expf(beta);
+    } else {
+      *core_dist = 0;
+    }
+
+    if (alpha < 0) {
+      *accessory_dist = 1 - __expf(alpha);
+    } else {
+      *accessory_dist = 0;
+    }
   }
 }
 
@@ -178,6 +183,7 @@ __global__ void calculate_dists(
   float xysum = 0;
   float xsquaresum = 0;
   float ysquaresum = 0;
+  bool stop = false;
   for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
     // Copy query sketch into __shared__ mem
     // Uses all threads *in a single warp* to do the copy
@@ -243,20 +249,25 @@ __global__ void calculate_dists(
       float jaccard = observed_excess(jaccard_obs, jaccard_expected, 1.0f);
       // Stop regression if distances =~ 0
       if (jaccard < tolerance) {
-        break;
-      }
-      float y = __logf(jaccard);
-      // printf("i:%d j:%d k:%d r:%f jac:%f y:%f\n", ref_idx, query_idx,
-      // kmer_idx, jaccard_expected, jaccard_obs, y);
+        // Would normally break here, but gives no advantage on a GPU as causes
+        // warp to diverge
+        // As the thread blocks are used to load the query in, adding a break
+        // would actually cause a stall. So just stop adding
+        stop = true;
+      } else if (!stop) {
+        float y = __logf(jaccard);
+        // printf("i:%d j:%d k:%d r:%f jac:%f y:%f\n", ref_idx, query_idx,
+        // kmer_idx, jaccard_expected, jaccard_obs, y);
 
-      // Running totals for regression
-      kmer_used++;
-      int kmer = kmers[kmer_idx];
-      xsum += kmer;
-      ysum += y;
-      xysum += kmer * y;
-      xsquaresum += kmer * kmer;
-      ysquaresum += y * y;
+        // Running totals for regression
+        kmer_used++;
+        int kmer = kmers[kmer_idx];
+        xsum += kmer;
+        ysum += y;
+        xysum += kmer * y;
+        xsquaresum += kmer * kmer;
+        ysquaresum += y * y;
+      }
     }
 
     // Move to next k-mer length

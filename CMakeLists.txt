@@ -62,14 +62,15 @@ if(CMAKE_CUDA_COMPILER)
     # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr")
     # Turn on link time optimisation if available
-    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0 AND CMAKE_BUILD_TYPE MATCHES Release)
         string(APPEND CUDA_OPTS " -dlto -arch=sm_86")
     else()
-        string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75")
+        string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86")
     endif()
-    if(CMAKE_BUILD_TYPE MATCHES DEBUG)
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
         string(APPEND CUDA_OPTS " -G")
     endif()
+
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
