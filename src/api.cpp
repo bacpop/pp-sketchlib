@@ -8,13 +8,17 @@
 #include <limits>
 
 #include <H5Cpp.h>
+#include <omp.h>
+#include <pybind11/pybind11.h>
 
 #include "api.hpp"
 #include "database/database.hpp"
 #include "gpu/gpu.hpp"
 #include "reference.hpp"
+#include "sketch/progress.hpp"
 
 using namespace Eigen;
+namespace py = pybind11;
 
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
@@ -70,11 +74,27 @@ std::vector<Reference> create_sketches(
     }
     KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 
-#pragma omp parallel for schedule(static) num_threads(num_threads)
+    ProgressMeter sketch_progress(names.size());
+    size_t err_count = 0;
+#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+: err_count)
     for (unsigned int i = 0; i < names.size(); i++) {
-      SeqBuf seq_in(files[i], kmer_lengths.back());
-      sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
-                              codon_phased, use_rc, min_count, exact);
+      if (PyErr_CheckSignals() != 0) {
+        err_count++;
+      }
+      if (err_count == 0) {
+        SeqBuf seq_in(files[i], kmer_lengths.back());
+        sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
+                                codon_phased, use_rc, min_count, exact);
+      }
+      if (omp_get_thread_num() == 0) {
+        sketch_progress.tick(num_threads);
+      }
+    }
+    sketch_progress.finalise();
+
+    // Handle Ctrl-C from python
+    if (err_count) {
+      throw py::error_already_set();
     }
 
     // Save sketches and check for densified sketches
@@ -140,7 +160,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
-// Iterate upper triangle
+    // Iterate upper triangle
 #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
     for (size_t i = 0; i < ref_sketches.size(); i++) {
       for (size_t j = i + 1; j < ref_sketches.size(); j++) {
