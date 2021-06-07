@@ -527,7 +527,7 @@ get_signs(DeviceReads &reads, // use seqbuf.as_square_array() to get this
       progress);
 
   CUDA_CALL(cudaGetLastError());
-  reportSketchProgress(blocks_complete, k, reads.count());
+  reportSketchProgress(progress, k, reads.count());
 
   // Copy signs back from device
   CUDA_CALL(cudaDeviceSynchronize());
