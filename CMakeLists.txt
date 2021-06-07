@@ -31,8 +31,6 @@ if(UNIX AND NOT APPLE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
-    set_target_properties("${TARGET_NAME}" PROPERTIES
-                          INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
 # Set paths for non standard lib/ and include/ locations
@@ -111,6 +109,10 @@ set_target_properties("${TARGET_NAME}" PROPERTIES
     PREFIX "${PYTHON_MODULE_PREFIX}"
     SUFFIX "${PYTHON_MODULE_EXTENSION}"
 )
+if(UNIX AND (NOT APPLE OR NOT CMAKE_COMPILER_IS_GNUCC))
+    set_target_properties("${TARGET_NAME}" PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
 
 # Link libraries
 if(CMAKE_CUDA_COMPILER)
