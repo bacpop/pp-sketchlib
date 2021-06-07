@@ -34,6 +34,7 @@ __device__ inline void update_progress(long long dist_idx, long long dist_n,
   // Progress indicator
   // The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
   if (dist_idx % (dist_n >> progressBitshift) == 0) {
+    assert(blocks_complete >= 0);
     atomicAdd((int *)blocks_complete, 1);
     __threadfence_system();
   }

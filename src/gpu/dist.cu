@@ -405,6 +405,8 @@ void reportDistProgress(volatile int *blocks_complete, long long dist_rows) {
   if (dist_rows > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
       if (PyErr_CheckSignals() != 0) {
+        // I'm ignoring a race condition here
+        *blocks_complete = -1;
         throw py::error_already_set();
       }
       if (*blocks_complete > now_completed) {
