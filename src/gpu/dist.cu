@@ -19,6 +19,9 @@
 #include <unistd.h>
 #include <vector>
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
 // memcpy_async
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
@@ -401,6 +404,9 @@ void reportDistProgress(volatile int *blocks_complete, long long dist_rows) {
   float kern_progress = 0;
   if (dist_rows > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
+      if (PyErr_CheckSignals() != 0) {
+        throw py::error_already_set();
+      }
       if (*blocks_complete > now_completed) {
         now_completed = *blocks_complete;
         kern_progress = now_completed / (float)progress_blocks;

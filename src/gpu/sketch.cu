@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
 // memcpy_async
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
@@ -292,6 +295,9 @@ void reportSketchProgress(volatile int *blocks_complete, int k,
   float kern_progress = 0;
   if (n_reads > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
+      if (PyErr_CheckSignals() != 0) {
+        throw py::error_already_set();
+      }
       if (*blocks_complete > now_completed) {
         now_completed = *blocks_complete;
         kern_progress = now_completed / (float)progress_blocks;
