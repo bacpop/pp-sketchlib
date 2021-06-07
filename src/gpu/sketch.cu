@@ -223,7 +223,7 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
                               uint64_t *signs, const uint64_t binsize,
                               unsigned int *countmin_table, const bool use_rc,
                               const uint16_t min_count,
-                              volatile int *blocks_complete) {
+                              progress_atomics progress) {
   int read_index = blockIdx.x * blockDim.x + threadIdx.x;
   uint64_t fhVal, rhVal, hVal;
 
@@ -281,14 +281,14 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
     }
 
     // update progress meter
-    update_progress(read_index, n_reads, blocks_complete);
+    update_progress(read_index, n_reads, progress);
   }
   __syncwarp();
 }
 
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportSketchProgress(volatile int *blocks_complete, int k,
+void reportSketchProgress(progress_atomics progress, int k,
                           long long n_reads) {
   long long progress_blocks = 1 << progressBitshift;
   int now_completed = 0;
@@ -296,12 +296,11 @@ void reportSketchProgress(volatile int *blocks_complete, int k,
   if (n_reads > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
       if (PyErr_CheckSignals() != 0) {
-        // I'm ignoring a race condition here
-        *blocks_complete = -1;
+        *progress.kill_kernel = true;
         throw py::error_already_set();
       }
-      if (*blocks_complete > now_completed) {
-        now_completed = *blocks_complete;
+      if (*progress.blocks_complete > now_completed) {
+        now_completed = *progress.blocks_complete;
         kern_progress = now_completed / (float)progress_blocks;
         fprintf(stderr, "%ck = %d (%.1lf%%)", 13, k, kern_progress * 100);
       } else {
@@ -502,9 +501,8 @@ get_signs(DeviceReads &reads, // use seqbuf.as_square_array() to get this
           const uint16_t min_count, const uint64_t binsize,
           const uint64_t nbins) {
   // Progress meter
-  volatile int *blocks_complete;
-  CUDA_CALL(cudaMallocManaged(&blocks_complete, sizeof(int)));
-  *blocks_complete = 0;
+  progress_atomics progress;
+  progress.init();
 
   // Set countmin to zero (already on device)
   countmin.reset();
@@ -526,7 +524,7 @@ get_signs(DeviceReads &reads, // use seqbuf.as_square_array() to get this
                   reads.length() * blockSize * sizeof(char)>>>(
       reads.read_ptr(), reads.count(), reads.length(), reads.stride(), k,
       d_signs, binsize, countmin.get_table(), use_rc, min_count,
-      blocks_complete);
+      progress);
 
   CUDA_CALL(cudaGetLastError());
   reportSketchProgress(blocks_complete, k, reads.count());
@@ -538,6 +536,7 @@ get_signs(DeviceReads &reads, // use seqbuf.as_square_array() to get this
   CUDA_CALL(cudaFree(d_signs));
 
   fprintf(stderr, "%ck = %d (100%%)", 13, k);
+  progress.free();
 
   return (signs);
 }
