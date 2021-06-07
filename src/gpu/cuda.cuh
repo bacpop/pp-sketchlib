@@ -40,7 +40,7 @@ struct progress_atomics {
   }
 
   void free() {
-    CUDA_CALL(cudaFree(blocks_complete));
+    CUDA_CALL(cudaFree((void *)blocks_complete));
     CUDA_CALL(cudaFree(kill_kernel));
   }
 };
