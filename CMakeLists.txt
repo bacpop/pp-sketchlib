@@ -16,17 +16,19 @@ file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"\n")
 set(TARGET_NAME pp_sketchlib)
 add_compile_definitions(PYTHON_EXT)
 
-# Add -O0 to remove optimizations when using gcc
+# gcc: Add openmp
+# gcc: Add -O0 to remove optimizations when using debug
 IF(CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
 endif()

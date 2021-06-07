@@ -75,25 +75,38 @@ std::vector<Reference> create_sketches(
     KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 
     ProgressMeter sketch_progress(names.size());
-    size_t err_count = 0;
-#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+: err_count)
+    bool interrupt = false;
+    std::vector<std::runtime_error> errors;
+#pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads)
     for (unsigned int i = 0; i < names.size(); i++) {
-      if (PyErr_CheckSignals() != 0) {
-        err_count++;
+      if (interrupt || PyErr_CheckSignals() != 0) {
+        interrupt = true;
+      } else {
+        try {
+          SeqBuf seq_in(files[i], kmer_lengths.back());
+          sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
+                                  codon_phased, use_rc, min_count, exact);
+        } catch (const std::runtime_error& e) {
+#pragma omp critical
+          {
+            errors.push_back(e);
+            interrupt = true;
+          }
+        }
       }
-      if (err_count == 0) {
-        SeqBuf seq_in(files[i], kmer_lengths.back());
-        sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
-                                codon_phased, use_rc, min_count, exact);
-      }
-      if (omp_get_thread_num() == 0) {
-        sketch_progress.tick(num_threads);
+
+#pragma omp critical
+      {
+        sketch_progress.tick(1);
       }
     }
     sketch_progress.finalise();
 
     // Handle Ctrl-C from python
-    if (err_count) {
+    if (interrupt) {
+      for (auto i = errors.cbegin(); i != error.cend(); ++i) {
+        std::cout << i->what() << std::endl;
+      }
       throw py::error_already_set();
     }
 
