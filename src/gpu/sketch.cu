@@ -296,11 +296,11 @@ void reportSketchProgress(progress_atomics progress, int k,
   if (n_reads > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
       if (PyErr_CheckSignals() != 0) {
-        *progress.kill_kernel = true;
+        *(progress.kill_kernel) = true;
         throw py::error_already_set();
       }
-      if (*progress.blocks_complete > now_completed) {
-        now_completed = *progress.blocks_complete;
+      if (*(progress.blocks_complete) > now_completed) {
+        now_completed = *(progress.blocks_complete);
         kern_progress = now_completed / (float)progress_blocks;
         fprintf(stderr, "%ck = %d (%.1lf%%)", 13, k, kern_progress * 100);
       } else {

@@ -52,7 +52,9 @@ __device__ inline void update_progress(long long dist_idx, long long dist_n,
   // Progress indicator
   // The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
   if (dist_idx % (dist_n >> progressBitshift) == 0) {
-    assert(progress.kill_kernel);
+    if (*(progress.kill_kernel) == true) {
+      __trap();
+    }
     atomicAdd((int *)progress.blocks_complete, 1);
     __threadfence_system();
   }
