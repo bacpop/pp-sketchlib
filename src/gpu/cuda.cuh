@@ -27,14 +27,35 @@ static void HandleCUDAError(const char *file, int line,
 
 #define CUDA_CALL(err) (HandleCUDAError(__FILE__, __LINE__, err))
 
+// A bit lazy... should be a class and just use the destructor
+struct progress_atomics {
+  volatile int *blocks_complete;
+  bool *kill_kernel;
+
+  void init() {
+    CUDA_CALL(cudaMallocManaged(&blocks_complete, sizeof(int)));
+    CUDA_CALL(cudaMallocManaged(&kill_kernel, sizeof(bool)));
+    *blocks_complete = 0;
+    *kill_kernel = false;
+  }
+
+  void free() {
+    CUDA_CALL(cudaFree((void *)blocks_complete));
+    CUDA_CALL(cudaFree(kill_kernel));
+  }
+};
+
 // Use atomic add to update a counter, so progress works regardless of
 // dispatch order
 __device__ inline void update_progress(long long dist_idx, long long dist_n,
-                                       volatile int *blocks_complete) {
+                                       progress_atomics progress) {
   // Progress indicator
   // The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
   if (dist_idx % (dist_n >> progressBitshift) == 0) {
-    atomicAdd((int *)blocks_complete, 1);
+    if (*(progress.kill_kernel) == true) {
+      __trap();
+    }
+    atomicAdd((int *)progress.blocks_complete, 1);
     __threadfence_system();
   }
 }

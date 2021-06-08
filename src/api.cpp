@@ -8,13 +8,17 @@
 #include <limits>
 
 #include <H5Cpp.h>
+#include <omp.h>
+#include <pybind11/pybind11.h>
 
 #include "api.hpp"
 #include "database/database.hpp"
 #include "gpu/gpu.hpp"
 #include "reference.hpp"
+#include "sketch/progress.hpp"
 
 using namespace Eigen;
+namespace py = pybind11;
 
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
@@ -70,11 +74,43 @@ std::vector<Reference> create_sketches(
     }
     KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 
-#pragma omp parallel for schedule(static) num_threads(num_threads)
+    ProgressMeter sketch_progress(names.size());
+    bool interrupt = false;
+    std::vector<std::runtime_error> errors;
+#pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads)
     for (unsigned int i = 0; i < names.size(); i++) {
-      SeqBuf seq_in(files[i], kmer_lengths.back());
-      sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
-                              codon_phased, use_rc, min_count, exact);
+      if (interrupt || PyErr_CheckSignals() != 0) {
+        interrupt = true;
+      } else {
+        try {
+          SeqBuf seq_in(files[i], kmer_lengths.back());
+          sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
+                                  codon_phased, use_rc, min_count, exact);
+        } catch (const std::runtime_error &e) {
+#pragma omp critical
+          {
+            errors.push_back(e);
+            interrupt = true;
+          }
+        }
+      }
+
+      if (omp_get_thread_num() == 0) {
+        sketch_progress.tick(num_threads);
+      }
+    }
+    sketch_progress.finalise();
+
+    // Handle errors including Ctrl-C from python
+    if (interrupt) {
+      for (auto i = errors.cbegin(); i != errors.cend(); ++i) {
+        std::cout << i->what() << std::endl;
+      }
+      if (errors.size()) {
+        throw std::runtime_error("Errors during sketching");
+      } else {
+        throw py::error_already_set();
+      }
     }
 
     // Save sketches and check for densified sketches
@@ -132,6 +168,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   // These could be the same but out of order, which could be dealt with
   // using a sort, except the return order of the distances wouldn't be as
   // expected. self iff ref_names == query_names as input
+  bool interrupt = false;
   if (ref_sketches == query_sketches) {
     // calculate dists
     size_t dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
@@ -140,24 +177,33 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
-// Iterate upper triangle
+    // Iterate upper triangle
+    ProgressMeter dist_progress(dist_rows, true);
 #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
     for (size_t i = 0; i < ref_sketches.size(); i++) {
-      for (size_t j = i + 1; j < ref_sketches.size(); j++) {
-        size_t pos = square_to_condensed(i, j, ref_sketches.size());
-        if (jaccard) {
-          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-               kmer_idx++) {
-            distMat(pos, kmer_idx) = ref_sketches[i].jaccard_dist(
-                ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
+      if (interrupt || PyErr_CheckSignals() != 0) {
+        interrupt = true;
+      } else {
+        for (size_t j = i + 1; j < ref_sketches.size(); j++) {
+          size_t pos = square_to_condensed(i, j, ref_sketches.size());
+          if (jaccard) {
+            for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
+                kmer_idx++) {
+              distMat(pos, kmer_idx) = ref_sketches[i].jaccard_dist(
+                  ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
+            }
+          } else {
+            std::tie(distMat(pos, 0), distMat(pos, 1)) =
+                ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j], kmer_mat,
+                                                        random_chance);
           }
-        } else {
-          std::tie(distMat(pos, 0), distMat(pos, 1)) =
-              ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j], kmer_mat,
-                                                      random_chance);
+        }
+        if (omp_get_thread_num() == 0) {
+          dist_progress.tick(ref_sketches.size() / 2);
         }
       }
     }
+    dist_progress.finalise();
   } else {
     // If ref != query, make a thread queue, with each element one ref
     // calculate dists
@@ -168,6 +214,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
     std::vector<size_t> query_lengths(query_sketches.size());
     std::vector<uint16_t> query_random_idxs(query_sketches.size());
+
 #pragma omp parallel for simd schedule(static) num_threads(num_threads)
     for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
       query_lengths[q_idx] = query_sketches[q_idx].seq_length();
@@ -175,29 +222,43 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           random_chance.closest_cluster(query_sketches[q_idx]);
     }
 
+    ProgressMeter dist_progress(dist_rows, true);
 #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
     for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
       for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
-        const long dist_row = q_idx * ref_sketches.size() + r_idx;
-        if (jaccard) {
-          for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-               kmer_idx++) {
-            double jaccard_random = random_chance.random_match(
-                ref_sketches[r_idx], query_random_idxs[q_idx],
-                query_lengths[q_idx], kmer_lengths[kmer_idx]);
-            distMat(dist_row, kmer_idx) = query_sketches[q_idx].jaccard_dist(
-                ref_sketches[r_idx], kmer_lengths[kmer_idx], jaccard_random);
-          }
+        if (interrupt || PyErr_CheckSignals() != 0) {
+          interrupt = true;
         } else {
-          std::vector<double> jaccard_random = random_chance.random_matches(
-              ref_sketches[r_idx], query_random_idxs[q_idx],
-              query_lengths[q_idx], kmer_lengths);
-          std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
-              query_sketches[q_idx].core_acc_dist<std::vector<double>>(
-                  ref_sketches[r_idx], kmer_mat, jaccard_random);
+          const long dist_row = q_idx * ref_sketches.size() + r_idx;
+          if (jaccard) {
+            for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
+                kmer_idx++) {
+              double jaccard_random = random_chance.random_match(
+                  ref_sketches[r_idx], query_random_idxs[q_idx],
+                  query_lengths[q_idx], kmer_lengths[kmer_idx]);
+              distMat(dist_row, kmer_idx) = query_sketches[q_idx].jaccard_dist(
+                  ref_sketches[r_idx], kmer_lengths[kmer_idx], jaccard_random);
+            }
+          } else {
+            std::vector<double> jaccard_random = random_chance.random_matches(
+                ref_sketches[r_idx], query_random_idxs[q_idx],
+                query_lengths[q_idx], kmer_lengths);
+            std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
+                query_sketches[q_idx].core_acc_dist<std::vector<double>>(
+                    ref_sketches[r_idx], kmer_mat, jaccard_random);
+          }
+          if (omp_get_thread_num() == 0) {
+            dist_progress.tick(num_threads);
+          }
         }
       }
     }
+    dist_progress.finalise();
+  }
+
+  // Handle Ctrl-C from python
+  if (interrupt) {
+    throw py::error_already_set();
   }
 
   return (distMat);

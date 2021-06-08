@@ -1,0 +1,34 @@
+#pragma once
+
+class ProgressMeter {
+public:
+  ProgressMeter(size_t total, bool percent = false)
+      : total_(total), percent_(percent), count_(0) {
+    tick(0);
+  }
+
+  void tick(size_t blocks) {
+    count_ += blocks;
+    if (percent_) {
+      double progress = count_ / static_cast<double>(total_);
+      progress = progress > 1 ? 1 : progress;
+      fprintf(stderr, "%cProgress (CPU): %.1lf%%", 13, progress * 100);
+    } else {
+      size_t progress = count_ <= total_ ? count_ : total_;
+      fprintf(stderr, "%cProgress (CPU): %lu / %lu", 13, progress, total_);
+    }
+  }
+
+  void finalise() {
+    if (percent_) {
+      fprintf(stderr, "%cProgress (CPU): 100.0%%\n", 13);
+    } else {
+      fprintf(stderr, "%cProgress (CPU): %lu / %lu\n", 13, total_, total_);
+    }
+  }
+
+private:
+  size_t total_;
+  bool percent_;
+  volatile size_t count_;
+};

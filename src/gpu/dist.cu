@@ -19,6 +19,9 @@
 #include <unistd.h>
 #include <vector>
 
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+
 // memcpy_async
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
@@ -140,7 +143,7 @@ __global__ void calculate_dists(
     const float *random_table, const uint16_t *ref_idx_lookup,
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
-    volatile int *blocks_complete, const bool use_shared) {
+    progress_atomics progress, const bool use_shared) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
   if (self) {
@@ -280,7 +283,7 @@ __global__ void calculate_dists(
     simple_linear_regression(dists + dist_idx, dists + dist_n + dist_idx, xsum,
                              ysum, xysum, xsquaresum, ysquaresum, kmer_used);
 
-    update_progress(dist_idx, dist_n, blocks_complete);
+    update_progress(dist_idx, dist_n, progress);
   }
 }
 
@@ -395,14 +398,18 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportDistProgress(volatile int *blocks_complete, long long dist_rows) {
+void reportDistProgress(progress_atomics progress, long long dist_rows) {
   long long progress_blocks = 1 << progressBitshift;
   int now_completed = 0;
   float kern_progress = 0;
   if (dist_rows > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
-      if (*blocks_complete > now_completed) {
-        now_completed = *blocks_complete;
+      if (PyErr_CheckSignals() != 0) {
+        *(progress.kill_kernel) = true;
+        throw py::error_already_set();
+      }
+      if (*(progress.blocks_complete) > now_completed) {
+        now_completed = *(progress.blocks_complete);
         kern_progress = now_completed / (float)progress_blocks;
         fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, kern_progress * 100);
       } else {
@@ -446,9 +453,8 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
   CUDA_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
 
   // Progress meter
-  volatile int *blocks_complete;
-  CUDA_CALL(cudaMallocManaged(&blocks_complete, sizeof(int)));
-  *blocks_complete = 0;
+  progress_atomics progress;
+  progress.init();
 
   RandomStrides random_strides = std::get<0>(flat_random);
   long long dist_rows;
@@ -494,7 +500,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.ref_random(), ref_strides, ref_strides, random_strides,
-        blocks_complete, use_shared);
+        progress, use_shared);
   } else {
     std::tie(blockSize, blockCount) =
         getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size,
@@ -509,13 +515,14 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.query_random(), ref_strides, query_strides,
-        random_strides, blocks_complete, use_shared);
+        random_strides, progress, use_shared);
   }
 
   // Check for error in kernel launch
   CUDA_CALL(cudaGetLastError());
-  reportDistProgress(blocks_complete, dist_rows);
+  reportDistProgress(progress, dist_rows);
   fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
+  progress.free();
 
   // Copy results back to host
   CUDA_CALL(cudaDeviceSynchronize());

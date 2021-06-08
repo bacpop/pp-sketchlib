@@ -16,17 +16,19 @@ file(WRITE src/version.h "\#define SKETCH_VERSION \"${sketch_hash}\"\n")
 set(TARGET_NAME pp_sketchlib)
 add_compile_definitions(PYTHON_EXT)
 
-# Add -O0 to remove optimizations when using gcc
+# gcc: Add openmp
+# gcc: Add -O0 to remove optimizations when using debug
 IF(CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 if(UNIX AND NOT APPLE)
     if(CMAKE_CXX_COMPILER STREQUAL "icpc")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fast -xCASCADELAKE -DMKL_ILP64 -m64 -static-intel")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS")
         set(CMAKE_LD_FLAGS "${CMAKE_LDFLAGS} -Wl,--as-needed")
     endif()
 endif()
@@ -75,7 +77,7 @@ if(CMAKE_CUDA_COMPILER)
 
     add_compile_definitions(GPU_AVAILABLE)
     add_library("${TARGET_NAME}_CUDA" OBJECT src/gpu/dist.cu src/gpu/sketch.cu)
-    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}")
+    target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}" "${pybind11_INCLUDE_DIRS}")
     set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
                  CUDA_SEPARABLE_COMPILATION ON
@@ -104,10 +106,13 @@ target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/random/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
-    INTERPROCEDURAL_OPTIMIZATION TRUE
     PREFIX "${PYTHON_MODULE_PREFIX}"
     SUFFIX "${PYTHON_MODULE_EXTENSION}"
 )
+if(UNIX AND (NOT APPLE OR NOT CMAKE_COMPILER_IS_GNUCC))
+    set_target_properties("${TARGET_NAME}" PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION ON)
+endif()
 
 # Link libraries
 if(CMAKE_CUDA_COMPILER)
