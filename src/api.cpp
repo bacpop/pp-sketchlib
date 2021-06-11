@@ -180,7 +180,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     // Iterate upper triangle
     ProgressMeter dist_progress(dist_rows, true);
 #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
-    for (size_t i = ref_sketches.size() - 1; i >= 0; --i) {
+    for (size_t i = ref_sketches.size() - 2; i >= 0; --i) {
       if (interrupt || PyErr_CheckSignals() != 0) {
         interrupt = true;
       } else {
