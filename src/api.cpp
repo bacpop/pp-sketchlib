@@ -179,8 +179,8 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 
     // Iterate upper triangle
     ProgressMeter dist_progress(dist_rows, true);
-#pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
-    for (size_t i = ref_sketches.size() - 2; i >= 0; --i) {
+#pragma omp parallel for schedule(guided, 1) num_threads(num_threads)
+    for (size_t i = ref_sketches.size() - 2; i >= 0; i--) {
       if (interrupt || PyErr_CheckSignals() != 0) {
         interrupt = true;
       } else {
@@ -200,7 +200,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
         }
         if (omp_get_thread_num() == 0) {
           dist_progress.tick_count(
-              square_to_condensed(i, i, ref_sketches.size()));
+              dist_rows - square_to_condensed(i, i, ref_sketches.size()));
         }
       }
     }
