@@ -180,7 +180,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     // Iterate upper triangle
     ProgressMeter dist_progress(dist_rows, true);
 #pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
-    for (size_t i = 0; i < ref_sketches.size(); i++) {
+    for (size_t i = ref_sketches.size() - 1; i >= 0; --i) {
       if (interrupt || PyErr_CheckSignals() != 0) {
         interrupt = true;
       } else {
@@ -188,18 +188,19 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           size_t pos = square_to_condensed(i, j, ref_sketches.size());
           if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-                kmer_idx++) {
+                 kmer_idx++) {
               distMat(pos, kmer_idx) = ref_sketches[i].jaccard_dist(
                   ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
             }
           } else {
             std::tie(distMat(pos, 0), distMat(pos, 1)) =
-                ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j], kmer_mat,
-                                                        random_chance);
+                ref_sketches[i].core_acc_dist<RandomMC>(
+                    ref_sketches[j], kmer_mat, random_chance);
           }
         }
         if (omp_get_thread_num() == 0) {
-          dist_progress.tick(ref_sketches.size() / 2);
+          dist_progress.tick_count(
+              square_to_condensed(i, i, ref_sketches.size()));
         }
       }
     }
@@ -232,7 +233,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           const long dist_row = q_idx * ref_sketches.size() + r_idx;
           if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-                kmer_idx++) {
+                 kmer_idx++) {
               double jaccard_random = random_chance.random_match(
                   ref_sketches[r_idx], query_random_idxs[q_idx],
                   query_lengths[q_idx], kmer_lengths[kmer_idx]);

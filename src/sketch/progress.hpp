@@ -7,8 +7,8 @@ public:
     tick(0);
   }
 
-  void tick(size_t blocks) {
-    count_ += blocks;
+  void tick_count(size_t count) {
+    count_ = count;
     if (percent_) {
       double progress = count_ / static_cast<double>(total_);
       progress = progress > 1 ? 1 : progress;
@@ -17,6 +17,10 @@ public:
       size_t progress = count_ <= total_ ? count_ : total_;
       fprintf(stderr, "%cProgress (CPU): %lu / %lu", 13, progress, total_);
     }
+  }
+
+  void tick(size_t blocks) {
+    tick_count(count_ + blocks);
   }
 
   void finalise() {
