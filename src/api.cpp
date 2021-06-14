@@ -20,6 +20,8 @@
 using namespace Eigen;
 namespace py = pybind11;
 
+const int progressBitshift = 10;
+
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
   Database db1(db1_name + ".h5");
@@ -178,9 +180,10 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
     // Iterate upper triangle
-    ProgressMeter dist_progress(dist_rows, true);
-#pragma omp parallel for schedule(guided, 1) num_threads(num_threads)
-    for (size_t i = ref_sketches.size() - 2; i >= 0; i--) {
+    ProgressMeter dist_progress(1 << progressBitshift, true);
+    int progress = 0;
+#pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads)
+    for (size_t i = 0; i < ref_sketches.size(); i++) {
       if (interrupt || PyErr_CheckSignals() != 0) {
         interrupt = true;
       } else {
@@ -197,10 +200,13 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                 ref_sketches[i].core_acc_dist<RandomMC>(
                     ref_sketches[j], kmer_mat, random_chance);
           }
-        }
-        if (omp_get_thread_num() == 0) {
-          dist_progress.tick_count(
-              dist_rows - square_to_condensed(i, i, ref_sketches.size()));
+          if (pos % (dist_rows >> progressBitshift) == 0) {
+#pragma omp atomic
+            {
+              progress++;
+            }
+            dist_progress.tick(1);
+          }
         }
       }
     }
