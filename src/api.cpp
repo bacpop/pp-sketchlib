@@ -20,6 +20,8 @@
 using namespace Eigen;
 namespace py = pybind11;
 
+const int progressBitshift = 10;
+
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
   Database db1(db1_name + ".h5");
@@ -177,9 +179,18 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
+    // Set up progress meter
+    size_t progress_blocks = 1 << progressBitshift;
+    size_t update_every = dist_rows >> progressBitshift;
+    if (progress_blocks > dist_rows || update_every < 1) {
+      progress_blocks = dist_rows;
+      update_every = 1;
+    }
+    ProgressMeter dist_progress(progress_blocks, true);
+    int progress = 0;
+
     // Iterate upper triangle
-    ProgressMeter dist_progress(dist_rows, true);
-#pragma omp parallel for simd schedule(guided, 1) num_threads(num_threads)
+#pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads) shared(progress)
     for (size_t i = 0; i < ref_sketches.size(); i++) {
       if (interrupt || PyErr_CheckSignals() != 0) {
         interrupt = true;
@@ -188,18 +199,20 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           size_t pos = square_to_condensed(i, j, ref_sketches.size());
           if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-                kmer_idx++) {
+                 kmer_idx++) {
               distMat(pos, kmer_idx) = ref_sketches[i].jaccard_dist(
                   ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
             }
           } else {
             std::tie(distMat(pos, 0), distMat(pos, 1)) =
-                ref_sketches[i].core_acc_dist<RandomMC>(ref_sketches[j], kmer_mat,
-                                                        random_chance);
+                ref_sketches[i].core_acc_dist<RandomMC>(
+                    ref_sketches[j], kmer_mat, random_chance);
           }
-        }
-        if (omp_get_thread_num() == 0) {
-          dist_progress.tick(ref_sketches.size() / 2);
+          if (pos % update_every == 0) {
+#pragma omp atomic
+              progress++;
+              dist_progress.tick(1);
+          }
         }
       }
     }
@@ -232,7 +245,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           const long dist_row = q_idx * ref_sketches.size() + r_idx;
           if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
-                kmer_idx++) {
+                 kmer_idx++) {
               double jaccard_random = random_chance.random_match(
                   ref_sketches[r_idx], query_random_idxs[q_idx],
                   query_lengths[q_idx], kmer_lengths[kmer_idx]);

@@ -422,7 +422,6 @@ void reportDistProgress(progress_atomics progress, long long dist_rows) {
 // Initialise device and return info on its memory
 std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
   CUDA_CALL(cudaSetDevice(device_id));
-  CUDA_CALL(cudaDeviceReset());
 
   size_t mem_free = 0;
   size_t mem_total = 0;
