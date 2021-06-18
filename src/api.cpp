@@ -179,9 +179,17 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
-    // Iterate upper triangle
-    ProgressMeter dist_progress(1 << progressBitshift, true);
+    // Set up progress meter
+    size_t progress_blocks = 1 << progressBitshift;
+    size_t update_every = dist_rows >> progressBitshift;
+    if (progress_blocks < dist_rows) {
+      progress_blocks = dist_rows;
+      update_every = 1;
+    }
+    ProgressMeter dist_progress(progress_blocks, true);
     int progress = 0;
+
+    // Iterate upper triangle
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads) shared(progress)
     for (size_t i = 0; i < ref_sketches.size(); i++) {
       if (interrupt || PyErr_CheckSignals() != 0) {
@@ -200,7 +208,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                 ref_sketches[i].core_acc_dist<RandomMC>(
                     ref_sketches[j], kmer_mat, random_chance);
           }
-          if (pos % (dist_rows >> progressBitshift) == 0) {
+          if (pos % update_every == 0) {
 #pragma omp atomic
               progress++;
               dist_progress.tick(1);
