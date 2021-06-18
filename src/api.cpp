@@ -182,7 +182,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     // Set up progress meter
     size_t progress_blocks = 1 << progressBitshift;
     size_t update_every = dist_rows >> progressBitshift;
-    if (progress_blocks > dist_rows) {
+    if (progress_blocks > dist_rows || update_every < 1) {
       progress_blocks = dist_rows;
       update_every = 1;
     }
