@@ -149,7 +149,7 @@ public:
   bool next_buffer();
 
   char *read_ptr() { return d_reads; }
-  size_t count() const { return n_reads; }
+  size_t buffer_count() const { return buffer_filled; }
   size_t length() const { return read_length; }
   size_t stride() const { return read_stride; }
 
@@ -167,6 +167,7 @@ private:
   size_t buffer_size;
   size_t buffer_blocks;
   size_t current_block;
+  size_t buffer_filled;
 
   cudaStream_t memory_stream;
 };
