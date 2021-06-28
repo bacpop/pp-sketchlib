@@ -136,16 +136,17 @@ private:
 
   const unsigned int _table_width_bits;
   const uint64_t _mask;
-  const uint32_t _table_width;
   const int _hash_per_hash;
   const int _table_rows;
-  const size_t _table_cells;
+  const uint64_t _table_cells;
 };
 
 class DeviceReads {
 public:
   DeviceReads(const SeqBuf &seq_in, const size_t n_threads);
   ~DeviceReads();
+
+  bool next_buffer();
 
   char *read_ptr() { return d_reads; }
   size_t count() const { return n_reads; }
@@ -158,9 +159,16 @@ private:
   DeviceReads(DeviceReads &&) = delete;
 
   char *d_reads;
+  std::vector<char> host_buffer;
+  std::unique_ptr<SeqBuf> seq;
+
   size_t n_reads;
   size_t read_length;
-  size_t read_stride;
+  size_t buffer_size;
+  size_t buffer_blocks;
+  size_t current_block;
+
+  cudaStream_t memory_stream;
 };
 
 void copyNtHashTablesToDevice();

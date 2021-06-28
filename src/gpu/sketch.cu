@@ -145,20 +145,19 @@ __device__ inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
   return (tVal);
 }
 
-// parameters - these are currently hard coded based on a short bacterial genome
-const unsigned int table_width_bits = 27; // 2^27 + 1 = 134217729 =~ 134M
-constexpr uint64_t mask{0x7FFFFFF};       // 27 lowest bits ON
-const uint32_t table_width = static_cast<uint32_t>(mask);
+// parameters - these are currently hard coded based on a 3090 (24Gb RAM)
+const unsigned int table_width_bits = 31; // 2^31 + 1 = 2147483649 =~ 2.1 billion k-mers
+constexpr uint64_t table_width{0x7FFFFFFF};       // 31 lowest bits ON
 const int hash_per_hash =
     2; // This should be 2, or the table is likely too narrow
 const int table_rows =
     4; // Number of hashes, should be a multiple of hash_per_hash
-constexpr size_t table_cells = table_rows * table_width;
+constexpr uint64_t table_cells = table_rows * table_width;
 
 // Countmin
 // See countmin.cpp
 GPUCountMin::GPUCountMin()
-    : _table_width_bits(table_width_bits), _mask(mask),
+    : _table_width_bits(table_width_bits),
       _table_width(table_width), _hash_per_hash(hash_per_hash),
       _table_rows(table_rows), _table_cells(table_cells) {
   CUDA_CALL(cudaMalloc((void **)&_d_countmin_table,
@@ -175,7 +174,7 @@ __device__ unsigned int add_count_min(unsigned int *d_countmin_table,
   for (int hash_nr = 0; hash_nr < table_rows; hash_nr += hash_per_hash) {
     uint64_t current_hash = hash_val;
     for (uint i = 0; i < hash_per_hash; i++) {
-      uint32_t hash_val_masked = current_hash & mask;
+      uint32_t hash_val_masked = current_hash & table_width;
       unsigned int cell_count =
           atomicInc(d_countmin_table + (hash_nr + i) * table_width +
                         hash_val_masked,
@@ -311,18 +310,62 @@ void reportSketchProgress(progress_atomics progress, int k,
 }
 
 DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
-    : n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
-      read_stride(seq_in.n_full_seqs_padded()) {
+    : seq(std::move(seq_in)),
+      n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
+      current_block(0), buffer_filled(0) {
 
-  std::vector<char> flattened_reads = seq_in.as_square_array(n_threads);
-  CUDA_CALL(
-      cudaMalloc((void **)&d_reads, flattened_reads.size() * sizeof(char)));
-  CUDA_CALL(cudaMemcpy(d_reads, flattened_reads.data(),
-                       flattened_reads.size() * sizeof(char),
-                       cudaMemcpyDefault));
+  // Set up buffer to load in reads (on host)
+  size_t mem_free = 0;
+  size_t mem_total = 0;
+  CUDA_CALL(cudaMemGetInfo(&mem_free, &mem_total));
+  buffer_size = (mem_free * 0.9) / read_length;
+  buffer_blocks = std::floor(n_reads / (static_cast<double>(buffer_size) + 1)) + 1;
+  if (buffer_size > n_reads) {
+    buffer_size = n_reads;
+    buffer_blocks = 1;
+  }
+  host_buffer.resize(buffer_size * read_length);
+  CUDA_CALL(cudaHostRegister(host_buffer.data(),
+            host_buffer.size() * sizeof(char),
+            cudaHostRegisterDefault));
+
+  // Buffer to store reads (on device)
+  CUDA_CALL(cudaMalloc((void **)&d_reads, buffer_size * sizeof(char)));
+
+  CUDA_CALL(cudaStreamCreate(&memory_stream));
 }
 
-DeviceReads::~DeviceReads() { CUDA_CALL(cudaFree(d_reads)); }
+DeviceReads::~DeviceReads() {
+  CUDA_CALL(cudaHostUnregister(host_buffer.data()));
+  CUDA_CALL(cudaFree(d_reads));
+  CUDA_CALL(cudaStreamDestroy(memory_stream))
+}
+
+bool DeviceReads::next_buffer() {
+  bool success;
+  if (current_block < buffer_blocks) {
+    size_t start = current_block * buffer_size;
+    size_t end = (current_block + 1) * buffer_size;
+    if (end > seq->n_full_seqs()) {
+      end = seq->n_full_seqs();
+    }
+    buffer_filled = end - start;
+
+    seq->load_seqs(host_buffer, start, end);
+    CUDA_CALL(cudaMemcpyAsync(d_reads,
+                              host_buffer.data(),
+                              buffer_filled * sizeof(char),
+                              cudaMemcpyDefault,
+                              memory_stream));
+
+    current_block++;
+    success = true;
+  } else {
+    buffer_filled = 0;
+    success = false;
+  }
+  return success;
+}
 
 void copyNtHashTablesToDevice() {
   CUDA_CALL(

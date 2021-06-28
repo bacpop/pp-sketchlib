@@ -60,7 +60,8 @@ public:
     end = current_seq == sequence.end() ? true : false;
   };
   void reset();
-  std::vector<char> as_square_array(const size_t n_threads = 1) const;
+  void load_seqs(std::vector<char>& buffer,
+                 const size_t start, const size_t end) const;
 
 private:
   std::vector<std::string> sequence;
