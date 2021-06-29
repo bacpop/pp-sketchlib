@@ -218,7 +218,7 @@ sketch_gpu(
   const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
   robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
 
-  DeviceReads reads(seq, cpu_threads);
+  DeviceReads reads = load_reads(seq, cpu_threads);
 
   double minhash_sum = 0;
   bool densified = false;

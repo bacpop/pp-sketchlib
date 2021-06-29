@@ -119,32 +119,10 @@ private:
   float *d_dist_mat;
 };
 
-// defined in sketch.cu
-class GPUCountMin {
-public:
-  GPUCountMin();
-  ~GPUCountMin();
-
-  unsigned int *get_table() { return _d_countmin_table; }
-
-  void reset();
-
-private:
-  // delete move and copy to avoid accidentally using them
-  GPUCountMin(const GPUCountMin &) = delete;
-  GPUCountMin(GPUCountMin &&) = delete;
-
-  unsigned int *_d_countmin_table;
-
-  const unsigned int _table_width_bits;
-  const uint64_t _table_width;
-  const int _hash_per_hash;
-  const int _table_rows;
-  const uint64_t _table_cells;
-};
-
 class DeviceReads;
+class GPUCountMin;
 
+DeviceReads load_reads(const SeqBuf &seq_in, const size_t n_threads);
 void copyNtHashTablesToDevice();
 
 std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
