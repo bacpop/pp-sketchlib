@@ -143,8 +143,8 @@ __device__ inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
 }
 
 // parameters - these are currently hard coded based on a 3090 (24Gb RAM)
-const unsigned int table_width_bits = 31; // 2^31 + 1 = 2147483649 =~ 2.1 billion k-mers
-constexpr uint64_t table_width{0x7FFFFFFF};       // 31 lowest bits ON
+const unsigned int table_width_bits = 30; // 2^30 + 1 = 1073741825 =~ 1 billion k-mers
+constexpr uint64_t table_width{0x3FFFFFFF};       // 30 lowest bits ON
 const int hash_per_hash =
     2; // This should be 2, or the table is likely too narrow
 const int table_rows =
