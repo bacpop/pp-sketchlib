@@ -11,10 +11,6 @@
 #include <memory>
 #include <vector>
 
-#ifdef GPU_AVAILABLE
-#include <cuda_runtime.h>
-#endif
-
 #include "reference.hpp"
 
 static const int warp_size = 32;

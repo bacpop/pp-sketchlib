@@ -58,6 +58,7 @@ public:
     } else {
       success = false;
     }
+    return success;
   }
 
   void reset_buffer() { current_block = 0; }
