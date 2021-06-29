@@ -513,11 +513,10 @@ get_signs(DeviceReads &reads,
   const size_t blockSize = 64;
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
-    CUDA_CALL(
-      process_reads<<<blockCount,
-                    blockSize,
-                    reads.length() * blockSize * sizeof(char),
-                    reads.steam()>>>(
+    process_reads<<<blockCount,
+                  blockSize,
+                  reads.length() * blockSize * sizeof(char),
+                  reads.stream()>>>(
       reads.read_ptr(),
       reads.buffer_count(),
       reads.length(),
@@ -526,7 +525,9 @@ get_signs(DeviceReads &reads,
       binsize,
       countmin.get_table(),
       use_rc,
-      min_count));
+      min_count
+    );
+    CUDA_CALL(cudaGetLastError());
 
     // Check for interrupt
     if (PyErr_CheckSignals() != 0) {
