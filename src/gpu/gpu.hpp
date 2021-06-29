@@ -135,7 +135,7 @@ private:
   unsigned int *_d_countmin_table;
 
   const unsigned int _table_width_bits;
-  const uint64_t _mask;
+  const uint64_t _table_width;
   const int _hash_per_hash;
   const int _table_rows;
   const uint64_t _table_cells;

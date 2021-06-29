@@ -12,8 +12,8 @@
 namespace py = pybind11;
 
 // memcpy_async
-#include <cuda/barrier>
 #include <cooperative_groups.h>
+#include <cooperative_groups/memcpy_async.h>
 #pragma diag_suppress static_var_with_dynamic_init
 
 #include "cuda.cuh"
@@ -262,7 +262,7 @@ __global__ void process_reads(char *read_seq,
 }
 
 DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
-    : seq(std::move(seq_in)),
+    : seq(make_unique<SeqBuf>(seq_in)),
       n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
       current_block(0), buffer_filled(0) {
 
