@@ -227,7 +227,7 @@ __global__ void process_reads(char *read_seq,
   auto block = cooperative_groups::this_thread_block();
   cooperative_groups::memcpy_async(
     block,
-    &read_shared,
+    read_shared,
     read_seq + read_length * (blockIdx.x * blockDim.x),
     sizeof(char) * read_length * blockDim.x);
   cooperative_groups::wait(block);
@@ -262,7 +262,7 @@ __global__ void process_reads(char *read_seq,
 }
 
 DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
-    : seq(make_unique<SeqBuf>(seq_in)),
+    : seq(std::make_unique<SeqBuf>(seq_in)),
       n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
       current_block(0), buffer_filled(0) {
 
