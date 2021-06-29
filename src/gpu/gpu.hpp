@@ -8,8 +8,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "reference.hpp"
 
@@ -153,7 +153,7 @@ public:
   size_t buffer_count() const { return buffer_filled; }
   size_t length() const { return read_length; }
 
-  cudaStream_t stream() { return memory_stream; }
+  void *stream() { return memory_stream; }
 
 private:
   // delete move and copy to avoid accidentally using them
@@ -171,7 +171,8 @@ private:
   size_t current_block;
   size_t buffer_filled;
 
-  cudaStream_t memory_stream;
+  // horrible C type because gcc doesn't recongnise cudaStream_t
+  void *memory_stream;
 };
 
 void copyNtHashTablesToDevice();

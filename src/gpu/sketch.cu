@@ -286,13 +286,13 @@ DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
   CUDA_CALL(cudaMalloc((void **)&d_reads,
                         buffer_size * read_length * sizeof(char)));
 
-  CUDA_CALL(cudaStreamCreate(&memory_stream));
+  CUDA_CALL(cudaStreamCreate((cudaStream_t*)memory_stream));
 }
 
 DeviceReads::~DeviceReads() {
   CUDA_CALL(cudaHostUnregister(host_buffer.data()));
   CUDA_CALL(cudaFree(d_reads));
-  CUDA_CALL(cudaStreamDestroy(memory_stream));
+  CUDA_CALL(cudaStreamDestroy(*(cudaStream_t*)memory_stream));
 }
 
 bool DeviceReads::next_buffer() {
@@ -310,7 +310,7 @@ bool DeviceReads::next_buffer() {
                               host_buffer.data(),
                               buffer_filled * read_length * sizeof(char),
                               cudaMemcpyDefault,
-                              memory_stream));
+                              *(cudaStream_t*)memory_stream));
 
     current_block++;
     success = true;
@@ -516,7 +516,7 @@ get_signs(DeviceReads &reads,
     process_reads<<<blockCount,
                   blockSize,
                   reads.length() * blockSize * sizeof(char),
-                  reads.stream()>>>(
+                  *(cudaStream_t*)reads.stream()>>>(
       reads.read_ptr(),
       reads.buffer_count(),
       reads.length(),
