@@ -286,17 +286,21 @@ DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
   CUDA_CALL(cudaMalloc((void **)&d_reads,
                         buffer_size * read_length * sizeof(char)));
 
-  CUDA_CALL(cudaStreamCreate((cudaStream_t*)memory_stream));
+  cudaStream_t* cuda_stream;
+  CUDA_CALL(cudaStreamCreate(cuda_stream));
+  memory_stream = cuda_stream;
 }
 
 DeviceReads::~DeviceReads() {
   CUDA_CALL(cudaHostUnregister(host_buffer.data()));
   CUDA_CALL(cudaFree(d_reads));
-  CUDA_CALL(cudaStreamDestroy(*(cudaStream_t*)memory_stream));
+  cudaStream_t* cuda_stream = memory_stream;
+  CUDA_CALL(cudaStreamDestroy(*cuda_stream));
 }
 
 bool DeviceReads::next_buffer() {
   bool success;
+  cudaStream_t* cuda_stream = memory_stream;
   if (current_block < buffer_blocks) {
     size_t start = current_block * buffer_size;
     size_t end = (current_block + 1) * buffer_size;
@@ -310,7 +314,7 @@ bool DeviceReads::next_buffer() {
                               host_buffer.data(),
                               buffer_filled * read_length * sizeof(char),
                               cudaMemcpyDefault,
-                              *(cudaStream_t*)memory_stream));
+                              *cuda_stream));
 
     current_block++;
     success = true;
@@ -511,12 +515,13 @@ get_signs(DeviceReads &reads,
   //      This runs nthash on read sequence at all k-mer lengths
   //      Check vs signs and countmin on whether to add each
   const size_t blockSize = 64;
+  cudaStream_t *cuda_stream = reads.stream();
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount,
                   blockSize,
                   reads.length() * blockSize * sizeof(char),
-                  *(cudaStream_t*)reads.stream()>>>(
+                  *cuda_stream>>>(
       reads.read_ptr(),
       reads.buffer_count(),
       reads.length(),
