@@ -34,6 +34,22 @@ public:
     CUDA_CALL(cudaStreamDestroy(memory_stream));
   }
 
+  // Move
+  DeviceReads(DeviceReads&& other) :
+    d_reads(other.d_reads),
+    host_buffer(std::move(other.host_buffer)),
+    seq(std::move(other.seq)),
+    n_reads(other.n_reads),
+    read_length(other.read_length),
+    buffer_size(other.buffer_size),
+    buffer_blocks(other.buffer_blocks),
+    current_block(other.current_block),
+    buffer_filled(other.buffer_filled),
+    loaded_first(other.loaded_first),
+    memory_stream(std::move(other.memory_stream)) {
+    other.d_reads = nullptr;
+  }
+
   bool next_buffer() {
     bool success;
     if (current_block < buffer_blocks) {

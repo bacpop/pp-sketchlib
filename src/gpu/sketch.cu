@@ -136,14 +136,6 @@ __device__ inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
   return hVal;
 }
 
-// Create a new hash from an nthash
-__device__ inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
-                                     const unsigned i) {
-  uint64_t tVal = hVal * (i ^ k * multiSeed);
-  tVal ^= tVal >> multiShift;
-  return (tVal);
-}
-
 // bindash functions
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 

@@ -1,4 +1,6 @@
 
+#include "sketch/nthash_tables.hpp"
+
 // parameters - these are currently hard coded based on a 3090 (24Gb RAM)
 const unsigned int table_width_bits = 30; // 2^30 + 1 = 1073741825 =~ 1 billion k-mers
 constexpr uint64_t table_width{0x3FFFFFFF};       // 30 lowest bits ON
@@ -41,6 +43,14 @@ private:
   const int _table_rows;
   const uint64_t _table_cells;
 };
+
+// Create a new hash from an nthash
+__device__ inline uint64_t shifthash(const uint64_t hVal, const unsigned k,
+  const unsigned i) {
+  uint64_t tVal = hVal * (i ^ k * multiSeed);
+  tVal ^= tVal >> multiShift;
+  return (tVal);
+}
 
 // Loop variables are global constants defined in gpu.hpp
 __device__ unsigned int add_count_min(unsigned int *d_countmin_table,
