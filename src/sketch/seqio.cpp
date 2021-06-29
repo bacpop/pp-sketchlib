@@ -11,6 +11,7 @@ KSEQ_INIT(gzFile, gzread)
 
 // C++ headers
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <inttypes.h>
 #include <iostream>

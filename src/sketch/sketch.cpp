@@ -224,7 +224,6 @@ sketch_gpu(
   bool densified = false;
   for (auto k : kmer_lengths)
   {
-    fprintf(stderr, "%ck = %d (%.1lf%%)", 13, static_cast<int>(k), 0.);
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
     std::vector<uint64_t> signs = get_signs(reads, countmin, k,
                                             use_canonical, min_count,

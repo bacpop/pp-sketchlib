@@ -151,7 +151,8 @@ public:
   char *read_ptr() { return d_reads; }
   size_t buffer_count() const { return buffer_filled; }
   size_t length() const { return read_length; }
-  size_t stride() const { return read_stride; }
+
+  cudaStream_t stream() { return memory_stream; }
 
 private:
   // delete move and copy to avoid accidentally using them
