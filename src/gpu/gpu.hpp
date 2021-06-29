@@ -11,6 +11,10 @@
 #include <memory>
 #include <vector>
 
+#ifdef GPU_AVAILABLE
+#include <cuda_runtime.h>
+#endif
+
 #include "reference.hpp"
 
 static const int warp_size = 32;
@@ -36,6 +40,7 @@ struct ALIGN(8) RandomStrides {
 typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
 
 #ifdef GPU_AVAILABLE
+
 // Structure of flattened vectors
 struct ALIGN(16) SketchStrides {
   size_t bin_stride;
@@ -148,12 +153,13 @@ public:
   ~DeviceReads();
 
   bool next_buffer();
+  void reset_buffer();
 
   char *read_ptr() { return d_reads; }
   size_t buffer_count() const { return buffer_filled; }
   size_t length() const { return read_length; }
 
-  void *stream() { return memory_stream; }
+  cudaStream_t stream() { return memory_stream; }
 
 private:
   // delete move and copy to avoid accidentally using them
@@ -170,9 +176,9 @@ private:
   size_t buffer_blocks;
   size_t current_block;
   size_t buffer_filled;
+  bool loaded_first;
 
-  // horrible C type because gcc doesn't recongnise cudaStream_t
-  void *memory_stream;
+  cudaStream_t memory_stream;
 };
 
 void copyNtHashTablesToDevice();

@@ -264,7 +264,7 @@ __global__ void process_reads(char *read_seq,
 DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
     : seq(std::make_unique<SeqBuf>(seq_in)),
       n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
-      current_block(0), buffer_filled(0) {
+      current_block(0), buffer_filled(0), loaded_first(false) {
 
   // Set up buffer to load in reads (on host)
   size_t mem_free = 0;
@@ -286,43 +286,44 @@ DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
   CUDA_CALL(cudaMalloc((void **)&d_reads,
                         buffer_size * read_length * sizeof(char)));
 
-  cudaStream_t* cuda_stream = nullptr;
-  CUDA_CALL(cudaStreamCreate(cuda_stream));
-  memory_stream = cuda_stream;
+  CUDA_CALL(cudaStreamCreate(&memory_stream));
 }
 
 DeviceReads::~DeviceReads() {
   CUDA_CALL(cudaHostUnregister(host_buffer.data()));
   CUDA_CALL(cudaFree(d_reads));
-  cudaStream_t cuda_stream = *static_cast<cudaStream_t*>(memory_stream);
-  CUDA_CALL(cudaStreamDestroy(cuda_stream));
+  CUDA_CALL(cudaStreamDestroy(memory_stream));
 }
 
 bool DeviceReads::next_buffer() {
   bool success;
-  cudaStream_t* cuda_stream = static_cast<cudaStream_t*>(memory_stream);
   if (current_block < buffer_blocks) {
-    size_t start = current_block * buffer_size;
-    size_t end = (current_block + 1) * buffer_size;
-    if (end > seq->n_full_seqs()) {
-      end = seq->n_full_seqs();
+    if (buffer_blocks > 1 || !loaded_first) {
+      size_t start = current_block * buffer_size;
+      size_t end = (current_block + 1) * buffer_size;
+      if (end > seq->n_full_seqs()) {
+        end = seq->n_full_seqs();
+      }
+      buffer_filled = end - start;
+
+      seq->load_seqs(host_buffer, start, end);
+      CUDA_CALL(cudaMemcpyAsync(d_reads,
+                                host_buffer.data(),
+                                buffer_filled * read_length * sizeof(char),
+                                cudaMemcpyDefault,
+                                memory_stream));
+      loaded_first = true;
     }
-    buffer_filled = end - start;
-
-    seq->load_seqs(host_buffer, start, end);
-    CUDA_CALL(cudaMemcpyAsync(d_reads,
-                              host_buffer.data(),
-                              buffer_filled * read_length * sizeof(char),
-                              cudaMemcpyDefault,
-                              *cuda_stream));
-
     current_block++;
     success = true;
   } else {
-    buffer_filled = 0;
     success = false;
   }
   return success;
+}
+
+void DeviceReads::reset_buffer() {
+  current_block = 0;
 }
 
 void copyNtHashTablesToDevice() {
@@ -515,13 +516,13 @@ get_signs(DeviceReads &reads,
   //      This runs nthash on read sequence at all k-mer lengths
   //      Check vs signs and countmin on whether to add each
   const size_t blockSize = 64;
-  cudaStream_t cuda_stream = *static_cast<cudaStream_t*>(reads.stream());
+  reads.reset_buffer();
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
     process_reads<<<blockCount,
                   blockSize,
                   reads.length() * blockSize * sizeof(char),
-                  cuda_stream>>>(
+                  reads.stream()>>>(
       reads.read_ptr(),
       reads.buffer_count(),
       reads.length(),
