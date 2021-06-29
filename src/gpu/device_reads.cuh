@@ -86,9 +86,8 @@ public:
   cudaStream_t stream() { return memory_stream; }
 
 private:
-  // delete move and copy to avoid accidentally using them
+  // delete copy to avoid accidentally using it
   DeviceReads(const DeviceReads &) = delete;
-  DeviceReads(DeviceReads &&) = delete;
 
   char *d_reads;
   std::vector<char> host_buffer;
