@@ -159,9 +159,6 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
                 i + j,
                 cpu_threads);
 
-        fprintf(stderr, "%cSample %lu\tk = %d  ", 13, i + j,
-                static_cast<int>(kmer_lengths.back()));
-
         // Make Reference object, and save in HDF5 DB
         sketches[i + j] = Reference(names[i + j], usigs, def_bbits, sketchsize64,
                                     seq_length, seq_in_batch[j].get_composition(),
@@ -175,6 +172,8 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
                     << std::endl;
         }
       }
+      fprintf(stderr, "%cSample %lu\tk = %d  \n", 13, i + batch_size,
+                static_cast<int>(kmer_lengths.back()));
     }
   }
   return (sketches);

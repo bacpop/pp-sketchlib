@@ -423,7 +423,7 @@ get_signs(DeviceReads &reads,
                        cudaMemcpyDefault));
   CUDA_CALL(cudaFree(d_signs));
 
-  fprintf(stderr, "%cSample %lu\tk = %d  ", 13, sample_n, k);
+  fprintf(stderr, "%cSample %lu\tk = %d  ", 13, sample_n + 1, k);
 
   return (signs);
 }
