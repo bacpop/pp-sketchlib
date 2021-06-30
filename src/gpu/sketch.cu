@@ -404,10 +404,10 @@ get_signs(DeviceReads &reads,
   reads.reset_buffer();
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
+    CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
     process_reads<<<blockCount,
                   blockSize,
-                  reads.length() * blockSize * sizeof(char),
-                  reads.stream()>>>(
+                  reads.length() * blockSize * sizeof(char)>>>(
       reads.read_ptr(),
       reads.buffer_count(),
       reads.length(),
@@ -426,8 +426,7 @@ get_signs(DeviceReads &reads,
     }
   }
 
-  // Copy signs back from device
-  CUDA_CALL(cudaDeviceSynchronize());
+  // Copy signs back from device (memcpy syncs)
   CUDA_CALL(cudaMemcpy(signs.data(), d_signs, nbins * sizeof(uint64_t),
                        cudaMemcpyDefault));
   CUDA_CALL(cudaFree(d_signs));

@@ -76,7 +76,10 @@ if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_FLAGS "${CUDA_OPTS}")
 
     add_compile_definitions(GPU_AVAILABLE)
-    add_library("${TARGET_NAME}_CUDA" OBJECT src/gpu/dist.cu src/gpu/sketch.cu src/gpu/gpu_countmin.cu)
+    add_library("${TARGET_NAME}_CUDA" OBJECT src/gpu/dist.cu
+                                             src/gpu/sketch.cu
+                                             src/gpu/gpu_countmin.cu
+                                             src/gpu/device_reads.cu)
     target_include_directories("${TARGET_NAME}_CUDA" PRIVATE "${EIGEN3_INCLUDE_DIR}" "${pybind11_INCLUDE_DIRS}")
     set_property(TARGET "${TARGET_NAME}_CUDA"
                  PROPERTY POSITION_INDEPENDENT_CODE ON
