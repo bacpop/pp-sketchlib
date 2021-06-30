@@ -159,7 +159,7 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
                 i + j,
                 cpu_threads);
 
-        fprintf(stderr, "%cSample %lu\tk = %d  ", 13, sample_n,
+        fprintf(stderr, "%cSample %lu\tk = %d  ", 13, i + j,
                 static_cast<int>(kmer_lengths.back()));
 
         // Make Reference object, and save in HDF5 DB
