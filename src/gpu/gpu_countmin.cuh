@@ -10,7 +10,7 @@ const int cuda_hash_per_hash =
     2; // This should be 2, or the table is likely too narrow
 const int cuda_table_rows =
     4; // Number of hashes, should be a multiple of hash_per_hash
-constexpr uint64_t cuda_table_cells = table_rows * table_width;
+constexpr uint64_t cuda_table_cells = cuda_table_rows * cuda_table_width;
 
 class GPUCountMin {
 public:
