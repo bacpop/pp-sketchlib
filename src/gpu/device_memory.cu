@@ -1,6 +1,7 @@
 
 #include "device_memory.cuh"
 #include "cuda.cuh"
+#include "gpu.hpp"
 
 // Sets up data structures and loads them onto the device
 DeviceMemory::DeviceMemory(
