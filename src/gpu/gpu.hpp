@@ -119,8 +119,7 @@ private:
   float *d_dist_mat;
 };
 
-class DeviceReads;
-class GPUCountMin;
+class DeviceReads; // device_reads.cuh
 
 DeviceReads load_reads(const SeqBuf &seq_in, const size_t n_threads);
 void copyNtHashTablesToDevice();
