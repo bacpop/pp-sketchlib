@@ -1,5 +1,6 @@
 
 #include "gpu_countmin.cuh"
+#include "cuda.cuh"
 
 GPUCountMin::GPUCountMin()
   : _table_width_bits(table_width_bits),
