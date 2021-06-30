@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "gpu_countmin.cuh"
 #include "reference.hpp"
 
 static const int warp_size = 32;
