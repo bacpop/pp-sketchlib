@@ -18,8 +18,6 @@ namespace py = pybind11;
 
 #include "cuda.cuh"
 #include "gpu.hpp"
-#include "device_reads.cuh"
-#include "gpu_countmin.cuh"
 
 // nthash
 #include "sketch/nthash_tables.hpp"

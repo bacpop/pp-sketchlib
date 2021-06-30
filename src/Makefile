@@ -45,7 +45,7 @@ PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 
 SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sketch.o database/database.o sketch/countmin.o api.o dist/linear_regression.o random/rng.o random/random_match.o
 GPU_SKETCH_OBJS=gpu/gpu_api.o
-CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o gpu/device_reads.cu.o gpu/gpu_countmin.cu.o
+CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o gpu/device_reads.cu.o gpu/gpu_countmin.cu.o gpu/device_memory.o
 
 # web specific options
 web: CXX = emcc
@@ -120,6 +120,9 @@ gpu/dist.cu.o:
 
 gpu/sketch.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c gpu/sketch.cu -o $@
+
+gpu/device_memory.cu.o:
+	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c gpu/device_memory.cu -o $@
 
 gpu/device_reads.cu.o:
 	nvcc $(CUDAFLAGS) $(CPPFLAGS) -DGPU_AVAILABLE -x cu -c gpu/device_reads.cu -o $@

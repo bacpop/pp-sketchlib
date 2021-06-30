@@ -1,7 +1,9 @@
 #pragma once
 
-#include <memory>
+#include <memory> // unique_ptr
 #include <vector>
+
+#include "sketch/seqio.hpp" // SeqBuf
 
 class DeviceReads {
 public:
