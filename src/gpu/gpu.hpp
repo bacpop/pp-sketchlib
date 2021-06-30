@@ -52,6 +52,7 @@ void copyNtHashTablesToDevice();
 std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
                                 const int k, const bool use_rc,
                                 const uint16_t min_count,
-                                const uint64_t binsize, const uint64_t nbins);
+                                const uint64_t binsize, const uint64_t nbins,
+                                const size_t sample_n);
 
 #endif

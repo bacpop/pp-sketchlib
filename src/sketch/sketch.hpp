@@ -42,5 +42,6 @@ sketch_gpu(
     const size_t bbits,
     const bool use_canonical,
     const uint8_t min_count,
+    const size_t sample_n,
     const size_t cpu_threads);
 #endif

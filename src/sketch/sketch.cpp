@@ -212,6 +212,7 @@ sketch_gpu(
     const size_t bbits,
     const bool use_canonical,
     const uint8_t min_count,
+    const size_t sample_n,
     const size_t cpu_threads)
 {
   const uint64_t nbins = sketchsize * NBITS(uint64_t);
@@ -227,7 +228,7 @@ sketch_gpu(
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
     std::vector<uint64_t> signs = get_signs(reads, countmin, k,
                                             use_canonical, min_count,
-                                            binsize, nbins);
+                                            binsize, nbins, sample_n);
 
     minhash_sum += inverse_minhash(signs);
 

@@ -378,7 +378,7 @@ std::vector<uint64_t>
 get_signs(DeviceReads &reads,
           GPUCountMin &countmin, const int k, const bool use_rc,
           const uint16_t min_count, const uint64_t binsize,
-          const uint64_t nbins) {
+          const uint64_t nbins, const size_t sample_n) {
   // Set countmin to zero (already on device)
   countmin.reset();
 
@@ -423,7 +423,7 @@ get_signs(DeviceReads &reads,
                        cudaMemcpyDefault));
   CUDA_CALL(cudaFree(d_signs));
 
-  fprintf(stderr, "%ck = %d  ", 13, k);
+  fprintf(stderr, "%cSample %lu\tk = %d  ", 13, sample_n, k);
 
   return (signs);
 }
