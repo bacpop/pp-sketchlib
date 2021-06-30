@@ -374,12 +374,6 @@ void copyNtHashTablesToDevice() {
   CUDA_CALL(cudaDeviceSynchronize());
 }
 
-// Necessary as this needs to be in a .cu file
-DeviceReads load_reads(const SeqBuf &seq_in, const size_t n_threads) {
-  DeviceReads reads(seq_in, n_threads);
-  return reads;
-}
-
 // main function called here returns signs vector - rest can be done by
 // sketch.cpp
 std::vector<uint64_t>
