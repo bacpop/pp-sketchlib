@@ -7,7 +7,7 @@ GPUCountMin::GPUCountMin()
     _table_width(cuda_table_width), _hash_per_hash(cuda_hash_per_hash),
     _table_rows(cuda_table_rows), _table_cells(cuda_table_cells) {
   CUDA_CALL(cudaMalloc((void **)&_d_countmin_table,
-                      table_cells * sizeof(unsigned int)));
+                       _table_cells * sizeof(unsigned int)));
   reset();
 }
 
