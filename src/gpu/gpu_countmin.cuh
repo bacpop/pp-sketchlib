@@ -3,8 +3,9 @@
 #include "sketch/nthash_tables.hpp"
 
 // parameters - these are currently hard coded based on a 3090 (24Gb RAM)
-const unsigned int table_width_bits = 30; // 2^30 + 1 = 1073741825 =~ 1 billion k-mers
-constexpr uint64_t table_width{0x3FFFFFFF};       // 30 lowest bits ON
+const unsigned int table_width_bits =
+    30; // 2^30 + 1 = 1073741825 =~ 1 billion k-mers
+constexpr uint64_t table_width{0x3FFFFFFF}; // 30 lowest bits ON
 const int hash_per_hash =
     2; // This should be 2, or the table is likely too narrow
 const int table_rows =
@@ -35,4 +36,7 @@ private:
   const uint64_t _table_cells;
 };
 
-
+#ifdef __NVCC__
+__device__ unsigned int add_count_min(unsigned int *d_countmin_table,
+                                      uint64_t hash_val, const int k);
+#endif
