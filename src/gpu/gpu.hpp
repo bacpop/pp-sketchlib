@@ -13,49 +13,11 @@
 
 #include "device_memory.cuh"
 #include "gpu_countmin.cuh"
-#include "reference.hpp"
 #include "device_reads.cuh"
 
 static const int warp_size = 32;
 
-// Align structs
-// https://stackoverflow.com/a/12779757
-#if defined(__CUDACC__) // NVCC
-#define ALIGN(n) __align__(n)
-#elif defined(__GNUC__) // GCC
-#define ALIGN(n) __attribute__((aligned(n)))
-#elif defined(_MSC_VER) // MSVC
-#define ALIGN(n) __declspec(align(n))
-#else
-#error "Please provide a definition for MY_ALIGN macro for your host compiler!"
-#endif
-
-struct ALIGN(8) RandomStrides {
-  size_t kmer_stride;
-  size_t cluster_inner_stride;
-  size_t cluster_outer_stride;
-};
-
-typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
-
 #ifdef GPU_AVAILABLE
-
-// Structure of flattened vectors
-struct ALIGN(16) SketchStrides {
-  size_t bin_stride;
-  size_t kmer_stride;
-  size_t sample_stride;
-  size_t sketchsize64;
-  size_t bbits;
-};
-
-struct ALIGN(8) SketchSlice {
-  size_t ref_offset;
-  size_t ref_size;
-  size_t query_offset;
-  size_t query_size;
-};
-
 // defined in dist.cu
 std::tuple<size_t, size_t, size_t> initialise_device(const int device_id);
 
@@ -84,6 +46,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
                                  const bool self, const int cpu_threads,
                                  const size_t shared_size);
 
+// in sketch.cu
 void copyNtHashTablesToDevice();
 
 std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
