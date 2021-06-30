@@ -1,3 +1,4 @@
+#pragma once
 
 #include "sketch/nthash_tables.hpp"
 
