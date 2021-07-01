@@ -6,7 +6,7 @@
 <!-- badges: end -->
 
 
-Library of sketching functions used by [PopPUNK](https://www.poppunk.net>).
+Library of sketching functions used by [PopPUNK](https://www.poppunk.net>). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
 
 ## Installation
 Install using conda (recommended):
