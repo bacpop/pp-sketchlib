@@ -174,34 +174,40 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
                               const size_t read_length, const int k,
                               uint64_t *signs, const uint64_t binsize,
                               unsigned int *countmin_table, const bool use_rc,
-                              const uint16_t min_count) {
+                              const uint16_t min_count, bool use_shared) {
   // Load reads in block into shared memory
-  extern __shared__ char read_shared[];
-  auto block = cooperative_groups::this_thread_block();
-  cooperative_groups::memcpy_async(
-      block, read_shared, read_seq + read_length * (blockIdx.x * blockDim.x),
-      sizeof(char) * read_length * blockDim.x);
-  cooperative_groups::wait(block);
+  char* read_ptr;
+  if (use_shared) {
+    extern __shared__ char read_shared[];
+    auto block = cooperative_groups::this_thread_block();
+    cooperative_groups::memcpy_async(
+        block, read_shared, read_seq + read_length * (blockIdx.x * blockDim.x),
+        sizeof(char) * read_length * blockDim.x);
+    cooperative_groups::wait(block);
+    read_ptr = read_shared;
+  } else {
+    read_ptr = read_seq + read_length * (blockIdx.x * blockDim.x);
+  }
 
   int read_index = blockIdx.x * blockDim.x + threadIdx.x;
   uint64_t fhVal, rhVal, hVal;
   if (read_index < n_reads) {
     // Get first valid k-mer
     if (use_rc) {
-      NTC64(read_shared + threadIdx.x * read_length, k, fhVal, rhVal, hVal);
+      NTC64(read_ptr + threadIdx.x * read_length, k, fhVal, rhVal, hVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     } else {
-      NT64(read_shared + threadIdx.x * read_length, k, fhVal);
+      NT64(read_ptr + threadIdx.x * read_length, k, fhVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     }
 
     // Roll through remaining k-mers in the read
     for (int pos = 0; pos < read_length - k; pos++) {
-      fhVal = NTF64(fhVal, k, read_shared[threadIdx.x * read_length + pos],
-                    read_shared[threadIdx.x * read_length + pos + k]);
+      fhVal = NTF64(fhVal, k, read_ptr[threadIdx.x * read_length + pos],
+                    read_ptr[threadIdx.x * read_length + pos + k]);
       if (use_rc) {
-        rhVal = NTR64(rhVal, k, read_shared[threadIdx.x * read_length + pos],
-                      read_shared[threadIdx.x * read_length + pos + k]);
+        rhVal = NTR64(rhVal, k, read_ptr[threadIdx.x * read_length + pos],
+                      read_ptr[threadIdx.x * read_length + pos + k]);
         hVal = (rhVal < fhVal) ? rhVal : fhVal;
         binhash(signs, countmin_table, hVal, binsize, k, min_count);
       } else {
@@ -403,18 +409,46 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
   //      Check vs signs and countmin on whether to add each
   const size_t blockSize = 64;
   reads.reset_buffer();
-  while (reads.next_buffer()) {
-    size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
-    CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
-    process_reads<<<blockCount, blockSize,
-                    reads.length() * blockSize * sizeof(char)>>>(
-        reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
-        binsize, countmin.get_table(), use_rc, min_count);
-    CUDA_CALL(cudaGetLastError());
+  try {
+    while (reads.next_buffer()) {
+      size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
+      CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
+      process_reads<<<blockCount, blockSize,
+                      reads.length() * blockSize * sizeof(char)>>>(
+          reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
+          binsize, countmin.get_table(), use_rc, min_count, true);
 
-    // Check for interrupt
-    if (PyErr_CheckSignals() != 0) {
-      throw py::error_already_set();
+      if (cudaGetLastError() != cudaSuccess) {
+        throw std::runtime_error("Error when processing sketches with shared memory");
+      }
+
+      // Check for interrupt
+      if (PyErr_CheckSignals() != 0) {
+        throw py::error_already_set();
+      }
+    }
+  } catch (const std::runtime_error& e) {
+    // There is an occassional issue with memcpy_async I have been unable to
+    // debug. Just using global memory (even though not interleaved) seems
+    // to work. Not sure if this might be a CUDA API issue (testing on 11.1)
+    // but is reproducible,
+    // see:
+    // PD1121-C        read_files/ERR596165_1.fastq.gz read_files/ERR596165_2.fastq.gz
+    // in /media/mirrored-hdd/jlees/Pf
+
+    // Reset memory
+    countmin.reset();
+    reads.reset_buffer();
+    CUDA_CALL(cudaMemset(d_signs, 0, nbins * sizeof(uint64_t)));
+
+    // Try again, but without using __shared__
+    while (reads.next_buffer()) {
+      size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
+      CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
+      process_reads<<<blockCount, blockSize>>>(
+          reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
+          binsize, countmin.get_table(), use_rc, min_count, false);
+      CUDA_CALL(cudaDeviceSynchronize());
     }
   }
 
