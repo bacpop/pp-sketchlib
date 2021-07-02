@@ -124,6 +124,13 @@ def get_options():
                          "range must be between 3 and 101, step must be at least one\n")
         sys.exit(1)
 
+    arguments.cpus = int(arguments.cpus)
+    arguments.gpu = int(arguments.gpu)
+    if int(arguments.gpu) >= 0:
+        arguments.use_gpu = True
+    else:
+        arguments.use_gpu = False
+
     return(arguments)
 
 def main():
@@ -137,11 +144,11 @@ def main():
         sequences = []
 
         if args.file_list:
-          with open(args.file_list, 'rU') as refFile:
-              for refLine in refFile:
-                  refFields = refLine.rstrip().split("\t")
-                  names.append(refFields[0])
-                  sequences.append(list(refFields[1:]))
+            with open(args.file_list, 'rU') as refFile:
+                for refLine in refFile:
+                    refFields = refLine.rstrip().split("\t")
+                    names.append(refFields[0])
+                    sequences.append(list(refFields[1:]))
         else:
             for file in args.files:
                 name = re.sub("/", "_", file)
@@ -153,10 +160,13 @@ def main():
             sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args.ref_db, names, sequences, kmers,
+        pp_sketchlib.constructDatabase(args.ref_db,
+                                       names,
+                                       sequences,
+                                       args.kmers,
                                        int(round(args.sketch_size/64)),
                                        args.codon_phased,
-                                       not args.no_random,
+                                       False,
                                        args.strand,
                                        args.min_count,
                                        args.exact_counter,
