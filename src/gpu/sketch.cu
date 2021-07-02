@@ -139,7 +139,7 @@ const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 // countmin and binsign
 // using unsigned long long int = uint64_t due to atomicCAS prototype
-__device__ void binhash(unsigned long long int *signs, unsigned int *countmin_table,
+__device__ void binhash(uint64_t *signs, unsigned int *countmin_table,
                         const uint64_t hash, const uint64_t binsize,
                         const int k, const uint16_t min_count) {
   unsigned long long int sign = hash % SIGN_MOD;
@@ -152,14 +152,16 @@ __device__ void binhash(unsigned long long int *signs, unsigned int *countmin_ta
   unsigned long long int current_bin_val = signs[binidx];
   if (current_bin_val == UINT64_MAX || sign < current_bin_val) {
     if (add_count_min(countmin_table, hash, k) >= min_count) {
-      unsigned long long int new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
-      // If the bin val has changed since first reading it in, CAS will not write
-      // the new value and will return the new value. In this case, keep trying
-      // as long as it's still the bin minimum
+      unsigned long long int new_bin_val = atomicCAS(
+          (unsigned long long int *)signs + binidx, current_bin_val, sign);
+      // If the bin val has changed since first reading it in, CAS will not
+      // write the new value and will return the new value. In this case, keep
+      // trying as long as it's still the bin minimum
       while (new_bin_val != current_bin_val) {
         current_bin_val = new_bin_val;
         if (sign < current_bin_val) {
-          new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
+          new_bin_val = atomicCAS((unsigned long long int *)signs + binidx,
+                                  current_bin_val, sign);
         }
       }
     }
@@ -168,23 +170,17 @@ __device__ void binhash(unsigned long long int *signs, unsigned int *countmin_ta
 }
 
 // hash iterator object
-__global__ void process_reads(char *read_seq,
-                              const size_t n_reads,
-                              const size_t read_length,
-                              const int k,
-                              uint64_t *signs,
-                              const uint64_t binsize,
-                              unsigned int *countmin_table,
-                              const bool use_rc,
+__global__ void process_reads(char *read_seq, const size_t n_reads,
+                              const size_t read_length, const int k,
+                              uint64_t *signs, const uint64_t binsize,
+                              unsigned int *countmin_table, const bool use_rc,
                               const uint16_t min_count) {
   // Load reads in block into shared memory
   extern __shared__ char read_shared[];
   auto block = cooperative_groups::this_thread_block();
   cooperative_groups::memcpy_async(
-    block,
-    read_shared,
-    read_seq + read_length * (blockIdx.x * blockDim.x),
-    sizeof(char) * read_length * blockDim.x);
+      block, read_shared, read_seq + read_length * (blockIdx.x * blockDim.x),
+      sizeof(char) * read_length * blockDim.x);
   cooperative_groups::wait(block);
 
   int read_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -387,11 +383,11 @@ void copyNtHashTablesToDevice() {
 
 // main function called here returns signs vector - rest can be done by
 // sketch.cpp
-std::vector<uint64_t>
-get_signs(DeviceReads &reads,
-          GPUCountMin &countmin, const int k, const bool use_rc,
-          const uint16_t min_count, const uint64_t binsize,
-          const uint64_t nbins, const size_t sample_n) {
+std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
+                                const int k, const bool use_rc,
+                                const uint16_t min_count,
+                                const uint64_t binsize, const uint64_t nbins,
+                                const size_t sample_n) {
   // Set countmin to zero (already on device)
   countmin.reset();
 
@@ -410,19 +406,10 @@ get_signs(DeviceReads &reads,
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
     CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
-    process_reads<<<blockCount,
-                  blockSize,
-                  reads.length() * blockSize * sizeof(char)>>>(
-      reads.read_ptr(),
-      reads.buffer_count(),
-      reads.length(),
-      k,
-      d_signs,
-      binsize,
-      countmin.get_table(),
-      use_rc,
-      min_count
-    );
+    process_reads<<<blockCount, blockSize,
+                    reads.length() * blockSize * sizeof(char)>>>(
+        reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
+        binsize, countmin.get_table(), use_rc, min_count);
     CUDA_CALL(cudaGetLastError());
 
     // Check for interrupt
