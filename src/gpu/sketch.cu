@@ -138,20 +138,21 @@ __device__ inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 // countmin and binsign
-__device__ void binhash(uint64_t *signs, unsigned int *countmin_table,
+// using unsigned long long int = uint64_t due to atomicCAS prototype
+__device__ void binhash(unsigned long long int *signs, unsigned int *countmin_table,
                         const uint64_t hash, const uint64_t binsize,
                         const int k, const uint16_t min_count) {
-  uint64_t sign = hash % SIGN_MOD;
-  uint64_t binidx = sign / binsize;
+  unsigned long long int sign = hash % SIGN_MOD;
+  unsigned long long int binidx = sign / binsize;
   // printf("binidx:%llu sign:%llu\n", binidx, sign);
 
   // Only consider if the bin is yet to be filled, or is min in bin
   // NB there is a potential race condition here as the bin may be written
   // to by another thread
-  uint64_t current_bin_val = signs[binidx];
+  unsigned long long int current_bin_val = signs[binidx];
   if (current_bin_val == UINT64_MAX || sign < current_bin_val) {
     if (add_count_min(countmin_table, hash, k) >= min_count) {
-      uint64_t new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
+      unsigned long long int new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
       // If the bin val has changed since first reading it in, CAS will not write
       // the new value and will return the new value. In this case, keep trying
       // as long as it's still the bin minimum
