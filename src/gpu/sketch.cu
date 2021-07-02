@@ -146,9 +146,21 @@ __device__ void binhash(uint64_t *signs, unsigned int *countmin_table,
   // printf("binidx:%llu sign:%llu\n", binidx, sign);
 
   // Only consider if the bin is yet to be filled, or is min in bin
-  if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
+  // NB there is a potential race condition here as the bin may be written
+  // to by another thread
+  uint64_t current_bin_val = signs[binidx];
+  if (current_bin_val == UINT64_MAX || sign < current_bin_val) {
     if (add_count_min(countmin_table, hash, k) >= min_count) {
-      signs[binidx] = sign;
+      uint64_t new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
+      // If the bin val has changed since first reading it in, CAS will not write
+      // the new value and will return the new value. In this case, keep trying
+      // as long as it's still the bin minimum
+      while (new_bin_val != current_bin_val) {
+        current_bin_val = new_bin_val;
+        if (sign < current_bin_val) {
+          new_bin_val = atomicCAS(signs + binidx, current_bin_val, sign);
+        }
+      }
     }
   }
   __syncwarp();
