@@ -42,6 +42,7 @@ public:
     }
     return _version_hash == db2.version();
   }
+  void flush() { _h5_file.flush(); }
 
 private:
   HighFive::File _h5_file;

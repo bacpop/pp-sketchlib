@@ -409,46 +409,21 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
   //      Check vs signs and countmin on whether to add each
   const size_t blockSize = 64;
   reads.reset_buffer();
-  try {
-    while (reads.next_buffer()) {
-      size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
-      CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
-      process_reads<<<blockCount, blockSize,
-                      reads.length() * blockSize * sizeof(char)>>>(
-          reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
-          binsize, countmin.get_table(), use_rc, min_count, true);
+  while (reads.next_buffer()) {
+    size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
+    CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
+    process_reads<<<blockCount, blockSize,
+                    reads.length() * blockSize * sizeof(char)>>>(
+        reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
+        binsize, countmin.get_table(), use_rc, min_count, true);
 
-      if (cudaGetLastError() != cudaSuccess) {
-        throw std::runtime_error("Error when processing sketches with shared memory");
-      }
-
-      // Check for interrupt
-      if (PyErr_CheckSignals() != 0) {
-        throw py::error_already_set();
-      }
+    if (cudaGetLastError() != cudaSuccess) {
+      throw std::runtime_error("Error when processing sketches with shared memory");
     }
-  } catch (const std::runtime_error& e) {
-    // There is an occassional issue with memcpy_async I have been unable to
-    // debug. Just using global memory (even though not interleaved) seems
-    // to work. Not sure if this might be a CUDA API issue (testing on 11.1)
-    // but is reproducible,
-    // see:
-    // PD1121-C        read_files/ERR596165_1.fastq.gz read_files/ERR596165_2.fastq.gz
-    // in /media/mirrored-hdd/jlees/Pf
 
-    // Reset memory
-    countmin.reset();
-    reads.reset_buffer();
-    CUDA_CALL(cudaMemset(d_signs, 0, nbins * sizeof(uint64_t)));
-
-    // Try again, but without using __shared__
-    while (reads.next_buffer()) {
-      size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
-      CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
-      process_reads<<<blockCount, blockSize>>>(
-          reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
-          binsize, countmin.get_table(), use_rc, min_count, false);
-      CUDA_CALL(cudaDeviceSynchronize());
+    // Check for interrupt
+    if (PyErr_CheckSignals() != 0) {
+      throw py::error_already_set();
     }
   }
 

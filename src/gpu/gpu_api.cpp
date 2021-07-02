@@ -147,7 +147,8 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
         robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
         size_t seq_length;
         bool densified;
-        std::tie(usigs, seq_length, densified) =
+        try {
+          std::tie(usigs, seq_length, densified) =
             sketch_gpu(
                 seq_in_batch[j],
                 countmin_filter,
@@ -159,18 +160,28 @@ std::vector<Reference> create_sketches_cuda(const std::string &db_name,
                 i + j,
                 cpu_threads);
 
-        // Make Reference object, and save in HDF5 DB
-        sketches[i + j] = Reference(names[i + j], usigs, def_bbits, sketchsize64,
-                                    seq_length, seq_in_batch[j].get_composition(),
-                                    seq_in_batch[j].missing_bases(), use_rc, densified);
-        sketch_db.add_sketch(sketches[i + j]);
-        if (densified)
-        {
-          std::cerr << "NOTE: "
-                    << names[i + j]
-                    << " required densification"
-                    << std::endl;
-        }
+          // Make Reference object, and save in HDF5 DB
+          sketches[i + j] = Reference(names[i + j], usigs, def_bbits, sketchsize64,
+                                      seq_length, seq_in_batch[j].get_composition(),
+                                      seq_in_batch[j].missing_bases(), use_rc, densified);
+          sketch_db.add_sketch(sketches[i + j]);
+          if (densified)
+          {
+            std::cerr << "NOTE: "
+                      << names[i + j]
+                      << " required densification"
+                      << std::endl;
+          }
+        } catch (const std::runtime_error& e) {
+          // There is an occassional issue with memcpy_async I have been unable to
+          // debug. Just using global memory (even though not interleaved) seems
+          // to work. Not sure if this might be a CUDA API issue (testing on 11.1)
+          // but is reproducible,
+          // see:
+          // PD1121-C        read_files/ERR596165_1.fastq.gz read_files/ERR596165_2.fastq.gz
+          // in /media/mirrored-hdd/jlees/Pf
+          sketch_db.flush()
+          throw std::runtime_error("Error when sketching " + names[i + j]);
       }
       fprintf(stderr, "%cSample %lu\tk = %d  \n", 13, i + batch_size,
                 static_cast<int>(kmer_lengths.back()));
