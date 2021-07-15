@@ -180,9 +180,13 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   if (use_shared) {
     extern __shared__ char read_shared[];
     auto block = cooperative_groups::this_thread_block();
+    size_t n_reads_in_block = blockDim.x;
+    if (blockDim.x * (blockIdx.x + 1) > n_reads) {
+      n_reads_in_block = n_reads - blockDim.x * blockIdx.x;
+    }
     cooperative_groups::memcpy_async(
         block, read_shared, read_seq + read_length * (blockIdx.x * blockDim.x),
-        sizeof(char) * read_length * blockDim.x);
+        sizeof(char) * read_length * n_reads_in_block);
     cooperative_groups::wait(block);
     read_ptr = read_shared;
   } else {
