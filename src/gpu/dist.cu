@@ -168,7 +168,7 @@ __global__ void calculate_dists(
     }
   } else {
     int blocksPerQuery = (ref_n + blockDim.x - 1) / blockDim.x;
-    query_idx = __float2int_rz(__fdividef(blockIdx.x, blocksPerQuery) + 0.001f);
+    query_idx = blockIdx.x / blocksPerQuery;
     ref_idx = (blockIdx.x % blocksPerQuery) * blockDim.x + threadIdx.x;
     dist_idx = query_idx * ref_n + ref_idx;
   }

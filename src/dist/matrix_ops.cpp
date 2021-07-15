@@ -174,7 +174,7 @@ NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
     for (long distIdx = 0; distIdx < qrDists.rows(); distIdx++)
     {
       unsigned long i = distIdx % nrrSamples;
-      unsigned long j = static_cast<size_t>(distIdx / (float)nrrSamples + 0.001f) + nrrSamples;
+      unsigned long j = distIdx / nrrSamples + nrrSamples;
       squareDists(i, j) = qrDists[distIdx];
       squareDists(j, i) = qrDists[distIdx];
     }
