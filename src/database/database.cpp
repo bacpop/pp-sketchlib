@@ -224,7 +224,8 @@ HighFive::File open_h5(const std::string &filename, const bool write)
 }
 
 // Create a new HDF5 file with headline attributes
-Database new_db(const std::string &filename, const bool codon_phased)
+Database new_db(const std::string &filename, const bool use_rc,
+                const bool codon_phased)
 {
   // Restrict scope of HDF5 so it is closed before reopening it
   {
@@ -241,6 +242,10 @@ Database new_db(const std::string &filename, const bool codon_phased)
         sketch_group.createAttribute<bool>("codon_phased",
                                           HighFive::DataSpace::From(codon_phased));
     codon_phased_a.write(codon_phased);
+    HighFive::Attribute use_rc_a =
+        sketch_group.createAttribute<bool>("reverse_complement",
+                                          HighFive::DataSpace::From(use_rc));
+    use_rc_a.write(use_rc);
   }
   return(Database(filename, true));
 }

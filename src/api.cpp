@@ -117,7 +117,7 @@ std::vector<Reference> create_sketches(
 
     // Save sketches and check for densified sketches
     std::cerr << "Writing sketches to file" << std::endl;
-    Database sketch_db = new_db(db_name + ".h5", codon_phased);
+    Database sketch_db = new_db(db_name + ".h5", use_rc, codon_phased);
     for (auto sketch_it = sketches.begin(); sketch_it != sketches.end();
          sketch_it++) {
       sketch_db.add_sketch(*sketch_it);

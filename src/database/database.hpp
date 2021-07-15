@@ -53,4 +53,4 @@ private:
 };
 
 HighFive::File open_h5(const std::string &filename, const bool write = true);
-Database new_db(const std::string &filename, const bool codon_phased);
+Database new_db(const std::string &filename, const bool use_rc, const bool codon_phased);
