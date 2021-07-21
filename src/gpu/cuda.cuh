@@ -26,6 +26,7 @@ static void HandleCUDAError(const char *file, int line,
 }
 
 #define CUDA_CALL(err) (HandleCUDAError(__FILE__, __LINE__, err))
+#define CUDA_CALL_NOTHROW( err ) (err)
 
 // A bit lazy... should be a class and just use the destructor
 struct progress_atomics {

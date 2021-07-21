@@ -17,10 +17,11 @@ DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
     buffer_blocks = 1;
   }
   host_buffer.resize(buffer_size * read_length);
-  CUDA_CALL(cudaHostRegister(
-              host_buffer.data(),
-              host_buffer.size() * sizeof(char),
-              cudaHostRegisterDefault));
+  CUDA_CALL_NOTHROW(
+    cudaHostRegister(
+      host_buffer.data(),
+      host_buffer.size() * sizeof(char),
+      cudaHostRegisterDefault));
 
   // Buffer to store reads (on device)
   CUDA_CALL(cudaMalloc((void **)&d_reads,
@@ -28,8 +29,8 @@ DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
 }
 
 DeviceReads::~DeviceReads() {
-  CUDA_CALL(cudaHostUnregister(host_buffer.data()));
-  CUDA_CALL(cudaFree(d_reads));
+  CUDA_CALL_NOTHROW(cudaHostUnregister(host_buffer.data()));
+  CUDA_CALL_NOTHROW(cudaFree(d_reads));
 }
 
 bool DeviceReads::next_buffer() {

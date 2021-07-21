@@ -220,6 +220,9 @@ sketch_gpu(
   robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
 
   DeviceReads reads(seq, cpu_threads);
+  if (seq.n_full_seqs() == 0) {
+    throw std::runtime_error("Sequence is empty");
+  }
 
   double minhash_sum = 0;
   bool densified = false;

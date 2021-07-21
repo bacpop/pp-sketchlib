@@ -143,12 +143,6 @@ std::vector<Reference> create_sketches_cuda(
                       << std::endl;
           }
         } catch (const std::runtime_error &e) {
-          // There is an occassional issue with memcpy_async I have been unable
-          // to debug. Just using global memory (even though not interleaved)
-          // seems to work. Not sure if this might be a CUDA API issue (testing
-          // on 11.1) but is reproducible, see: PD1121-C
-          // read_files/ERR596165_1.fastq.gz read_files/ERR596165_2.fastq.gz in
-          // /media/mirrored-hdd/jlees/Pf
           sketch_db.flush();
           throw std::runtime_error("Error when sketching " + names[i + j]);
         }
