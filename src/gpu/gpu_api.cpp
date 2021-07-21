@@ -139,8 +139,8 @@ std::vector<Reference> create_sketches_cuda(
           // Make Reference object, and save in HDF5 DB
           sketches[i + j] =
               Reference(names[i + j], usigs, def_bbits, sketchsize64,
-                        seq_length, seq_in_batch[j].get_composition(),
-                        seq_in_batch[j].missing_bases(), use_rc, densified);
+                        seq_length, seq_in_batch[j]->get_composition(),
+                        seq_in_batch[j]->missing_bases(), use_rc, densified);
           auto t2 = std::chrono::high_resolution_clock::now();
           sketch_db.add_sketch(sketches[i + j]);
           auto t3 = std::chrono::high_resolution_clock::now();

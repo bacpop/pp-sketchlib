@@ -206,7 +206,7 @@ sketch(SeqBuf &seq,
 #ifdef GPU_AVAILABLE
 std::tuple<robin_hood::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
 sketch_gpu(
-    std::shared_ptr<SeqBuf>& seq,
+    std::shared_ptr<SeqBuf> seq,
     GPUCountMin &countmin,
     const uint64_t sketchsize,
     const std::vector<size_t> &kmer_lengths,
