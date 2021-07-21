@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <tuple>
+#include <memory>
 
 #include "robin_hood.h"
 
