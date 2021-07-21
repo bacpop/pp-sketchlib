@@ -178,15 +178,24 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   // Load reads in block into shared memory
   char* read_ptr;
   if (use_shared) {
+    // This assumes cudaSharedMemBankSizeFourByte
+    int read_length_bank_pad = read_length + read_length % 4 ? 4 - read_length % 4 : 0;
     extern __shared__ char read_shared[];
     auto block = cooperative_groups::this_thread_block();
     size_t n_reads_in_block = blockDim.x;
     if (blockDim.x * (blockIdx.x + 1) > n_reads) {
       n_reads_in_block = n_reads - blockDim.x * blockIdx.x;
     }
-    cooperative_groups::memcpy_async(
-        block, read_shared, read_seq + read_length * (blockIdx.x * blockDim.x),
-        sizeof(char) * read_length * n_reads_in_block);
+    // TODO: better performance if the reads are padded to 4 bytes
+    // best performance if aligned to 128
+    for (int read_idx = 0; read_idx < n_reads_in_block; ++read_idx) {
+      // Copies one read into shared
+      cooperative_groups::memcpy_async(
+        block,
+        read_shared + read_idx * read_length_bank_pad,
+        read_seq + read_length * (blockIdx.x * blockDim.x + read_idx),
+        sizeof(char) * read_length);
+    }
     cooperative_groups::wait(block);
     read_ptr = read_shared;
   } else {
