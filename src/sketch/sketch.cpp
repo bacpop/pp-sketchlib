@@ -221,10 +221,10 @@ sketch_gpu(
   robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
 
   auto t0 = std::chrono::high_resolution_clock::now();
-  DeviceReads reads(seq, cpu_threads);
-  if (seq.n_full_seqs() == 0) {
+  if (seq->n_full_seqs() == 0) {
     throw std::runtime_error("Sequence is empty");
   }
+  DeviceReads reads(seq, cpu_threads);
   auto t1 = std::chrono::high_resolution_clock::now();
 
   double minhash_sum = 0;
