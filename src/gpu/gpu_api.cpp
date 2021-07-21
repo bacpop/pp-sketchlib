@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <tuple>
 #include <vector>
+#include <memory>
 #include <chrono>
 
 // internal headers
@@ -40,14 +41,14 @@ template <class T> inline T samples_to_rows(const T samples) {
  */
 
 // Read in a batch of sequence data (in parallel)
-std::vector<SeqBuf>
+std::vector<std::shared_ptr<SeqBuf>>
 read_seq_batch(std::vector<std::vector<std::string>>::const_iterator &file_it,
                const size_t batch_size, const size_t max_kmer,
                const size_t cpu_threads) {
-  std::vector<SeqBuf> seq_in_batch(batch_size);
+  std::vector<std::shared_ptr<SeqBuf>> seq_in_batch(batch_size);
 #pragma omp parallel for schedule(static) num_threads(cpu_threads)
   for (size_t j = 0; j < batch_size; j++) {
-    seq_in_batch[j] = SeqBuf(*(file_it + j), max_kmer);
+    seq_in_batch[j] = std::make_shared<SeqBuf>(*(file_it + j), max_kmer);
   }
   file_it += batch_size;
   return seq_in_batch;
@@ -105,7 +106,7 @@ std::vector<Reference> create_sketches_cuda(
       policy = std::launch::deferred;
     }
     auto file_it = files.cbegin();
-    std::future<std::vector<SeqBuf>> seq_reader =
+    std::future<std::vector<std::shared_ptr<SeqBuf>>> seq_reader =
         std::async(std::launch::deferred, &read_seq_batch, std::ref(file_it),
                    batch_size, kmer_lengths.back(), cpu_threads);
 
@@ -115,7 +116,7 @@ std::vector<Reference> create_sketches_cuda(
       batch_size = cap_batch_size(i, files.size(), worker_threads);
 
       // Get the next batch asynchronously
-      std::vector<SeqBuf> seq_in_batch = seq_reader.get();
+      std::vector<std::shared_ptr<SeqBuf>> seq_in_batch = seq_reader.get();
       if (file_it != files.cend()) {
         seq_reader = std::async(
             policy, &read_seq_batch, std::ref(file_it),

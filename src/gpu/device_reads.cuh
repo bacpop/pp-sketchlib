@@ -7,7 +7,7 @@
 
 class DeviceReads {
 public:
-  DeviceReads(const SeqBuf &seq_in, const size_t n_threads);
+  DeviceReads(std::shared_ptr<SeqBuf> seq_in, const size_t n_threads);
   ~DeviceReads();
 
   bool next_buffer();
@@ -24,7 +24,7 @@ private:
 
   char *d_reads;
   std::vector<char> host_buffer;
-  std::unique_ptr<SeqBuf> seq;
+  std::shared_ptr<SeqBuf> seq;
 
   size_t n_reads;
   size_t read_length;

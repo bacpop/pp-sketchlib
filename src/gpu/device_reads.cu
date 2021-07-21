@@ -2,9 +2,9 @@
 #include "device_reads.cuh"
 #include "cuda.cuh"
 
-DeviceReads::DeviceReads(const SeqBuf &seq_in, const size_t n_threads)
-  : seq(std::make_unique<SeqBuf>(seq_in)),
-    n_reads(seq_in.n_full_seqs()), read_length(seq_in.max_length()),
+DeviceReads::DeviceReads(std::shared_ptr<SeqBuf>& seq_ptr, const size_t n_threads)
+  : seq(seq_ptr),
+    n_reads(seq->n_full_seqs()), read_length(seq->max_length()),
     current_block(0), buffer_filled(0), loaded_first(false) {
   // Set up buffer to load in reads (on host)
   size_t mem_free = 0;
