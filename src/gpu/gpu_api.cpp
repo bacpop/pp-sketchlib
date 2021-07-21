@@ -150,7 +150,7 @@ std::vector<Reference> create_sketches_cuda(
           std::chrono::duration<double> i0 = t1 - t0;
           std::chrono::duration<double> i1 = t2 - t1;
           std::chrono::duration<double> i2 = t3 - t2;
-          std::cout << i0.count() << "\t" << i1.count() << "\t" << i2.count() << std::endl;
+          // std::cout << i0.count() << "\t" << i1.count() << "\t" << i2.count() << std::endl;
         } catch (const std::runtime_error &e) {
           sketch_db.flush();
           throw std::runtime_error("Error when sketching " + names[i + j]);

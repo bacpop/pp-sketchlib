@@ -188,6 +188,10 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
     }
     // TODO: better performance if the reads are padded to 4 bytes
     // best performance if aligned to 128
+    // NOTE: I think the optimal thing to do here is to align blockSize lots of reads in
+    // global memory to 128 when reading in, then read in padded to 4 bytes
+    // Then can read in all at once with single memcpy_async with size padded
+    // to align at 128, and individual reads padded to align at 4
     for (int read_idx = 0; read_idx < n_reads_in_block; ++read_idx) {
       // Copies one read into shared
       cooperative_groups::memcpy_async(

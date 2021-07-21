@@ -11,6 +11,7 @@
 #include <exception>
 #include <memory>
 #include <iostream>
+#include <chrono>
 #include "robin_hood.h"
 
 #include "sketch.hpp"
@@ -219,10 +220,12 @@ sketch_gpu(
   const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
   robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
 
+  auto t0 = std::chrono::high_resolution_clock::now();
   DeviceReads reads(seq, cpu_threads);
   if (seq.n_full_seqs() == 0) {
     throw std::runtime_error("Sequence is empty");
   }
+  auto t1 = std::chrono::high_resolution_clock::now();
 
   double minhash_sum = 0;
   bool densified = false;
@@ -240,7 +243,11 @@ sketch_gpu(
     fillusigs(usigs, signs, bbits);
     sketch[k] = usigs;
   }
+  auto t2 = std::chrono::high_resolution_clock::now();
   size_t seq_size = static_cast<size_t>((double)kmer_lengths.size() / minhash_sum);
+  std::chrono::duration<double> i0 = t1 - t0;
+  std::chrono::duration<double> i1 = t2 - t1;
+  std::cout << i0.count() << "\t" << i1.count() << std::endl;
   return (std::make_tuple(sketch, seq_size, densified));
 }
 #endif
