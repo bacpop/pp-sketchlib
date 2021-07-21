@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <tuple>
 #include <vector>
+#include <chrono>
 
 // internal headers
 #include "api.hpp"
@@ -128,20 +129,28 @@ std::vector<Reference> create_sketches_cuda(
         size_t seq_length;
         bool densified;
         try {
+          auto t0 = std::chrono::high_resolution_clock::now();
           std::tie(usigs, seq_length, densified) = sketch_gpu(
               seq_in_batch[j], countmin_filter, sketchsize64, kmer_lengths,
               def_bbits, use_rc, min_count, i + j, cpu_threads);
+          auto t1 = std::chrono::high_resolution_clock::now();
 
           // Make Reference object, and save in HDF5 DB
           sketches[i + j] =
               Reference(names[i + j], usigs, def_bbits, sketchsize64,
                         seq_length, seq_in_batch[j].get_composition(),
                         seq_in_batch[j].missing_bases(), use_rc, densified);
+          auto t2 = std::chrono::high_resolution_clock::now();
           sketch_db.add_sketch(sketches[i + j]);
+          auto t3 = std::chrono::high_resolution_clock::now();
           if (densified) {
             std::cerr << "NOTE: " << names[i + j] << " required densification"
                       << std::endl;
           }
+          std::chrono::duration<double> i0 = t1 - t0;
+          std::chrono::duration<double> i1 = t2 - t1;
+          std::chrono::duration<double> i2 = t3 - t2;
+          std::cout << i0.count() << "\t" << i1.count() << "\t" << i2.count() << std::endl;
         } catch (const std::runtime_error &e) {
           sketch_db.flush();
           throw std::runtime_error("Error when sketching " + names[i + j]);
