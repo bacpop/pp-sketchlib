@@ -180,7 +180,7 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   int read_length_bank_pad = read_length;
   if (use_shared) {
     // This assumes cudaSharedMemBankSizeFourByte
-    const int bank_bytes = 4;
+    const int bank_bytes = 8;
     read_length_bank_pad +=
         read_length % bank_bytes ? bank_bytes - read_length % bank_bytes : 0;
     extern __shared__ char read_shared[];
@@ -195,6 +195,8 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
     // reads in global memory to 128 when reading in, then read in padded to 4
     // bytes Then can read in all at once with single memcpy_async with size
     // padded to align at 128, and individual reads padded to align at 4
+    // NOTE 2: It may just be easiest to pack this into a class/type with
+    // 4 chars when reading, or even a DNA alphabet bit vector
     for (int read_idx = 0; read_idx < n_reads_in_block; ++read_idx) {
       // Copies one read into shared
       cooperative_groups::memcpy_async(
@@ -431,7 +433,7 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
   //      This runs nthash on read sequence at all k-mer lengths
   //      Check vs signs and countmin on whether to add each
   const size_t blockSize = 64;
-  const int bank_bytes = 4;
+  const int bank_bytes = 8;
   const int read_length_bank_pad =
       reads.length() % bank_bytes ? bank_bytes - reads.length() % bank_bytes
                                   : 0;
