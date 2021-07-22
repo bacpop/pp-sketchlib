@@ -181,7 +181,7 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   if (use_shared) {
     // This assumes cudaSharedMemBankSizeFourByte
     const int bank_bytes = 4;
-    int read_length_bank_pad +=
+    read_length_bank_pad +=
         read_length % bank_bytes ? bank_bytes - read_length % bank_bytes : 0;
     extern __shared__ char read_shared[];
     auto block = cooperative_groups::this_thread_block();
@@ -436,7 +436,7 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
       reads.length() + reads.length() % bank_bytes
           ? bank_bytes - reads.length() % bank_bytes
           : 0;
-  const size_t shared_mem_size =
+  size_t shared_mem_size =
       read_length_bank_pad * blockSize * sizeof(char);
   bool use_shared = true;
   if (shared_mem_size > shared_size_available) {
