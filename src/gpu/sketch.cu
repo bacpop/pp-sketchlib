@@ -433,11 +433,10 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
   const size_t blockSize = 64;
   const int bank_bytes = 4;
   const int read_length_bank_pad =
-      reads.length() + reads.length() % bank_bytes
-          ? bank_bytes - reads.length() % bank_bytes
-          : 0;
+      reads.length() % bank_bytes ? bank_bytes - reads.length() % bank_bytes
+                                  : 0;
   size_t shared_mem_size =
-      read_length_bank_pad * blockSize * sizeof(char);
+      (read_length_bank_pad + reads.length()) * blockSize * sizeof(char);
   bool use_shared = true;
   if (shared_mem_size > shared_size_available) {
     use_shared = false;
