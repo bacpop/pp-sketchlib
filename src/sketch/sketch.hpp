@@ -34,5 +34,5 @@ sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
            const uint64_t sketchsize, const std::vector<size_t> &kmer_lengths,
            const size_t bbits, const bool use_canonical,
            const uint8_t min_count, const size_t sample_n,
-           const size_t cpu_threads);
+           const size_t cpu_threads, const size_t shared_size);
 #endif

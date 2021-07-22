@@ -175,7 +175,7 @@ sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
            const uint64_t sketchsize, const std::vector<size_t> &kmer_lengths,
            const size_t bbits, const bool use_canonical,
            const uint8_t min_count, const size_t sample_n,
-           const size_t cpu_threads) {
+           const size_t cpu_threads, const size_t shared_size) {
   const uint64_t nbins = sketchsize * NBITS(uint64_t);
   const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
   robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
@@ -191,8 +191,9 @@ sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
   bool densified = false;
   for (auto k : kmer_lengths) {
     std::vector<uint64_t> usigs(sketchsize * bbits, 0);
-    std::vector<uint64_t> signs = get_signs(
-        reads, countmin, k, use_canonical, min_count, binsize, nbins, sample_n);
+    std::vector<uint64_t> signs =
+        get_signs(reads, countmin, k, use_canonical, min_count, binsize, nbins,
+                  sample_n, shared_size);
 
     minhash_sum += inverse_minhash(signs);
 

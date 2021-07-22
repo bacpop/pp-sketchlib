@@ -82,7 +82,8 @@ std::vector<Reference> create_sketches_cuda(
     Database sketch_db = new_db(db_name + ".h5", use_rc, false);
     sketches.resize(names.size());
 
-    initialise_device(device_id);
+    size_t mem_free, mem_total, shared_size;
+    std::tie(mem_free, mem_total, shared_size) = initialise_device(device_id);
     std::cerr << "Sketching " << files.size() << " read sets on GPU device "
               << device_id << std::endl;
     std::cerr << "also using " << cpu_threads << " CPU cores" << std::endl;
@@ -133,7 +134,7 @@ std::vector<Reference> create_sketches_cuda(
           auto t0 = std::chrono::high_resolution_clock::now();
           std::tie(usigs, seq_length, densified) = sketch_gpu(
               seq_in_batch[j], countmin_filter, sketchsize64, kmer_lengths,
-              def_bbits, use_rc, min_count, i + j, cpu_threads);
+              def_bbits, use_rc, min_count, i + j, cpu_threads, shared_size);
           auto t1 = std::chrono::high_resolution_clock::now();
 
           // Make Reference object, and save in HDF5 DB
