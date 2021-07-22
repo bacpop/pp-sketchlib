@@ -227,11 +227,11 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
     for (int pos = 0; pos < read_length - k; pos++) {
       fhVal =
           NTF64(fhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
-                read_ptr[threadIdx.x * read_length + pos + k]);
+                read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
       if (use_rc) {
         rhVal =
             NTR64(rhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
-                  read_ptr[threadIdx.x * read_length + pos + k]);
+                  read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
         hVal = (rhVal < fhVal) ? rhVal : fhVal;
         binhash(signs, countmin_table, hVal, binsize, k, min_count);
       } else {
