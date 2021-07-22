@@ -177,9 +177,10 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
                               const uint16_t min_count, bool use_shared) {
   // Load reads in block into shared memory
   char* read_ptr;
+  int read_length_bank_pad = read_length;
   if (use_shared) {
     // This assumes cudaSharedMemBankSizeFourByte
-    int read_length_bank_pad = read_length + read_length % 4 ? 4 - read_length % 4 : 0;
+    int read_length_bank_pad += read_length % 4 ? 4 - read_length % 4 : 0;
     extern __shared__ char read_shared[];
     auto block = cooperative_groups::this_thread_block();
     size_t n_reads_in_block = blockDim.x;
@@ -211,19 +212,19 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   if (read_index < n_reads) {
     // Get first valid k-mer
     if (use_rc) {
-      NTC64(read_ptr + threadIdx.x * read_length, k, fhVal, rhVal, hVal);
+      NTC64(read_ptr + threadIdx.x * read_length_bank_pad, k, fhVal, rhVal, hVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     } else {
-      NT64(read_ptr + threadIdx.x * read_length, k, fhVal);
+      NT64(read_ptr + threadIdx.x * read_length_bank_pad, k, fhVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     }
 
     // Roll through remaining k-mers in the read
     for (int pos = 0; pos < read_length - k; pos++) {
-      fhVal = NTF64(fhVal, k, read_ptr[threadIdx.x * read_length + pos],
+      fhVal = NTF64(fhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
                     read_ptr[threadIdx.x * read_length + pos + k]);
       if (use_rc) {
-        rhVal = NTR64(rhVal, k, read_ptr[threadIdx.x * read_length + pos],
+        rhVal = NTR64(rhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
                       read_ptr[threadIdx.x * read_length + pos + k]);
         hVal = (rhVal < fhVal) ? rhVal : fhVal;
         binhash(signs, countmin_table, hVal, binsize, k, min_count);
