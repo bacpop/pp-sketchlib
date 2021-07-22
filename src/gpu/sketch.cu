@@ -149,7 +149,7 @@ __device__ void binhash(uint64_t *signs, unsigned int *countmin_table,
   // Only consider if the bin is yet to be filled, or is min in bin
   // NB there is a potential race condition here as the bin may be written
   // to by another thread
-  unsigned long long int current_bin_val = signs[binidx];
+  unsigned long long int current_bin_val = signs[binidx]; // stall long scoreboard here
   if (current_bin_val == UINT64_MAX || sign < current_bin_val) {
     if (add_count_min(countmin_table, hash, k) >= min_count) {
       unsigned long long int new_bin_val = atomicCAS(
@@ -178,8 +178,9 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
   // Load reads in block into shared memory
   char *read_ptr;
   int read_length_bank_pad = read_length;
+  // TODO: another possible optimisation would be to put signs into shared
+  // may affect occupancy though
   if (use_shared) {
-    // This assumes cudaSharedMemBankSizeFourByte
     const int bank_bytes = 8;
     read_length_bank_pad +=
         read_length % bank_bytes ? bank_bytes - read_length % bank_bytes : 0;
@@ -225,11 +226,11 @@ __global__ void process_reads(char *read_seq, const size_t n_reads,
 
     // Roll through remaining k-mers in the read
     for (int pos = 0; pos < read_length - k; pos++) {
-      fhVal =
+      fhVal = // stall short scoreboard
           NTF64(fhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
                 read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
       if (use_rc) {
-        rhVal =
+        rhVal = // stall short scoreboard
             NTR64(rhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
                   read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
         hVal = (rhVal < fhVal) ? rhVal : fhVal;
@@ -432,7 +433,7 @@ std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
   // Run process_read kernel, looping over reads loaded into buffer
   //      This runs nthash on read sequence at all k-mer lengths
   //      Check vs signs and countmin on whether to add each
-  const size_t blockSize = 64;
+  const size_t blockSize = 32; // best from profiling. Occupancy limited by size of shared mem request
   const int bank_bytes = 8;
   const int read_length_bank_pad =
       reads.length() % bank_bytes ? bank_bytes - reads.length() % bank_bytes
