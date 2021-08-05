@@ -115,12 +115,12 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3.8',
     ],
-    python_requires='>=3.6.0',
+    python_requires='>=3.8.0',
     keywords='bacteria genomics population-genetics k-mer',
     packages=['pp_sketch'],
     entry_points={
         "console_scripts": [
-            'poppunk_sketch = pp_sketch.__main__:main'
+            'sketchlib = pp_sketch.__main__:main'
             ]
     },
     install_requires=['numpy',

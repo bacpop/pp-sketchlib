@@ -5,9 +5,9 @@ Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib sketch <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query <db1> [<db2>] [-o <output>] [--adj-random] [--subset <file>] [--sparse (--kNN <k>|--threshold <max>) [--accessory]] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib join <db1> <db2> -o <output>
-  sketchlib random (add|remove) <db>
+  sketchlib random (add|remove) <db1>
   sketchlib (-h | --help)
   sketchlib (--version)
 
@@ -15,7 +15,7 @@ Options:
   -h --help     Show this help.
   --version     Show version.
 
-  -o            Output prefix.
+  -o             Output prefix.
   --cpus <cpus>  Number of CPU threads to use.
   --gpu <gpu>    Use GPU with specified device ID [default: -1].
 
@@ -29,6 +29,7 @@ Options:
 
   --adj-random  Adjust query matches for their chance of occurring at random
   --subset <file>  Only query samples matching names in file
+
   --sparse  Output query result in sparse (ijv) format
   --kNN <k>  Use k nearest neighbours to sparsify
   --threshold <max>  Remove distances over max to sparsify
@@ -86,7 +87,7 @@ def getSampleNames(db_prefix):
     ref = h5py.File(db_prefix + ".h5", 'r')
     for sample_name in list(ref['sketches'].keys()):
         rList.append(sample_name)
-    return(rList)
+    return rList
 
 def storePickle(rlist, qlist, self, X, pklName):
     """Saves core and accessory distances in a .npy file, names in a .pkl
@@ -114,8 +115,12 @@ def get_options():
     from docopt import docopt
     arguments = docopt(__doc__, version='%(prog)s '+__version__)
 
+    # .h5 is removed from the end of DB names due to sketchlib API
+    arguments.db1 = re.sub(r"\.h5$", "", arguments.db1)
+    arguments.db2 = re.sub(r"\.h5$", "", arguments.db2)
+
     try:
-        (min_k, max_k, k_step) = arguments.k.split(",")
+        (min_k, max_k, k_step) = [int(x) for x in arguments.k.split(",")]
         if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
             raise RuntimeError("Invalid k-mer sizes")
         arguments.kmers = np.arange(int(min_k), int(max_k) + 1, int(k_step))
@@ -124,6 +129,25 @@ def get_options():
                          "range must be between 3 and 101, step must be at least one\n")
         sys.exit(1)
 
+    if arguments.kmer:
+        arguments.kmer = int(arguments.kmer)
+    else:
+        arguments.kmer = 0
+
+    arguments.size = int(round(arguments.size/64))
+    if arguments.min_count:
+        arguments.min_count = int(arguments.min_count)
+    else:
+        arguments.min_count = 0
+
+    if arguments.sparse:
+        if arguments.kNN:
+            arguments.kNN = int(arguments.kNN)
+            arguments.threshold = 0
+        else:
+            arguments.kNN = 0
+            arguments.threshold = int(arguments.threshold)
+
     arguments.cpus = int(arguments.cpus)
     arguments.gpu = int(arguments.gpu)
     if int(arguments.gpu) >= 0:
@@ -131,7 +155,7 @@ def get_options():
     else:
         arguments.use_gpu = False
 
-    return(arguments)
+    return arguments
 
 def main():
     args = get_options()
@@ -160,14 +184,14 @@ def main():
             sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args.ref_db,
+        pp_sketchlib.constructDatabase(args.output,
                                        names,
                                        sequences,
                                        args.kmers,
-                                       int(round(args.sketch_size/64)),
+                                       args.size,
                                        args.codon_phased,
                                        False,
-                                       args.strand,
+                                       not args.single_strand,
                                        args.min_count,
                                        args.exact_counter,
                                        args.cpus,
@@ -179,8 +203,8 @@ def main():
     #
     elif args.join:
         join_name = args.output + ".h5"
-        db1_name = args.ref_db + ".h5"
-        db2_name = args.query_db + ".h5"
+        db1_name = args.db1 + ".h5"
+        db2_name = args.db2 + ".h5"
 
         hdf1 = h5py.File(db1_name, 'r')
         hdf2 = h5py.File(db2_name, 'r')
@@ -213,6 +237,9 @@ def main():
                 sys.stderr.write("Random matches found in one database, which will not be copied\n"
                                  "Use --add-random to recalculate for the joined DB\n")
         except RuntimeError as e:
+            hdf1.close()
+            hdf2.close()
+            hdf_join.close()
             sys.stderr.write("ERROR: " + str(e) + "\n")
             sys.stderr.write("Joining sketches failed\n")
             sys.exit(1)
@@ -227,8 +254,13 @@ def main():
     # Query a database (calculate distances)
     #
     elif args.query:
-        rList = getSampleNames(args.ref_db)
-        qList = getSampleNames(args.query_db)
+        rList = getSampleNames(args.db1)
+
+        if not args.db2:
+            args.db2 = args.db1
+            qList = getSampleNames(args.db2)
+        else:
+            qList = rList
 
         if args.subset != None:
             subset = []
@@ -243,28 +275,35 @@ def main():
                 sys.exit(1)
 
         # Check inputs overlap
-        ref = h5py.File(args.ref_db + ".h5", 'r')
-        query = h5py.File(args.query_db + ".h5", 'r')
+        ref = h5py.File(args.db1 + ".h5", 'r')
+        query = h5py.File(args.db2 + ".h5", 'r')
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
            query['sketches/' + qList[0]].attrs['kmers']
         )
-        if args.read_k:
-            query_kmers = sorted(db_kmers)
-        else:
-            query_kmers = sorted(set(kmers).intersection(db_kmers))
-            if (len(query_kmers) == 0):
-                sys.stderr.write("No requested k-mer lengths found in DB\n")
+        query_kmers = sorted(db_kmers)
+        if args.kmer > 0:
+            if args.kmer not in query_kmers:
+                sys.stderr.write("Selected --kmer is not in both query databases\n")
                 sys.exit(1)
-            elif (len(query_kmers) < len(query_kmers)):
-                sys.stderr.write("Some requested k-mer lengths not found in DB\n")
+            else:
+                query_kmers = [args.kmer]
         ref.close()
         query.close()
 
         if args.sparse:
-            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.ref_db, args.query_db, rList, qList, query_kmers,
-                                                         not args.no_correction, args.threshold, args.kNN,
-                                                         not args.accessory, args.cpus, args.use_gpu, args.gpu_id)
-            if args.print:
+            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.db1,
+                                                         args.db2,
+                                                         rList,
+                                                         qList,
+                                                         query_kmers,
+                                                         args.adj_random,
+                                                         args.threshold,
+                                                         args.kNN,
+                                                         not args.accessory,
+                                                         args.cpus,
+                                                         args.use_gpu,
+                                                         args.gpu_id)
+            if not args.output:
                 if args.accessory:
                     distName = 'Accessory'
                 else:
@@ -280,12 +319,19 @@ def main():
                 storePickle(rList, qList, rList == qList, coo_matrix, args.output)
 
         else:
-            distMat = pp_sketchlib.queryDatabase(args.ref_db, args.query_db, rList, qList, query_kmers,
-                                                 not args.no_correction, args.jaccard, args.cpus, args.use_gpu,
+            distMat = pp_sketchlib.queryDatabase(args.db1,
+                                                 args.db2,
+                                                 rList,
+                                                 qList,
+                                                 query_kmers,
+                                                 not args.adj_random,
+                                                 args.jaccard,
+                                                 args.cpus,
+                                                 args.use_gpu,
                                                  args.gpu_id)
 
             # get names order
-            if args.print:
+            if not args.output:
                 names = iterDistRows(rList, qList, rList == qList)
                 if not args.jaccard:
                     sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
@@ -302,12 +348,16 @@ def main():
     # Add random match chances to an older database
     #
     elif args.add_random:
-        rList = getSampleNames(args.ref_db)
-        ref = h5py.File(args.ref_db + ".h5", 'r')
+        rList = getSampleNames(args.db1)
+        ref = h5py.File(args.db1 + ".h5", 'r')
         db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
         ref.close()
 
-        pp_sketchlib.addRandom(args.ref_db, rList, db_kmers, args.strand, args.cpus)
+        pp_sketchlib.addRandom(args.db1,
+                               rList,
+                               db_kmers,
+                               not args.single_strand,
+                               args.cpus)
 
     sys.exit(0)
 
