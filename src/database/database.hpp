@@ -42,6 +42,7 @@ public:
     }
     return _version_hash == db2.version();
   }
+  void flush() { _h5_file.flush(); }
 
 private:
   HighFive::File _h5_file;
@@ -52,4 +53,4 @@ private:
 };
 
 HighFive::File open_h5(const std::string &filename, const bool write = true);
-Database new_db(const std::string &filename, const bool codon_phased);
+Database new_db(const std::string &filename, const bool use_rc, const bool codon_phased);

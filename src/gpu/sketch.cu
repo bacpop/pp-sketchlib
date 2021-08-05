@@ -138,61 +138,101 @@ __device__ inline uint64_t NTR64(const uint64_t rhVal, const unsigned k,
 const uint64_t SIGN_MOD = (1ULL << 61ULL) - 1ULL;
 
 // countmin and binsign
+// using unsigned long long int = uint64_t due to atomicCAS prototype
 __device__ void binhash(uint64_t *signs, unsigned int *countmin_table,
                         const uint64_t hash, const uint64_t binsize,
                         const int k, const uint16_t min_count) {
-  uint64_t sign = hash % SIGN_MOD;
-  uint64_t binidx = sign / binsize;
+  unsigned long long int sign = hash % SIGN_MOD;
+  unsigned long long int binidx = sign / binsize;
   // printf("binidx:%llu sign:%llu\n", binidx, sign);
 
   // Only consider if the bin is yet to be filled, or is min in bin
-  if (signs[binidx] == UINT64_MAX || sign < signs[binidx]) {
+  // NB there is a potential race condition here as the bin may be written
+  // to by another thread
+  unsigned long long int current_bin_val = signs[binidx]; // stall long scoreboard here
+  if (current_bin_val == UINT64_MAX || sign < current_bin_val) {
     if (add_count_min(countmin_table, hash, k) >= min_count) {
-      signs[binidx] = sign;
+      unsigned long long int new_bin_val = atomicCAS(
+          (unsigned long long int *)signs + binidx, current_bin_val, sign);
+      // If the bin val has changed since first reading it in, CAS will not
+      // write the new value and will return the new value. In this case, keep
+      // trying as long as it's still the bin minimum
+      while (new_bin_val != current_bin_val) {
+        current_bin_val = new_bin_val;
+        if (sign < current_bin_val) {
+          new_bin_val = atomicCAS((unsigned long long int *)signs + binidx,
+                                  current_bin_val, sign);
+        }
+      }
     }
   }
   __syncwarp();
 }
 
 // hash iterator object
-__global__ void process_reads(char *read_seq,
-                              const size_t n_reads,
-                              const size_t read_length,
-                              const int k,
-                              uint64_t *signs,
-                              const uint64_t binsize,
-                              unsigned int *countmin_table,
-                              const bool use_rc,
-                              const uint16_t min_count) {
+__global__ void process_reads(char *read_seq, const size_t n_reads,
+                              const size_t read_length, const int k,
+                              uint64_t *signs, const uint64_t binsize,
+                              unsigned int *countmin_table, const bool use_rc,
+                              const uint16_t min_count, bool use_shared) {
   // Load reads in block into shared memory
-  extern __shared__ char read_shared[];
-  auto block = cooperative_groups::this_thread_block();
-  cooperative_groups::memcpy_async(
-    block,
-    read_shared,
-    read_seq + read_length * (blockIdx.x * blockDim.x),
-    sizeof(char) * read_length * blockDim.x);
-  cooperative_groups::wait(block);
+  char *read_ptr;
+  int read_length_bank_pad = read_length;
+  // TODO: another possible optimisation would be to put signs into shared
+  // may affect occupancy though
+  if (use_shared) {
+    const int bank_bytes = 8;
+    read_length_bank_pad +=
+        read_length % bank_bytes ? bank_bytes - read_length % bank_bytes : 0;
+    extern __shared__ char read_shared[];
+    auto block = cooperative_groups::this_thread_block();
+    size_t n_reads_in_block = blockDim.x;
+    if (blockDim.x * (blockIdx.x + 1) > n_reads) {
+      n_reads_in_block = n_reads - blockDim.x * blockIdx.x;
+    }
+    // TODO: better performance if the reads are padded to 4 bytes
+    // best performance if aligned to 128
+    // NOTE: I think the optimal thing to do here is to align blockSize lots of
+    // reads in global memory to 128 when reading in, then read in padded to 4
+    // bytes Then can read in all at once with single memcpy_async with size
+    // padded to align at 128, and individual reads padded to align at 4
+    // NOTE 2: It may just be easiest to pack this into a class/type with
+    // 4 chars when reading, or even a DNA alphabet bit vector
+    for (int read_idx = 0; read_idx < n_reads_in_block; ++read_idx) {
+      // Copies one read into shared
+      cooperative_groups::memcpy_async(
+          block, read_shared + read_idx * read_length_bank_pad,
+          read_seq + read_length * (blockIdx.x * blockDim.x + read_idx),
+          sizeof(char) * read_length);
+    }
+    cooperative_groups::wait(block);
+    read_ptr = read_shared;
+  } else {
+    read_ptr = read_seq + read_length * (blockIdx.x * blockDim.x);
+  }
 
   int read_index = blockIdx.x * blockDim.x + threadIdx.x;
   uint64_t fhVal, rhVal, hVal;
   if (read_index < n_reads) {
     // Get first valid k-mer
     if (use_rc) {
-      NTC64(read_shared + threadIdx.x * read_length, k, fhVal, rhVal, hVal);
+      NTC64(read_ptr + threadIdx.x * read_length_bank_pad, k, fhVal, rhVal,
+            hVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     } else {
-      NT64(read_shared + threadIdx.x * read_length, k, fhVal);
+      NT64(read_ptr + threadIdx.x * read_length_bank_pad, k, fhVal);
       binhash(signs, countmin_table, hVal, binsize, k, min_count);
     }
 
     // Roll through remaining k-mers in the read
     for (int pos = 0; pos < read_length - k; pos++) {
-      fhVal = NTF64(fhVal, k, read_shared[threadIdx.x * read_length + pos],
-                    read_shared[threadIdx.x * read_length + pos + k]);
+      fhVal = // stall short scoreboard
+          NTF64(fhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
+                read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
       if (use_rc) {
-        rhVal = NTR64(rhVal, k, read_shared[threadIdx.x * read_length + pos],
-                      read_shared[threadIdx.x * read_length + pos + k]);
+        rhVal = // stall short scoreboard
+            NTR64(rhVal, k, read_ptr[threadIdx.x * read_length_bank_pad + pos],
+                  read_ptr[threadIdx.x * read_length_bank_pad + pos + k]);
         hVal = (rhVal < fhVal) ? rhVal : fhVal;
         binhash(signs, countmin_table, hVal, binsize, k, min_count);
       } else {
@@ -374,11 +414,12 @@ void copyNtHashTablesToDevice() {
 
 // main function called here returns signs vector - rest can be done by
 // sketch.cpp
-std::vector<uint64_t>
-get_signs(DeviceReads &reads,
-          GPUCountMin &countmin, const int k, const bool use_rc,
-          const uint16_t min_count, const uint64_t binsize,
-          const uint64_t nbins, const size_t sample_n) {
+std::vector<uint64_t> get_signs(DeviceReads &reads, GPUCountMin &countmin,
+                                const int k, const bool use_rc,
+                                const uint16_t min_count,
+                                const uint64_t binsize, const uint64_t nbins,
+                                const size_t sample_n,
+                                const size_t shared_size_available) {
   // Set countmin to zero (already on device)
   countmin.reset();
 
@@ -392,25 +433,31 @@ get_signs(DeviceReads &reads,
   // Run process_read kernel, looping over reads loaded into buffer
   //      This runs nthash on read sequence at all k-mer lengths
   //      Check vs signs and countmin on whether to add each
-  const size_t blockSize = 64;
+  const size_t blockSize = 32; // best from profiling. Occupancy limited by size of shared mem request
+  const int bank_bytes = 8;
+  const int read_length_bank_pad =
+      reads.length() % bank_bytes ? bank_bytes - reads.length() % bank_bytes
+                                  : 0;
+  size_t shared_mem_size =
+      (read_length_bank_pad + reads.length()) * blockSize * sizeof(char);
+  bool use_shared = true;
+  if (shared_mem_size > shared_size_available) {
+    use_shared = false;
+    shared_mem_size = 0;
+  }
+
   reads.reset_buffer();
   while (reads.next_buffer()) {
     size_t blockCount = (reads.buffer_count() + blockSize - 1) / blockSize;
     CUDA_CALL(cudaDeviceSynchronize()); // Make sure copy is finished
-    process_reads<<<blockCount,
-                  blockSize,
-                  reads.length() * blockSize * sizeof(char)>>>(
-      reads.read_ptr(),
-      reads.buffer_count(),
-      reads.length(),
-      k,
-      d_signs,
-      binsize,
-      countmin.get_table(),
-      use_rc,
-      min_count
-    );
-    CUDA_CALL(cudaGetLastError());
+    process_reads<<<blockCount, blockSize, shared_mem_size>>>(
+        reads.read_ptr(), reads.buffer_count(), reads.length(), k, d_signs,
+        binsize, countmin.get_table(), use_rc, min_count, use_shared);
+
+    if (cudaGetLastError() != cudaSuccess) {
+      throw std::runtime_error(
+          "Error when processing sketches with shared memory");
+    }
 
     // Check for interrupt
     if (PyErr_CheckSignals() != 0) {
