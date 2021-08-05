@@ -1,5 +1,5 @@
 # Copyright 2019-2021 John Lees
-"""sketchlib
+"""sketchlib: fast sketching and core/accessory distance estimation from assemblies and reads
 
 Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
