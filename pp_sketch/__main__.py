@@ -7,7 +7,7 @@ Usage:
   sketchlib query db1 [db2] [-o <output>] [--adj-random] [--subset <file>] [--sparse (--kNN <k>|--threshold <max>) [--accessory]] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query jaccard db1 [db2] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib join db1 db2 -o <output>
-  sketchlib random (add|remove) db1
+  sketchlib (add|remove) random db1 [--cpus <cpus>]
   sketchlib (-h | --help)
   sketchlib (--version)
 
@@ -122,20 +122,20 @@ def get_options():
     if arguments["db2"]:
         arguments["db2"] = re.sub(r"\.h5$", "", arguments["db2"])
 
-    try:
-        (min_k, max_k, k_step) = [int(x) for x in arguments['-k'].split(",")]
-        if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
-            raise RuntimeError("Invalid k-mer sizes")
-        arguments['kmers'] = np.arange(int(min_k), int(max_k) + 1, int(k_step))
-    except:
-        sys.stderr.write("Minimum kmer size must be smaller than maximum kmer size; " +
-                         "range must be between 3 and 101, step must be at least one\n")
-        sys.exit(1)
+
 
     if arguments['--kmer']:
-        arguments['--kmer'] = int(arguments['--kmer'])
+        arguments['kmers'] = [int(arguments['--kmer'])]
     else:
-        arguments['--kmer'] = 0
+        try:
+            (min_k, max_k, k_step) = [int(x) for x in arguments['-k'].split(",")]
+            if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
+                raise RuntimeError("Invalid k-mer sizes")
+            arguments['kmers'] = np.arange(int(min_k), int(max_k) + 1, int(k_step))
+        except:
+            sys.stderr.write("Minimum kmer size must be smaller than maximum kmer size; " +
+                             "range must be between 3 and 101, step must be at least one\n")
+            sys.exit(1)
 
     arguments['-s'] = int(round(float(arguments['-s'])/64))
     arguments['--min-count'] = int(arguments['--min-count'])
@@ -146,7 +146,7 @@ def get_options():
             arguments['--threshold'] = 0
         else:
             arguments['--kNN'] = 0
-            arguments['--threshold'] = int(arguments['--threshold'])
+            arguments['--threshold'] = float(arguments['--threshold'])
 
     arguments['--cpus'] = int(arguments['--cpus'])
     arguments['--gpu'] = int(arguments['--gpu'])
@@ -169,7 +169,7 @@ def main():
         sequences = []
 
         if args['-l']:
-            with open(args.file_list, 'rU') as refFile:
+            with open(args['-l'], 'rU') as refFile:
                 for refLine in refFile:
                     refFields = refLine.rstrip().split("\t")
                     names.append(refFields[0])
@@ -182,7 +182,8 @@ def main():
 
 
         if len(set(names)) != len(names):
-            sys.stderr.write("Input contains duplicate names! All names must be unique\n")
+            sys.stderr.write("Input contains duplicate names. "
+                             "All names must be unique\n")
             sys.exit(1)
 
         pp_sketchlib.constructDatabase(args['-o'],
@@ -282,12 +283,12 @@ def main():
            query['sketches/' + qList[0]].attrs['kmers']
         )
         query_kmers = sorted(db_kmers)
-        if args['--kmer'] > 0:
-            if args['--kmer'] not in query_kmers:
+        if args['jaccard']:
+            if args['kmers'][0] not in query_kmers:
                 sys.stderr.write("Selected --kmer is not in both query databases\n")
                 sys.exit(1)
             else:
-                query_kmers = [args['--kmer']]
+                query_kmers = args['kmers']
         ref.close()
         query.close()
 
@@ -360,8 +361,12 @@ def main():
                                    db_kmers,
                                    not args['--single-strand'],
                                    args['--cpus'])
-        elif args.remove:
-            del ref['random']
+        elif args['remove']:
+            if 'random' in ref:
+                del ref['random']
+            else:
+                sys.stderr.write(args['db1'] + \
+                  " doesn't contain random match chances\n")
             ref.close()
 
     sys.exit(0)
