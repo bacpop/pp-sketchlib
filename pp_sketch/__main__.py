@@ -3,11 +3,11 @@
 
 Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib sketch <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query <db1> [<db2>] [-o <output>] [--adj-random] [--subset <file>] [--sparse (--kNN <k>|--threshold <max>) [--accessory]] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib join <db1> <db2> -o <output>
-  sketchlib random (add|remove) <db1>
+  sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query db1 [db2] [-o <output>] [--adj-random] [--subset <file>] [--sparse (--kNN <k>|--threshold <max>) [--accessory]] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query jaccard db1 [db2] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib join db1 db2 -o <output>
+  sketchlib random (add|remove) db1
   sketchlib (-h | --help)
   sketchlib (--version)
 
@@ -15,7 +15,8 @@ Options:
   -h --help     Show this help.
   --version     Show version.
 
-  -o             Output prefix.
+  -o <output>    Output prefix.
+  -l <file-list> File with a list of input files.
   --cpus <cpus>  Number of CPU threads to use.
   --gpu <gpu>    Use GPU with specified device ID [default: -1].
 
@@ -113,48 +114,48 @@ def storePickle(rlist, qlist, self, X, pklName):
 
 def get_options():
     from docopt import docopt
-    arguments = docopt(__doc__, version='%(prog)s '+__version__)
-
+    arguments = docopt(__doc__, version="pp-sketchlib v"+__version__)
+    print(arguments)
     # .h5 is removed from the end of DB names due to sketchlib API
-    arguments.db1 = re.sub(r"\.h5$", "", arguments.db1)
-    arguments.db2 = re.sub(r"\.h5$", "", arguments.db2)
+    if arguments["db1"]:
+        arguments["db1"] = re.sub(r"\.h5$", "", arguments["db1"])
+    if arguments["db2"]:
+        arguments["db2"] = re.sub(r"\.h5$", "", arguments["db2"])
 
     try:
-        (min_k, max_k, k_step) = [int(x) for x in arguments.k.split(",")]
+        (min_k, max_k, k_step) = [int(x) for x in arguments['-k'].split(",")]
         if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
             raise RuntimeError("Invalid k-mer sizes")
-        arguments.kmers = np.arange(int(min_k), int(max_k) + 1, int(k_step))
+        arguments['kmers'] = np.arange(int(min_k), int(max_k) + 1, int(k_step))
     except:
         sys.stderr.write("Minimum kmer size must be smaller than maximum kmer size; " +
                          "range must be between 3 and 101, step must be at least one\n")
         sys.exit(1)
 
-    if arguments.kmer:
-        arguments.kmer = int(arguments.kmer)
+    if arguments['--kmer']:
+        arguments['--kmer'] = int(arguments['--kmer'])
     else:
-        arguments.kmer = 0
+        arguments['--kmer'] = 0
 
-    arguments.size = int(round(arguments.size/64))
-    if arguments.min_count:
-        arguments.min_count = int(arguments.min_count)
-    else:
-        arguments.min_count = 0
+    arguments['-s'] = int(round(float(arguments['-s'])/64))
+    arguments['--min-count'] = int(arguments['--min-count'])
 
-    if arguments.sparse:
-        if arguments.kNN:
-            arguments.kNN = int(arguments.kNN)
-            arguments.threshold = 0
+    if arguments['--sparse']:
+        if arguments['--kNN']:
+            arguments['--kNN'] = int(arguments['--kNN'])
+            arguments['--threshold'] = 0
         else:
-            arguments.kNN = 0
-            arguments.threshold = int(arguments.threshold)
+            arguments['--kNN'] = 0
+            arguments['--threshold'] = int(arguments['--threshold'])
 
-    arguments.cpus = int(arguments.cpus)
-    arguments.gpu = int(arguments.gpu)
-    if int(arguments.gpu) >= 0:
-        arguments.use_gpu = True
+    arguments['--cpus'] = int(arguments['--cpus'])
+    arguments['--gpu'] = int(arguments['--gpu'])
+    if int(arguments['--gpu']) >= 0:
+        arguments['--use-gpu'] = True
     else:
-        arguments.use_gpu = False
+        arguments['--use-gpu'] = False
 
+    print(arguments)
     return arguments
 
 def main():
@@ -163,48 +164,48 @@ def main():
     #
     # Create a database (sketch input)
     #
-    if args.sketch:
+    if args['sketch']:
         names = []
         sequences = []
 
-        if args.file_list:
+        if args['-l']:
             with open(args.file_list, 'rU') as refFile:
                 for refLine in refFile:
                     refFields = refLine.rstrip().split("\t")
                     names.append(refFields[0])
                     sequences.append(list(refFields[1:]))
         else:
-            for file in args.files:
+            for file in args['<files>']:
                 name = re.sub("/", "_", file)
                 names.append(name)
-                sequences.append(file)
+                sequences.append([file])
 
 
         if len(set(names)) != len(names):
             sys.stderr.write("Input contains duplicate names! All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args.output,
+        pp_sketchlib.constructDatabase(args['-o'],
                                        names,
                                        sequences,
-                                       args.kmers,
-                                       args.size,
-                                       args.codon_phased,
+                                       args['kmers'],
+                                       args['-s'],
+                                       args['--codon-phased'],
                                        False,
-                                       not args.single_strand,
-                                       args.min_count,
-                                       args.exact_counter,
-                                       args.cpus,
-                                       args.use_gpu,
-                                       args.gpu_id)
+                                       not args['--single-strand'],
+                                       args['--min-count'],
+                                       args['--exact-counter'],
+                                       args['--cpus'],
+                                       args['--use-gpu'],
+                                       args['--gpu'])
 
     #
     # Join two databases
     #
     elif args.join:
-        join_name = args.output + ".h5"
-        db1_name = args.db1 + ".h5"
-        db2_name = args.db2 + ".h5"
+        join_name = args['-o'] + ".h5"
+        db1_name = args['db1'] + ".h5"
+        db2_name = args['db2'] + ".h5"
 
         hdf1 = h5py.File(db1_name, 'r')
         hdf2 = h5py.File(db2_name, 'r')
@@ -253,18 +254,18 @@ def main():
     #
     # Query a database (calculate distances)
     #
-    elif args.query:
-        rList = getSampleNames(args.db1)
+    elif args['query']:
+        rList = getSampleNames(args['db1'])
 
-        if not args.db2:
-            args.db2 = args.db1
-            qList = getSampleNames(args.db2)
+        if not args['db2']:
+            args['db2'] = args['db1']
+            qList = getSampleNames(args['db2'])
         else:
             qList = rList
 
-        if args.subset != None:
+        if args['--subset'] != None:
             subset = []
-            with open(args.subset, 'r') as subset_file:
+            with open(args['--subset'], 'r') as subset_file:
                 for line in subset_file:
                     sample_name = line.rstrip().split("\t")[0]
                     subset.append(sample_name)
@@ -275,36 +276,36 @@ def main():
                 sys.exit(1)
 
         # Check inputs overlap
-        ref = h5py.File(args.db1 + ".h5", 'r')
-        query = h5py.File(args.db2 + ".h5", 'r')
+        ref = h5py.File(args['db1'] + ".h5", 'r')
+        query = h5py.File(args['db2'] + ".h5", 'r')
         db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
            query['sketches/' + qList[0]].attrs['kmers']
         )
         query_kmers = sorted(db_kmers)
-        if args.kmer > 0:
-            if args.kmer not in query_kmers:
+        if args['--kmer'] > 0:
+            if args['--kmer'] not in query_kmers:
                 sys.stderr.write("Selected --kmer is not in both query databases\n")
                 sys.exit(1)
             else:
-                query_kmers = [args.kmer]
+                query_kmers = [args['--kmer']]
         ref.close()
         query.close()
 
-        if args.sparse:
-            sparseIdx = pp_sketchlib.queryDatabaseSparse(args.db1,
-                                                         args.db2,
+        if args['sparse']:
+            sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
+                                                         args['db2'],
                                                          rList,
                                                          qList,
                                                          query_kmers,
-                                                         args.adj_random,
-                                                         args.threshold,
-                                                         args.kNN,
-                                                         not args.accessory,
-                                                         args.cpus,
-                                                         args.use_gpu,
-                                                         args.gpu_id)
-            if not args.output:
-                if args.accessory:
+                                                         args['--adj-random'],
+                                                         args['--threshold'],
+                                                         args['--kNN'],
+                                                         not args['--accessory'],
+                                                         args['--cpus'],
+                                                         args['--use-gpu'],
+                                                         args['--gpu'])
+            if not args['-o']:
+                if args['--accessory']:
                     distName = 'Accessory'
                 else:
                     distName = 'Core'
@@ -316,24 +317,24 @@ def main():
 
             else:
                 coo_matrix = ijv_to_coo(sparseIdx, (len(rList), len(qList)), np.float32)
-                storePickle(rList, qList, rList == qList, coo_matrix, args.output)
+                storePickle(rList, qList, rList == qList, coo_matrix, args['-o'])
 
         else:
-            distMat = pp_sketchlib.queryDatabase(args.db1,
-                                                 args.db2,
+            distMat = pp_sketchlib.queryDatabase(args['db1'],
+                                                 args['db2'],
                                                  rList,
                                                  qList,
                                                  query_kmers,
-                                                 not args.adj_random,
-                                                 args.jaccard,
-                                                 args.cpus,
-                                                 args.use_gpu,
-                                                 args.gpu_id)
+                                                 args['--adj-random'],
+                                                 args['jaccard'],
+                                                 args['--cpus'],
+                                                 args['--use-gpu'],
+                                                 args['--gpu'])
 
             # get names order
-            if not args.output:
+            if not args['-o']:
                 names = iterDistRows(rList, qList, rList == qList)
-                if not args.jaccard:
+                if not args['jaccard']:
                     sys.stdout.write("\t".join(['Query', 'Reference', 'Core', 'Accessory']) + "\n")
                     for i, (ref, query) in enumerate(names):
                         sys.stdout.write("\t".join([query, ref, str(distMat[i,0]), str(distMat[i,1])]) + "\n")
@@ -342,22 +343,26 @@ def main():
                     for i, (ref, query) in enumerate(names):
                         sys.stdout.write("\t".join([query, ref] + [str(k) for k in distMat[i,]]) + "\n")
             else:
-                storePickle(rList, qList, rList == qList, distMat, args.output)
+                storePickle(rList, qList, rList == qList, distMat, args['-o'])
 
     #
     # Add random match chances to an older database
     #
-    elif args.add_random:
-        rList = getSampleNames(args.db1)
-        ref = h5py.File(args.db1 + ".h5", 'r')
-        db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
-        ref.close()
+    elif args['random']:
+        ref = h5py.File(args['db1'] + ".h5", 'r')
+        if args['add']:
+            rList = getSampleNames(args['db1'])
+            db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
+            ref.close()
 
-        pp_sketchlib.addRandom(args.db1,
-                               rList,
-                               db_kmers,
-                               not args.single_strand,
-                               args.cpus)
+            pp_sketchlib.addRandom(args['db1'],
+                                   rList,
+                                   db_kmers,
+                                   not args['--single-strand'],
+                                   args['--cpus'])
+        elif args.remove:
+            del ref['random']
+            ref.close()
 
     sys.exit(0)
 
