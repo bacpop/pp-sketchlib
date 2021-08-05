@@ -4,10 +4,11 @@
 Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query db1 [db2] [-o <output>] [--adj-random] [--subset <file>] [--sparse (--kNN <k>|--threshold <max>) [--accessory]] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query jaccard db1 [db2] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib join db1 db2 -o <output>
-  sketchlib (add|remove) random db1 [--cpus <cpus>]
+  sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query sparse <db1> [<db2>] (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib join <db1> <db2> -o <output>
+  sketchlib (add|remove) random <db1> [--cpus <cpus>]
   sketchlib (-h | --help)
   sketchlib (--version)
 
@@ -17,7 +18,7 @@ Options:
 
   -o <output>    Output prefix.
   -l <file-list> File with a list of input files.
-  --cpus <cpus>  Number of CPU threads to use.
+  --cpus <cpus>  Number of CPU threads to use [default: 1].
   --gpu <gpu>    Use GPU with specified device ID [default: -1].
 
   -k <kseq>     Sequence of k-mers to sketch (min,max,step) [default: 15,31,4].
@@ -31,7 +32,6 @@ Options:
   --adj-random  Adjust query matches for their chance of occurring at random
   --subset <file>  Only query samples matching names in file
 
-  --sparse  Output query result in sparse (ijv) format
   --kNN <k>  Use k nearest neighbours to sparsify
   --threshold <max>  Remove distances over max to sparsify
   --accessory  Use accessory distances rather than core to sparsify
@@ -117,10 +117,10 @@ def get_options():
     arguments = docopt(__doc__, version="pp-sketchlib v"+__version__)
     print(arguments)
     # .h5 is removed from the end of DB names due to sketchlib API
-    if arguments["db1"]:
-        arguments["db1"] = re.sub(r"\.h5$", "", arguments["db1"])
-    if arguments["db2"]:
-        arguments["db2"] = re.sub(r"\.h5$", "", arguments["db2"])
+    if arguments["<db1>"]:
+        arguments["db1"] = re.sub(r"\.h5$", "", arguments["<db1>"])
+    if arguments["<db2>"]:
+        arguments["db2"] = re.sub(r"\.h5$", "", arguments["<db2>"])
 
 
 
@@ -140,7 +140,7 @@ def get_options():
     arguments['-s'] = int(round(float(arguments['-s'])/64))
     arguments['--min-count'] = int(arguments['--min-count'])
 
-    if arguments['--sparse']:
+    if arguments['sparse']:
         if arguments['--kNN']:
             arguments['--kNN'] = int(arguments['--kNN'])
             arguments['--threshold'] = 0
@@ -203,7 +203,7 @@ def main():
     #
     # Join two databases
     #
-    elif args.join:
+    elif args['join']:
         join_name = args['-o'] + ".h5"
         db1_name = args['db1'] + ".h5"
         db2_name = args['db2'] + ".h5"
@@ -258,11 +258,11 @@ def main():
     elif args['query']:
         rList = getSampleNames(args['db1'])
 
-        if not args['db2']:
+        if 'db2' not in args:
             args['db2'] = args['db1']
-            qList = getSampleNames(args['db2'])
-        else:
             qList = rList
+        else:
+            qList = getSampleNames(args['db2'])
 
         if args['--subset'] != None:
             subset = []
@@ -283,7 +283,7 @@ def main():
            query['sketches/' + qList[0]].attrs['kmers']
         )
         query_kmers = sorted(db_kmers)
-        if args['jaccard']:
+        if args['jaccard'] and len(args['kmers']) == 1:
             if args['kmers'][0] not in query_kmers:
                 sys.stderr.write("Selected --kmer is not in both query databases\n")
                 sys.exit(1)
@@ -350,7 +350,7 @@ def main():
     # Add random match chances to an older database
     #
     elif args['random']:
-        ref = h5py.File(args['db1'] + ".h5", 'r')
+        ref = h5py.File(args['db1'] + ".h5", 'r+')
         if args['add']:
             rList = getSampleNames(args['db1'])
             db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
