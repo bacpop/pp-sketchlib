@@ -9,7 +9,7 @@ import shutil
 
 def deleteDir(dirname):
     if os.path.isdir(dirname):
-        shutil.rmtree(dirname)    
+        shutil.rmtree(dirname)
 
 sys.stderr.write("Cleaning up tests\n")
 refs = []
@@ -26,6 +26,10 @@ outputFiles = [
     "db1.h5",
     "db2.h5",
     "joined.h5",
+    "ppsketch.npy",
+    "ppsketch.pkl",
+    "sparse_query.npz",
+    "sparse_query.pkl",
     "tmp.cpu.query.dists.txt",
     "tmp.gpu.query.dists.txt",
     "tmp.cpu.self.dists.txt",
