@@ -45,7 +45,7 @@ from scipy.sparse import save_npz
 import pickle
 import h5py
 
-sys.path.insert(0, '/Users/jlees/Documents/Imperial/pp-sketchlib/build/lib.macosx-10.9-x86_64-3.8')
+#sys.path.insert(0, '/Users/jlees/Documents/Imperial/pp-sketchlib/build/lib.macosx-10.9-x86_64-3.8')
 import pp_sketchlib
 
 from .matrix import ijv_to_coo
@@ -115,14 +115,12 @@ def storePickle(rlist, qlist, self, X, pklName):
 def get_options():
     from docopt import docopt
     arguments = docopt(__doc__, version="pp-sketchlib v"+__version__)
-    print(arguments)
+
     # .h5 is removed from the end of DB names due to sketchlib API
     if arguments["<db1>"]:
         arguments["db1"] = re.sub(r"\.h5$", "", arguments["<db1>"])
     if arguments["<db2>"]:
         arguments["db2"] = re.sub(r"\.h5$", "", arguments["<db2>"])
-
-
 
     if arguments['--kmer']:
         arguments['kmers'] = [int(arguments['--kmer'])]
@@ -155,7 +153,6 @@ def get_options():
     else:
         arguments['--use-gpu'] = False
 
-    print(arguments)
     return arguments
 
 def main():
