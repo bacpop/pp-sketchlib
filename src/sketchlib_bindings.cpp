@@ -287,12 +287,12 @@ double jaccardDist(const std::string &db_name,
 sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
-                         bool count_duplicates)
+                         bool reciprocal_only)
 {
   sparse_coo coo_idx = sparsify_dists(denseDists,
                                       distCutoff,
                                       kNN,
-                                      count_duplicates);
+                                      reciprocal_only);
   return coo_idx;
 }
 
@@ -374,7 +374,7 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
-        py::arg("count_duplicates") = false);
+        py::arg("reciprocal_only") = false);
 
   m.attr("version") = VERSION_INFO;
   m.attr("sketchVersion") = SKETCH_VERSION;

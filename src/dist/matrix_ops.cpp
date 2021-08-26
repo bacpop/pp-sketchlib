@@ -50,7 +50,7 @@ std::vector<long> sort_indexes(const T &v)
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
-                          bool count_duplicates)
+                          bool reciprocal_only)
 {
     if (kNN > 0 && distCutoff > 0)
     {
@@ -114,7 +114,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
         }
     }
     // Only count reciprocal matches
-    if (count_duplicates)
+    if (reciprocal_only)
     {
         std::vector<float> filtered_dists;
         std::vector<long> filtered_i_vec;

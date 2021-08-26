@@ -30,4 +30,4 @@ Eigen::VectorXf square_to_long(const NumpyMatrix &squareDists,
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
-                          bool count_duplicates);
+                          bool reciprocal_only);
