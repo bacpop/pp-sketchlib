@@ -96,24 +96,24 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                 {
                     continue; // Ignore diagonal which will always be one of the closest
                 }
-                bool new_val = abs(denseDists(i, j) - prev_value) >= epsilon;
+                bool new_val = abs(denseDists(i, j) - prev_value) > epsilon;
                 if (unique_neighbors < kNN || !new_val)
                 {
                     dists.push_back(denseDists(i, j));
                     i_vec.push_back(i);
                     j_vec.push_back(j);
+                    if (all_neighbours)
+                    {
+                        // count number of neighbours
+                        unique_neighbors++;
+                    }
+                    else if (new_val)
+                    {
+                        // count number of distances
+                        unique_neighbors++;
+                    }
                     if (new_val)
                     {
-                        if (all_neighbours)
-                        {
-                            // count number of neighbours
-                            unique_neighbors = j_vec.size() - prev_j_vec;
-                        }
-                        else
-                        {
-                            // count number of distances
-                            unique_neighbors++;
-                        }
                         prev_value = denseDists(i, j);
                     }
                 }
