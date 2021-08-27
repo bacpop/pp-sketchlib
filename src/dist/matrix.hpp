@@ -30,4 +30,5 @@ Eigen::VectorXf square_to_long(const NumpyMatrix &squareDists,
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
-                          bool reciprocal_only);
+                          bool reciprocal_only,
+                          bool all_neighbours);

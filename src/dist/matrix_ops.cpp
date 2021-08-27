@@ -50,7 +50,8 @@ std::vector<long> sort_indexes(const T &v)
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
-                          bool reciprocal_only)
+                          bool reciprocal_only,
+                          bool all_neighbours)
 {
     if (kNN > 0 && distCutoff > 0)
     {
@@ -102,7 +103,16 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                     j_vec.push_back(j);
                     if (new_val)
                     {
-                        unique_neighbors++;
+                        if (all_neighbours)
+                        {
+                            // count number of neighbours
+                            unique_neighbors = j_vec.size();
+                        }
+                        else
+                        {
+                            // count number of distances
+                            unique_neighbors++;
+                        }
                         prev_value = denseDists(i, j);
                     }
                 }

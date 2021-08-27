@@ -233,6 +233,7 @@ sparse_coo sparseQuery(const std::string &ref_db_name,
   sparse_coo sparse_return = sparsify_dists(long_form,
                                             dist_cutoff,
                                             kNN,
+                                            false,
                                             false);
 
   return (sparse_return);
@@ -287,12 +288,14 @@ double jaccardDist(const std::string &db_name,
 sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
-                         bool reciprocal_only)
+                         bool reciprocal_only,
+                         bool all_neighbours)
 {
   sparse_coo coo_idx = sparsify_dists(denseDists,
                                       distCutoff,
                                       kNN,
-                                      reciprocal_only);
+                                      reciprocal_only,
+                                      all_neighbours);
   return coo_idx;
 }
 
@@ -374,7 +377,8 @@ PYBIND11_MODULE(pp_sketchlib, m)
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
-        py::arg("reciprocal_only") = false);
+        py::arg("reciprocal_only") = false,
+        py::arg("all_neighbours") = false);
 
   m.attr("version") = VERSION_INFO;
   m.attr("sketchVersion") = SKETCH_VERSION;
