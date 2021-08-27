@@ -96,7 +96,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                 {
                     continue; // Ignore diagonal which will always be one of the closest
                 }
-                bool new_val = abs(denseDists(i, j) - prev_value) > epsilon;
+                bool new_val = abs(denseDists(i, j) - prev_value) >= epsilon;
                 if (unique_neighbors < kNN || !new_val)
                 {
                     dists.push_back(denseDists(i, j));
