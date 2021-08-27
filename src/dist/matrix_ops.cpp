@@ -85,6 +85,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
     {
         // Only add the k nearest (unique) neighbours
         // May be >k if repeats, often zeros
+        unsigned long int prev_j_vec = 0;
         for (long i = 0; i < denseDists.rows(); i++)
         {
             unsigned long unique_neighbors = 0;
@@ -106,7 +107,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                         if (all_neighbours)
                         {
                             // count number of neighbours
-                            unique_neighbors = j_vec.size();
+                            unique_neighbors = j_vec.size() - prev_j_vec;
                         }
                         else
                         {
@@ -118,6 +119,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                 }
                 else
                 {
+                    prev_j_vec = j_vec.size();
                     break;
                 }
             }
