@@ -364,7 +364,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
       // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
 
       int ordered_dist_idx = 0;
-      if (ordered_dists[0] == j) {
+      if (ordered_dists[0] == i) {
         ordered_dist_idx = 1;
       }
       for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
