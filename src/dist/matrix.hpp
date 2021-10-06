@@ -19,8 +19,20 @@ typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Nu
 typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<float>> sparse_coo;
 typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<long>> network_coo;
 
+//https://stackoverflow.com/a/12399290
 template <typename T>
-std::vector<long> sort_indexes(const T &v);
+std::vector<long> sort_indexes(const T &v)
+{
+
+  // initialize original index locations
+  std::vector<long> idx(v.size());
+  std::iota(idx.begin(), idx.end(), 0);
+
+  std::stable_sort(idx.begin(), idx.end(),
+                   [&v](long i1, long i2) { return v[i1] < v[i2]; });
+
+  return idx;
+}
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
                            const Eigen::VectorXf &qrDists,

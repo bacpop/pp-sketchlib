@@ -32,21 +32,6 @@ void rectangle_block(const Eigen::VectorXf &longDists,
                      const size_t start,
                      const size_t max_elems);
 
-//https://stackoverflow.com/a/12399290
-template <typename T>
-std::vector<long> sort_indexes(const T &v)
-{
-
-  // initialize original index locations
-  std::vector<long> idx(v.size());
-  std::iota(idx.begin(), idx.end(), 0);
-
-  std::stable_sort(idx.begin(), idx.end(),
-                   [&v](long i1, long i2) { return v[i1] < v[i2]; });
-
-  return idx;
-}
-
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN)
