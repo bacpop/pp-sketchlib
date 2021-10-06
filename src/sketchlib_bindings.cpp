@@ -177,7 +177,6 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
   }
   sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
     jaccard, kNN, dist_col, num_threads);
-#endif
   return (dists)
 }
 
