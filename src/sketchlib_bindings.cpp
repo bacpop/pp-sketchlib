@@ -161,6 +161,26 @@ sparseQuery(const std::string &ref_db_name, const std::string &query_db_name,
   return (sparse_return);
 }
 
+sparse_coo
+sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &ref_names,
+            std::vector<size_t> kmer_lengths, const bool random_correct = true,
+            const bool jaccard = false, const unsigned long int kNN = 0,
+            const size_t dist_col = 0, const size_t num_threads = 1) {
+  std::vector<Reference> ref_sketches =
+      load_sketches(ref_db_name, ref_names, kmer_lengths, false);
+
+  RandomMC random;
+  if (random_correct) {
+    random = get_random(ref_db_name, ref_sketches[0].rc());
+  } else {
+    random = RandomMC();
+  }
+  sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
+    jaccard, kNN, dist_col, num_threads);
+#endif
+  return (dists)
+}
+
 void addRandomToDb(const std::string &db_name,
                    const std::vector<std::string> &sample_names,
                    const std::vector<size_t> kmer_lengths,
@@ -225,6 +245,13 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("dist_cutoff") = 0, py::arg("kNN") = 0, py::arg("core") = true,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
+
+  m.def("querySelfSparse", &sparseQuerySelf,
+        py::return_value_policy::reference_internal,
+        "Find distances between sketches; return a sparse matrix",
+        py::arg("ref_db_name"), py::arg("rlist"), py::arg("klist"), py::arg("random_correct") = true,
+        py::arg("jaccard") = false, py::arg("kNN") = 0, py::arg("dist_col") = true,
+        py::arg("num_threads") = 1);
 
   m.def("addRandom", &addRandomToDb,
         "Add random match chances into older databases", py::arg("db_name"),

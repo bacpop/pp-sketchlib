@@ -277,6 +277,116 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   return (distMat);
 }
 
+sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+                     const std::vector<size_t> &kmer_lengths,
+                     RandomMC &random_chance, const bool jaccard,
+                     const int kNN, const size_t dist_col,
+                     const size_t num_threads) {
+  if (ref_sketches.size() < 1) {
+    throw std::runtime_error("Query with empty ref or query list!");
+  }
+  if (kmer_lengths[0] <
+      random_chance.min_supported_k(ref_sketches[0].seq_length())) {
+    throw std::runtime_error("Smallest k-mer has no signal above random "
+                             "chance; increase minimum k-mer length");
+  }
+  if ((jaccard && dist_col >= kmer_lengths.size()) || (dist_col != 0 && dist_col != 1)) {
+    throw std::runtime_error("dist_col out of range")
+  }
+
+  // Check all references are in the random object, add if not
+  bool missing = random_chance.check_present(ref_sketches, true);
+  if (missing) {
+    std::cerr
+        << "Some members of the reference database were not found "
+           "in its random match chances. Consider refreshing with addRandom"
+        << std::endl;
+  }
+
+  std::cerr << "Calculating distances using " << num_threads << " thread(s)"
+            << std::endl;
+
+  std::vector<float> dists(ref_sketches.size() * kNN);
+  std::vector<long> i_vec(ref_sketches.size() * kNN);
+  std::vector<long> j_vec(ref_sketches.size() * kNN);
+
+  // These could be the same but out of order, which could be dealt with
+  // using a sort, except the return order of the distances wouldn't be as
+  // expected. self iff ref_names == query_names as input
+  bool interrupt = false;
+
+  // calculate dists
+  size_t dist_rows = static_cast<size_t>(ref_sketches.size()) * ref_sketches.size());
+
+  arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+
+  // Set up progress meter
+  size_t progress_blocks = 1 << progressBitshift;
+  size_t update_every = dist_rows >> progressBitshift;
+  if (progress_blocks > dist_rows || update_every < 1) {
+    progress_blocks = dist_rows;
+    update_every = 1;
+  }
+  ProgressMeter dist_progress(progress_blocks, true);
+  int progress = 0;
+
+  // Iterate upper triangle
+#pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
+  for (size_t i = 0; i < ref_sketches.size(); i++) {
+    std::vector<float> row_dists(ref_sketches.size())
+    if (interrupt || PyErr_CheckSignals() != 0) {
+      interrupt = true;
+    } else {
+      for (size_t j = 0; j < ref_sketches.size(); j++) {
+        if (jaccard) {
+            row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
+                ref_sketches[j], kmer_lengths[dist_col], random_chance);
+          }
+        } else {
+          float core, acc;
+          std::tie(core, acc) =
+              ref_sketches[i].core_acc_dist<RandomMC>(
+                  ref_sketches[j], kmer_mat, random_chance);
+          if (dist_col == 0) {
+            row_dists[j] = core;
+          } else {
+            row_dists[j] = acc;
+          }
+        }
+        if (pos % update_every == 0) {
+#pragma omp atomic
+            progress++;
+            dist_progress.tick(1);
+        }
+      }
+    }
+    long offset = i * kNN;
+    std::vector<long> ordered_dists = sort_indexes(row_dists);
+    std::fill_n(i_vec.begin() + offset, kNN, i);
+    // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
+
+    int ordered_dist_idx = 0;
+    if (ordered_dists[0] == j) {
+      ordered_dist_idx = 1;
+    }
+    for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
+      j_vec[offset + k] = row_dists[ordered_dist_idx];
+      dist_vec[offset + k] = row_dists[ordered_dist_idx];
+      if (ordered_dists[ordered_dist_idx] == j) {
+        ++ordered_dist_it;
+      }
+    }
+  }
+  dist_progress.finalise();
+
+  // Handle Ctrl-C from python
+  if (interrupt) {
+    throw py::error_already_set();
+  }
+
+  return (std::make_tuple(i_vec, j_vec, dists));
+}
+
 // Load sketches from a HDF5 file
 // Returns empty vector on failure
 std::vector<Reference> load_sketches(const std::string &db_name,

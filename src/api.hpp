@@ -40,6 +40,12 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                      const bool jaccard,
                      const size_t num_threads);
 
+sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+                     const std::vector<size_t> &kmer_lengths,
+                     RandomMC &random_chance, const bool jaccard,
+                     const int kNN, const size_t dist_col,
+                     const size_t num_threads);
+
 #ifdef GPU_AVAILABLE
 // defined in gpu_api.cpp
 std::vector<Reference> create_sketches_cuda(const std::string &db_name,
