@@ -341,7 +341,6 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         if (jaccard) {
             row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
                 ref_sketches[j], kmer_lengths[dist_col], random_chance);
-          }
         } else {
           float core, acc;
           std::tie(core, acc) =
@@ -355,25 +354,25 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         }
         if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp atomic
-            progress++;
-            dist_progress.tick(1);
+          progress++;
+          dist_progress.tick(1);
         }
       }
-    }
-    long offset = i * kNN;
-    std::vector<long> ordered_dists = sort_indexes(row_dists);
-    std::fill_n(i_vec.begin() + offset, kNN, i);
-    // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
+      long offset = i * kNN;
+      std::vector<long> ordered_dists = sort_indexes(row_dists);
+      std::fill_n(i_vec.begin() + offset, kNN, i);
+      // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
 
-    int ordered_dist_idx = 0;
-    if (ordered_dists[0] == j) {
-      ordered_dist_idx = 1;
-    }
-    for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
-      j_vec[offset + k] = row_dists[ordered_dist_idx];
-      dists[offset + k] = row_dists[ordered_dist_idx];
-      if (ordered_dists[ordered_dist_idx] == j) {
-        ++ordered_dist_idx;
+      int ordered_dist_idx = 0;
+      if (ordered_dists[0] == j) {
+        ordered_dist_idx = 1;
+      }
+      for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
+        j_vec[offset + k] = row_dists[ordered_dist_idx];
+        dists[offset + k] = row_dists[ordered_dist_idx];
+        if (ordered_dists[ordered_dist_idx] == j) {
+          ++ordered_dist_idx;
+        }
       }
     }
   }
