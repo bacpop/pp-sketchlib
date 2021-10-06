@@ -291,7 +291,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                              "chance; increase minimum k-mer length");
   }
   if ((jaccard && dist_col >= kmer_lengths.size()) || (dist_col != 0 && dist_col != 1)) {
-    throw std::runtime_error("dist_col out of range")
+    throw std::runtime_error("dist_col out of range");
   }
 
   // Check all references are in the random object, add if not
@@ -333,7 +333,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   // Iterate upper triangle
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
-    std::vector<float> row_dists(ref_sketches.size())
+    std::vector<float> row_dists(ref_sketches.size());
     if (interrupt || PyErr_CheckSignals() != 0) {
       interrupt = true;
     } else {
@@ -353,7 +353,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
             row_dists[j] = acc;
           }
         }
-        if (pos % update_every == 0) {
+        if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp atomic
             progress++;
             dist_progress.tick(1);
@@ -371,9 +371,9 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
     }
     for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
       j_vec[offset + k] = row_dists[ordered_dist_idx];
-      dist_vec[offset + k] = row_dists[ordered_dist_idx];
+      dists[offset + k] = row_dists[ordered_dist_idx];
       if (ordered_dists[ordered_dist_idx] == j) {
-        ++ordered_dist_it;
+        ++ordered_dist_idx;
       }
     }
   }
