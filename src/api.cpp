@@ -315,12 +315,8 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   // expected. self iff ref_names == query_names as input
   bool interrupt = false;
 
-  // calculate dists
-  size_t dist_rows = static_cast<size_t>(ref_sketches.size() * ref_sketches.size());
-
-  arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
-
   // Set up progress meter
+  size_t dist_rows = static_cast<size_t>(ref_sketches.size() * ref_sketches.size());
   size_t progress_blocks = 1 << progressBitshift;
   size_t update_every = dist_rows >> progressBitshift;
   if (progress_blocks > dist_rows || update_every < 1) {
@@ -330,7 +326,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   ProgressMeter dist_progress(progress_blocks, true);
   int progress = 0;
 
-  // Iterate upper triangle
+  arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
     std::vector<float> row_dists(ref_sketches.size());
@@ -368,8 +364,8 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         ordered_dist_idx = 1;
       }
       for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
-        j_vec[offset + k] = row_dists[ordered_dist_idx];
-        dists[offset + k] = row_dists[ordered_dist_idx];
+        j_vec[offset + k] = ordered_dists[ordered_dist_idx];
+        dists[offset + k] = row_dists[ordered_dists[ordered_dist_idx]];
         if (ordered_dists[ordered_dist_idx] == i) {
           ++ordered_dist_idx;
         }
