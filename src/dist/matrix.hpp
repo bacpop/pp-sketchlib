@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <numeric>
 #include <vector>
 #include <cstdint>
 #include <cstddef>

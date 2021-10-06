@@ -5,7 +5,6 @@
  *
  */
 #include <vector>
-#include <numeric>
 #include <cstdint>
 #include <cstddef>
 #include <cmath>
