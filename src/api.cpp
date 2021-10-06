@@ -316,7 +316,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   bool interrupt = false;
 
   // calculate dists
-  size_t dist_rows = static_cast<size_t>(ref_sketches.size()) * ref_sketches.size());
+  size_t dist_rows = static_cast<size_t>(ref_sketches.size() * ref_sketches.size());
 
   arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 
@@ -370,7 +370,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
       for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
         j_vec[offset + k] = row_dists[ordered_dist_idx];
         dists[offset + k] = row_dists[ordered_dist_idx];
-        if (ordered_dists[ordered_dist_idx] == j) {
+        if (ordered_dists[ordered_dist_idx] == i) {
           ++ordered_dist_idx;
         }
       }
