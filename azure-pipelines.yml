@@ -54,5 +54,5 @@ steps:
     export CUDA_HOME=/usr/local/cuda-11.2
     export PATH=${CUDA_HOME}/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-    cd test && python run_test.py --no-cpp
+    cd test && python run_test.py
   displayName: 'Run tests (run_test.py)'
