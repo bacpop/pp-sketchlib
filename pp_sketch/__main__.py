@@ -289,18 +289,30 @@ def main():
         query.close()
 
         if args['sparse']:
-            sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
-                                                         args['db2'],
-                                                         rList,
-                                                         qList,
-                                                         query_kmers,
-                                                         args['--adj-random'],
-                                                         args['--threshold'],
-                                                         args['--kNN'],
-                                                         not args['--accessory'],
-                                                         args['--cpus'],
-                                                         args['--use-gpu'],
-                                                         args['--gpu'])
+            # Can use memory efficient version
+            if args['db1'] == args['db2'] and args['--threshold'] == 0:
+                sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
+                                              rList,
+                                              query_kmers,
+                                              args['--adj-random'],
+                                              False,
+                                              args['--kNN'],
+                                              not args['--accessory'],
+                                              args['--cpus'])
+            # Otherwise use general version
+            else:
+                sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
+                                                            args['db2'],
+                                                            rList,
+                                                            qList,
+                                                            query_kmers,
+                                                            args['--adj-random'],
+                                                            args['--threshold'],
+                                                            args['--kNN'],
+                                                            not args['--accessory'],
+                                                            args['--cpus'],
+                                                            args['--use-gpu'],
+                                                            args['--gpu'])
             if not args['-o']:
                 if args['--accessory']:
                     distName = 'Accessory'
