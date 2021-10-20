@@ -45,7 +45,6 @@ from scipy.sparse import save_npz
 import pickle
 import h5py
 
-#sys.path.insert(0, '/Users/jlees/Documents/Imperial/pp-sketchlib/build/lib.macosx-10.9-x86_64-3.8')
 import pp_sketchlib
 
 from .matrix import ijv_to_coo

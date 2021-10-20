@@ -34,6 +34,7 @@ subprocess.run("python ../sketchlib-runner.py add random test_db --cpus 2", shel
 sys.stderr.write("Distance integration test\n")
 subprocess.run("python ../sketchlib-runner.py query dist test_db --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query dist test_db -o ppsketch --cpus 2", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query jaccard test_db_small --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db --results ppsketch_ref", shell=True, check=True) # checks results match
 subprocess.run("python ../sketchlib-runner.py query dist test_db_phased --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db_phased --results ppsketch_ref_phased", shell=True, check=True) # checks results match
