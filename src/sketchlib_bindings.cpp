@@ -167,6 +167,10 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
             const bool jaccard = false, const unsigned long int kNN = 0,
             const size_t dist_col = 0, const size_t num_threads = 1,
             const bool use_gpu = false, const int device_id = 0) {
+  if (use_gpu && (jaccard || kmer_lengths.size() < 2)) {
+    throw std::runtime_error(
+        "Extracting Jaccard distances not supported on GPU");
+  }
   std::vector<Reference> ref_sketches =
       load_sketches(ref_db_name, ref_names, kmer_lengths, false);
 
@@ -178,8 +182,8 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
   }
 #ifdef GPU_AVAILABLE
   if (use_gpu) {
-  sparse_coo dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
-    jaccard, kNN, dist_col, device_id);
+    sparse_coo dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
+      jaccard, kNN, dist_col, device_id);
   } else {
     sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
       jaccard, kNN, dist_col, num_threads);

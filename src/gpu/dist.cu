@@ -85,15 +85,15 @@ __device__ float jaccard_dist(const uint64_t *sketch1, const uint64_t *sketch2,
 // Simple linear regression, exact solution
 // Avoids use of dynamic memory allocation on device, or
 // linear algebra libraries
-__device__ void simple_linear_regression(float *core_dist,
-                                         float *accessory_dist,
+__device__ void simple_linear_regression(float dists[],
                                          const float xsum, const float ysum,
                                          const float xysum,
                                          const float xsquaresum,
-                                         const float ysquaresum, const int n) {
+                                         const float ysquaresum, const int n,
+                                         const int dist_col) {
   if (n < 2) {
-    *core_dist = 0;
-    *accessory_dist = 0;
+    dists[0] = 0.0f;
+    dists[1] = 0.0f;
   } else {
     // CUDA fast-math intrinsics on floats, which give comparable accuracy
     // Speed gain is fairly minimal, as most time spent on Jaccard distance
@@ -113,16 +113,16 @@ __device__ void simple_linear_regression(float *core_dist,
     // Store core/accessory in dists, truncating at zero
     // Memory should be initialised to zero so else block not strictly
     // necessary, but better safe than sorry!
-    if (beta < 0) {
-      *core_dist = 1 - __expf(beta);
+    if (beta < 0.0f) {
+      dists[0] = 1.0f - __expf(beta);
     } else {
-      *core_dist = 0;
+      dists[0] = 0.0f;
     }
 
-    if (alpha < 0) {
-      *accessory_dist = 1 - __expf(alpha);
+    if (alpha < 0.0f) {
+      dists[1] = 1.0f - __expf(alpha);
     } else {
-      *accessory_dist = 0;
+      dists[1] = 0.0f;
     }
   }
 }
@@ -143,7 +143,8 @@ __global__ void calculate_dists(
     const float *random_table, const uint16_t *ref_idx_lookup,
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
-    progress_atomics progress, const bool use_shared) {
+    progress_atomics progress, const bool use_shared,
+    const int dist_col) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
   if (self) {
@@ -181,11 +182,11 @@ __global__ void calculate_dists(
 
   // Calculate Jaccard distances over k-mer lengths
   int kmer_used = 0;
-  float xsum = 0;
-  float ysum = 0;
-  float xysum = 0;
-  float xsquaresum = 0;
-  float ysquaresum = 0;
+  float xsum = 0.0f;
+  float ysum = 0.0f;
+  float xysum = 0.0f;
+  float xsquaresum = 0.0f;
+  float ysquaresum = 0.0f;
   bool stop = false;
   for (int kmer_idx = 0; kmer_idx < kmer_n; kmer_idx++) {
     // Copy query sketch into __shared__ mem
@@ -280,8 +281,15 @@ __global__ void calculate_dists(
 
   if (ref_idx < ref_n) {
     // Run the regression, and store results in dists
-    simple_linear_regression(dists + dist_idx, dists + dist_n + dist_idx, xsum,
-                             ysum, xysum, xsquaresum, ysquaresum, kmer_used);
+    float fitted_dists[2];
+    simple_linear_regression(fitted_dists, xsum, ysum, xysum, xsquaresum,
+                             ysquaresum, kmer_used);
+    if (dist_col < 0) {
+      dists[dist_idx] = fitted_dists[0];
+      dists[dist_idx + dist_n] = fitted_dists[1];
+    } else {
+      dists[dist_idx] = fitted_dists[dist_col];
+    }
 
     update_progress(dist_idx, dist_n, progress);
   }
@@ -414,6 +422,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
     check_shared_size(query_strides, shared_size);
 
   size_t blockSize, blockCount;
+  int dist_col = -1;
   if (self) {
     std::tie(blockSize, blockCount) = getBlockSize(
         sketch_subsample.ref_size, sketch_subsample.ref_size, dist_rows, self);
@@ -427,7 +436,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.ref_random(), ref_strides, ref_strides, random_strides,
-        progress, use_shared);
+        progress, use_shared, dist_col);
   } else {
     std::tie(blockSize, blockCount) =
         getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size,
@@ -442,7 +451,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.query_random(), ref_strides, query_strides,
-        random_strides, progress, use_shared);
+        random_strides, progress, use_shared, dist_col);
   }
 
   // Check for error in kernel launch
@@ -469,6 +478,7 @@ sparse_coo sparseDists(dist_params params,
   const FlatRandom &flat_random,
   const std::vector<uint16_t> &ref_random_idx,
   const std::vector<size_t> &kmer_lengths,
+  size_t dist_col,
   const int cpu_threads,
   const size_t shared_size) {
   CUDA_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
