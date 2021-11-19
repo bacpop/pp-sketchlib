@@ -353,6 +353,24 @@ std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
       std::make_tuple(mem_free, mem_total, static_cast<size_t>(shared_size)));
 }
 
+std::tuple<bool, size_t> check_shared_size(SketchStrides& strides, const size_t shared_size) {
+  size_t sketch_size_bytes =
+    strides.sketchsize64 * strides.bbits * sizeof(uint64_t);
+  bool use_shared = true;
+  if (sketch_size_bytes > shared_size) {
+    std::cerr << "You are using a large sketch size, which may slow down "
+                "computation on this device"
+              << std::endl;
+    std::cerr << "Reduce sketch size to "
+              << std::floor(64 * shared_size /
+                            (query_strides.bbits * sizeof(uint64_t)))
+              << " or less for better performance" << std::endl;
+    sketch_size_bytes = 0;
+    use_shared = false;
+  }
+  return std::make_tuple(use_shared, sketch_size_bytes);
+}
+
 // Main function to run the distance calculations, reading/writing into
 // device_arrays Cache preferences: Upper dist memory access is hard to predict,
 // so try and cache as much as possible Query uses on-chip cache (__shared__) to
@@ -390,20 +408,10 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
                              ref_random_idx, query_random_idx, kmer_lengths,
                              dist_rows, self, cpu_threads);
 
-  size_t sketch_size_bytes =
-      query_strides.sketchsize64 * query_strides.bbits * sizeof(uint64_t);
-  bool use_shared = true;
-  if (sketch_size_bytes > shared_size) {
-    std::cerr << "You are using a large sketch size, which may slow down "
-                 "computation on this device"
-              << std::endl;
-    std::cerr << "Reduce sketch size to "
-              << std::floor(64 * shared_size /
-                            (query_strides.bbits * sizeof(uint64_t)))
-              << " or less for better performance" << std::endl;
-    sketch_size_bytes = 0;
-    use_shared = false;
-  }
+  bool use_shared;
+  size_t shared_size_bytes;
+  std::tie(use_shared, shared_size_bytes) =
+    check_shared_size(query_strides, shared_size);
 
   size_t blockSize, blockCount;
   if (self) {
@@ -448,4 +456,68 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
   std::vector<float> dist_results = device_arrays.read_dists();
 
   return (dist_results);
+}
+
+
+// Main function to run the distance calculations, reading/writing into
+// device_arrays Cache preferences: Upper dist memory access is hard to predict,
+// so try and cache as much as possible Query uses on-chip cache (__shared__) to
+// store query sketch
+sparse_coo sparseDists(dist_params params,
+  std::vector<Reference> &ref_sketches,
+  SketchStrides &ref_strides,
+  const FlatRandom &flat_random,
+  const std::vector<uint16_t> &ref_random_idx,
+  const std::vector<size_t> &kmer_lengths,
+  const int cpu_threads,
+  const size_t shared_size) {
+  CUDA_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
+  CUDA_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
+
+  // Progress meter
+  progress_atomics progress;
+  progress.init();
+
+  RandomStrides random_strides = std::get<0>(flat_random);
+
+  // Storage for results on host
+  std::vector<float> dists(ref_sketches.size() * kNN);
+  std::vector<long> i_vec(ref_sketches.size() * kNN);
+  std::vector<long> j_vec(ref_sketches.size() * kNN);
+
+  bool use_shared;
+  size_t shared_size_bytes;
+  std::tie(use_shared, shared_size_bytes) =
+    check_shared_size(query_strides, shared_size);
+
+  // ALGORITHM TODO
+  // NB graph probably not needed as API calls faster than ops here
+  // NB chunk size probably wants to be around 10^4-10^5; just set a const size
+  // SETUP
+  // Flatten all of the sketches
+  // Allocate space for:
+  //   sketch block 1
+  //   sketch block 2
+  //   sketch block 3
+  //   dists (chunk_size * kNN + chunk size^2) [first part is sorted; second part from new run]
+  //   dists idx (dists.size())
+  //   sorted dists (dists.size())
+  //   sorted dists idx (dists.size())
+  //   random
+  // Set i_vec via kernel or CPU (it just needs to be 0, 0, 0..., 1, 1, 1...)
+  // LOOP over n_chunks lots of refs
+  //  Load refs into block 1
+  //  Load queries into block 2 (if i == j, just set ptr rather than copy, but still use query mode of kernel)
+  //  LOOP over n_chunks lots of queries
+  //    (stream 1 async) Run dists on 1 vs 2
+  //    (stream 2 async) Load next into block 3
+  //    sync stream 1
+  //    (stream 1) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
+  //    (stream 1) D->D copy of top kNN dists to start of dists
+  //    sync stream 2
+  //    swap ptrs for block 2 <-> 3
+  //  memcpy D->H first part of dists into host vec, idx into j_vec (with offset for n_chunk)
+
+
+  return (std::make_tuple(i_vec, j_vec, dists));
 }

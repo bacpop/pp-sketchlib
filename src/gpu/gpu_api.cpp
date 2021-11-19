@@ -512,4 +512,10 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                           const unsigned int num_cpu_threads) {
   dist_params params =
     cuda_dists_init(ref_sketches, query_sketches, kmer_lengths, device_id);
+  FlatRandom flat_random =
+      random_match.flattened_random(kmer_lengths, ref_sketches[0].seq_length());
+  std::vector<uint16_t> ref_random_idx =
+      random_match.lookup_array(ref_sketches);
+  return sparseDists(ref_sketches, kmer_lengths, flat_random, ref_random_idx,
+                    jaccard, kNN, dist_col);
 }
