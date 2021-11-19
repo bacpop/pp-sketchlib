@@ -7,7 +7,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-const int progressBitshift = 10; // Update every 2^10 = 1024 dists
+const int progress_blocks = 1000; // Update 1000
 
 static void HandleCUDAError(const char *file, int line,
                             cudaError_t status = cudaGetLastError()) {
@@ -51,8 +51,7 @@ struct progress_atomics {
 __device__ inline void update_progress(long long dist_idx, long long dist_n,
                                        progress_atomics progress) {
   // Progress indicator
-  // The >> progressBitshift is a divide by 1024 - update roughly every 0.1%
-  if (dist_idx % (dist_n >> progressBitshift) == 0) {
+  if (dist_idx % (dist_n / progress_blocks) == 0) {
     if (*(progress.kill_kernel) == true) {
       __trap();
     }

@@ -478,3 +478,12 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
 
   return dists_ret_matrix;
 }
+
+sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+                          const std::vector<size_t> &kmer_lengths,
+                          RandomMC &random_match, const bool jaccard,
+                          const int kNN, const size_t dist_col,
+                          const int device_id,
+                          const unsigned int num_cpu_threads) {
+  check_sparse_inputs(ref_sketches, kmer_lengths, random_chances, jaccard, dist_col);
+}

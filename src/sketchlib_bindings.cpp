@@ -165,7 +165,8 @@ sparse_coo
 sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &ref_names,
             std::vector<size_t> kmer_lengths, const bool random_correct = true,
             const bool jaccard = false, const unsigned long int kNN = 0,
-            const size_t dist_col = 0, const size_t num_threads = 1) {
+            const size_t dist_col = 0, const size_t num_threads = 1,
+            const bool use_gpu = false, const int device_id = 0) {
   std::vector<Reference> ref_sketches =
       load_sketches(ref_db_name, ref_names, kmer_lengths, false);
 
@@ -175,8 +176,18 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
   } else {
     random = RandomMC();
   }
+#ifdef GPU_AVAILABLE
+  if (use_gpu) {
+  sparse_coo dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
+    jaccard, kNN, dist_col, device_id);
+  } else {
+    sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
+      jaccard, kNN, dist_col, num_threads);
+  }
+#else
   sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
     jaccard, kNN, dist_col, num_threads);
+#endif
   return (dists);
 }
 
@@ -250,7 +261,8 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         "Find self-self distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"), py::arg("rlist"), py::arg("klist"), py::arg("random_correct") = true,
         py::arg("jaccard") = false, py::arg("kNN") = 0, py::arg("dist_col") = true,
-        py::arg("num_threads") = 1);
+        py::arg("num_threads") = 1, py::arg("use_gpu") = false,
+        py::arg("device_id") = 0);
 
   m.def("addRandom", &addRandomToDb,
         "Add random match chances into older databases", py::arg("db_name"),

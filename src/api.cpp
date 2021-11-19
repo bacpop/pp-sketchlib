@@ -287,11 +287,10 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   return (distMat);
 }
 
-sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
-                     const std::vector<size_t> &kmer_lengths,
-                     RandomMC &random_chance, const bool jaccard,
-                     const int kNN, const size_t dist_col,
-                     const size_t num_threads) {
+void check_sparse_inputs(const std::vector<Reference> &ref_sketches,
+                         const std::vector<size_t> &kmer_lengths,
+                         RandomMC &random_chance, const bool jaccard,
+                         const size_t dist_col) {
   if (ref_sketches.size() < 1) {
     throw std::runtime_error("Query with empty ref or query list!");
   }
@@ -305,13 +304,20 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   }
 
   // Check all references are in the random object, add if not
-  bool missing = random_chance.check_present(ref_sketches, true);
-  if (missing) {
+  if (random_chance.check_present(ref_sketches, true)) {
     std::cerr
         << "Some members of the reference database were not found "
            "in its random match chances. Consider refreshing with addRandom"
         << std::endl;
   }
+}
+
+sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+                     const std::vector<size_t> &kmer_lengths,
+                     RandomMC &random_chance, const bool jaccard,
+                     const int kNN, const size_t dist_col,
+                     const size_t num_threads) {
+  check_sparse_inputs(ref_sketches, kmer_lengths, random_chances, jaccard, dist_col);
 
   std::cerr << "Calculating distances using " << num_threads << " thread(s)"
             << std::endl;

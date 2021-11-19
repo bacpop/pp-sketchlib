@@ -320,7 +320,6 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
 void reportDistProgress(progress_atomics progress, long long dist_rows) {
-  long long progress_blocks = 1 << progressBitshift;
   int now_completed = 0;
   float kern_progress = 0;
   if (dist_rows > progress_blocks) {

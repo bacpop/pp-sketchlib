@@ -298,7 +298,9 @@ def main():
                                               False,
                                               args['--kNN'],
                                               not args['--accessory'],
-                                              args['--cpus'])
+                                              args['--cpus'],
+                                              args['--use-gpu'],
+                                              args['--gpu'])
             # Otherwise use general version
             else:
                 sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
