@@ -31,6 +31,7 @@ namespace py = pybind11;
 
 // internal headers
 #include "cuda.cuh"
+#include "containers.cuh"
 #include "dist/matrix_idx.hpp"
 #include "gpu.hpp"
 #include "sketch/bitfuncs.hpp"
@@ -135,6 +136,13 @@ __device__ void simple_linear_regression(float dists[],
 
 // Main kernel functions run on the device,
 // but callable from the host
+
+// TODO check this is the same as the order written into dists
+__global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
+    i += blockDim.x * gridDim.x) {
+      idx[i] = col_offset + i % col_samples;
+}
 
 __global__ void calculate_dists(
     const bool self, const uint64_t *ref, const long ref_n,
@@ -430,7 +438,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
     // Third argument is the size of __shared__ memory needed by a thread block
     // This is equal to the query sketch size in bytes (at a single k-mer
     // length)
-    calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>(
+    calculate_dists<<<blockCount, blockSize, shared_size_bytes>>>(
         self, device_arrays.ref_sketches(), sketch_subsample.ref_size,
         device_arrays.ref_sketches(), sketch_subsample.ref_size,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
@@ -445,7 +453,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
     // Third argument is the size of __shared__ memory needed by a thread block
     // This is equal to the query sketch size in bytes (at a single k-mer
     // length)
-    calculate_dists<<<blockCount, blockSize, sketch_size_bytes>>>(
+    calculate_dists<<<blockCount, blockSize, shared_size_bytes>>>(
         self, device_arrays.ref_sketches(), sketch_subsample.ref_size,
         device_arrays.query_sketches(), sketch_subsample.query_size,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
@@ -468,19 +476,20 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
 }
 
 
-// Main function to run the distance calculations, reading/writing into
-// device_arrays Cache preferences: Upper dist memory access is hard to predict,
-// so try and cache as much as possible Query uses on-chip cache (__shared__) to
-// store query sketch
-sparse_coo sparseDists(dist_params params,
-  std::vector<Reference> &ref_sketches,
-  SketchStrides &ref_strides,
+// Function which sparsifies distances on the fly. Distances are calculated in
+// blocks, sorted and top top k stored.
+// NB graph probably not needed as API calls faster than ops here
+sparse_coo sparseDists(const dist_params params,
+  const std::vector<std::vector<uint64_t>> &ref_sketches,
+  const std::vector<SketchStrides> &ref_strides,
   const FlatRandom &flat_random,
   const std::vector<uint16_t> &ref_random_idx,
   const std::vector<size_t> &kmer_lengths,
-  size_t dist_col,
-  const int cpu_threads,
-  const size_t shared_size) {
+  const int kNN,
+  const size_t dist_col,
+  const size_t samples_per_chunk,
+  const size_t num_big_chunks,
+  const int cpu_threads) {
   CUDA_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
   CUDA_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
 
@@ -491,41 +500,117 @@ sparse_coo sparseDists(dist_params params,
   RandomStrides random_strides = std::get<0>(flat_random);
 
   // Storage for results on host
-  std::vector<float> dists(ref_sketches.size() * kNN);
-  std::vector<long> i_vec(ref_sketches.size() * kNN);
-  std::vector<long> j_vec(ref_sketches.size() * kNN);
+  std::vector<float> dists(params.n_samples * kNN);
+  std::vector<long> i_vec(params.n_samples * kNN);
+  std::vector<long> j_vec(params.n_samples * kNN);
 
   bool use_shared;
   size_t shared_size_bytes;
   std::tie(use_shared, shared_size_bytes) =
     check_shared_size(query_strides, shared_size);
 
-  // ALGORITHM TODO
-  // NB graph probably not needed as API calls faster than ops here
-  // NB chunk size probably wants to be around 10^4-10^5; just set a const size
-  // SETUP
-  // Flatten all of the sketches
   // Allocate space for:
   //   sketch block 1
   //   sketch block 2
   //   sketch block 3
+  //   sketch block 4
   //   dists (chunk_size * kNN + chunk size^2) [first part is sorted; second part from new run]
   //   dists idx (dists.size())
   //   sorted dists (dists.size())
   //   sorted dists idx (dists.size())
   //   random
+  device_array<uint64_t> block1(ref_sketches[0].size());
+  device_array<uint64_t> block2(block1.size());
+  device_array<uint64_t> block3(block1.size());
+  device_array<uint64_t> block4(block1.size());
+  // TODO make sure on the small chunks the unused distances are set to a large value
+  device_array<float> dists(samples_per_chunk * kNN + samples_per_chunk * samples_per_chunk);
+  const float* dist_ptr = dists.data() + samples_per_chunk * kNN;
+  device_array<float> sorted_dists(dists.size());
+  device_array<long> dists_idx(dists.size());
+  const long* dist_idx_ptr = dists_idx.data() + samples_per_chunk * kNN;
+  device_array<long> sorted_dists_idx(dists.size());
+
+  std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
+  device_array<int> kmers(kmer_ints);
+  // TODO need to make sure indexing into these correctly (offset to kernel launch should be enough)
+  device_array<float> random_table(std::get<1>(flat_random));
+  device_array<uint16_t> random_idx(ref_random_idx);
+
   // Set i_vec via kernel or CPU (it just needs to be 0, 0, 0..., 1, 1, 1...)
+  #pragma omp parallel for num_threads(cpu_threads)
+  for (size_t sample_idx = 0; sample_idx < params.n_samples; ++sample_idx) {
+    std::fill_n(i_vec.begin() + sample_idx * kNN, kNN, sample_idx);
+  }
+
+  cuda_stream dist_stream, idx_stream, mem_stream;
+  for (size_t chunk_idx = 0; chunk_idx < ref_sketches.size(); ++chunk_idx) {
+    CUDA_CALL(cudaHostRegister(ref_sketches[chunk_idx].data(), ref_sketches[chunk_idx].size() * sizeof(uint64_t)));
+  }
+
   // LOOP over n_chunks lots of refs
-  //  Load refs into block 1
-  //  Load queries into block 2 (if i == j, just set ptr rather than copy, but still use query mode of kernel)
-  //  LOOP over n_chunks lots of queries
-  //    (stream 1 async) Run dists on 1 vs 2
-  //    (stream 2 async) Load next into block 3
-  //    sync stream 1
-  //    (stream 1) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
-  //    (stream 1) D->D copy of top kNN dists to start of dists
-  //    sync stream 2
-  //    swap ptrs for block 2 <-> 3
+  const bool self = false;
+  const size_t idx_blockSize = 64;
+  block1.set_array_async(ref_sketches[0].data(), ref_sketches[0].size(), mem_stream.stream());
+  block4.set_array_async(block1.data(), block1.size(), mem_stream.stream());
+  for (size_t row_chunk_idx = 0; row_chunk_idx < ref_sketches.size(); ++row_chunk_idx) {
+    size_t row_samples = samples_per_chunk + row_chunk_idx < num_big_chunks ? 1 : 0;
+    size_t col_offset = 0;
+    //  LOOP over n_chunks lots of queries
+    for (size_t col_chunk_idx = 0; col_chunk_idx < ref_sketches.size(); ++col_chunk_idx) {
+      //    (stream 1 async) Run dists on 1 vs 2
+      size_t col_samples = samples_per_chunk + col_chunk_idx < num_big_chunks ? 1 : 0;
+      size_t dist_rows = row_samples * col_samples;
+      std::tie(blockSize, blockCount) =
+        getBlockSize(row_samples, col_samples, dist_rows, self);
+      uint64_t* query_ptr = col_chunk_idx == 0 ? block4.data() : block2.data();
+        calculate_dists<<<blockCount, blockSize, shared_size_bytes, dist_stream.stream()>>>(
+          self, block1.data(), row_samples,
+          query_ptr, col_samples,
+          kmers.data(), kmers.size(), dist_ptr,
+          dist_rows, random_table.data(), random_idx.data(),
+          random_table.data(), ref_strides[row_chunk_idx], ref_strides[col_chunk_idx],
+          random_strides, progress, use_shared, dist_col);
+
+      //    (stream 2 async) Load next into block 3
+      if (col_chunk_idx + 1 < ref_sketches.size()) {
+        block3.set_array_async(ref_sketches[col_chunk_idx + 1].data(), ref_sketches[col_chunk_idx + 1].size(), mem_stream.stream());
+      } else if (row_chunk_idx + 1 < ref_sketches.size()) {
+        block3.set_array_async(ref_sketches[row_chunk_idx + 1].data(), ref_sketches[row_chunk_idx + 1].size(), mem_stream.stream());
+      }
+
+      //    (stream 3 async) Set dist idx via kernel
+      size_t idx_blockCount = (dist_rows + idx_blockSize - 1) / idx_blockSize;
+      set_idx<<<idx_blockCount, idx_blockSize, 0, idx_stream.stream()>>>(
+        dist_idx_ptr, row_samples, col_samples, col_offset
+      )
+
+      // sync streams 1 and 3
+      dist_stream.sync();
+      idx_stream.sync();
+
+      // TODO
+      //    (stream 1) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
+      //    (stream 1) D->D copy of top kNN dists to start of dists
+
+      // Set up next block of sketches
+      //    sync stream 2
+      //    swap ptrs for block 2 <-> 3
+      mem_stream.sync();
+      if (col_chunk_idx + 1 < ref_sketches.size()) {
+        block2.swap(block3);
+      } else if (row_chunk_idx + 1 < ref_sketches.size()) {
+        block1.swap(block3);
+      }
+
+      col_offset += col_samples;
+  }
+
+  for (size_t chunk_idx = 0; chunk_idx < ref_sketches.size(); ++chunk_idx) {
+    CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data());
+  }
+
+  // TODO
   //  memcpy D->H first part of dists into host vec, idx into j_vec (with offset for n_chunk)
 
 
