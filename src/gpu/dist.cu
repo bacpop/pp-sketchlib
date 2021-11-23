@@ -579,11 +579,11 @@ sparse_coo sparseDists(const dist_params params,
     CUDA_CALL(cudaHostRegister(ref_sketches[chunk_idx].data(), ref_sketches[chunk_idx].size() * sizeof(uint64_t)));
   }
 
+  // const parameters for functions
   const bool self = false;
   const double total_blocks = static_cast<double>(n_chunks) * n_chunks;
   const size_t idx_blockSize = 64;
   const size_t copy_blockSize = 64;
-  size_t row_offset = 0;
   const int begin_sort_bit = 0;
   const int end_sort_bit = 8 * sizeof(float);
 
@@ -592,9 +592,9 @@ sparse_coo sparseDists(const dist_params params,
   cuda_stream dist_stream, idx_stream, mem_stream, sort_stream;
   block1.set_array_async(ref_sketches[0].data(), ref_sketches[0].size(), mem_stream.stream());
   block4.set_array_async(block1.data(), block1.size(), mem_stream.stream());
-  mem_stream.sync();
 
   // LOOP over n_chunks lots of refs
+  size_t row_offset = 0;
   for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
     size_t row_samples = samples_per_chunk + row_chunk_idx < num_big_chunks ? 1 : 0;
     size_t col_offset = 0;
@@ -616,6 +616,7 @@ sparse_coo sparseDists(const dist_params params,
       std::tie(blockSize, blockCount) =
         getBlockSize(row_samples, col_samples, dist_rows, self);
       uint64_t* query_ptr = col_chunk_idx == 0 ? block4.data() : block2.data();
+      mem_stream.sync();
       calculate_dists<<<blockCount, blockSize, shared_size_bytes, dist_stream.stream()>>>(
         self, block1.data(), row_samples,
         query_ptr, col_samples,
@@ -625,10 +626,13 @@ sparse_coo sparseDists(const dist_params params,
         random_strides, progress, use_shared, dist_col);
 
       //    (stream 2 async) Load next into block 3
+      //    swap ptrs for block 2 <-> 3
       if (col_chunk_idx + 1 < n_chunks) {
         block3.set_array_async(ref_sketches[col_chunk_idx + 1].data(), ref_sketches[col_chunk_idx + 1].size(), mem_stream.stream());
+        block2.swap(block3);
       } else if (row_chunk_idx + 1 < n_chunks) {
         block3.set_array_async(ref_sketches[row_chunk_idx + 1].data(), ref_sketches[row_chunk_idx + 1].size(), mem_stream.stream());
+        block1.swap(block3);
       }
 
       //    (stream 3 async) Set dist idx via kernel
@@ -669,19 +673,8 @@ sparse_coo sparseDists(const dist_params params,
         col_samples, dist_out_size, kNN, col_chunk_idx, second_sort
       );
 
-      // Set up next block of sketches
-      //    sync stream 2
-      //    swap ptrs for block 2 <-> 3
-      mem_stream.sync();
-      if (col_chunk_idx + 1 < n_chunks) {
-        block2.swap(block3);
-      } else if (row_chunk_idx + 1 < n_chunks) {
-        block1.swap(block3);
-      }
-
-      col_offset += col_samples;
-
       // Update progress
+      col_offset += col_samples;
       const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx;
       fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, blocks_done / total_blocks);
     }
