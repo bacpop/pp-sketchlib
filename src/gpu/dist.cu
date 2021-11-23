@@ -23,6 +23,7 @@
 namespace py = pybind11;
 
 // memcpy_async
+#include <cub/cub.cuh>
 #if __CUDACC_VER_MAJOR__ >= 11
 #include <cuda/barrier>
 #include <cooperative_groups.h>
@@ -141,7 +142,20 @@ __device__ void simple_linear_regression(float dists[],
 __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
     i += blockDim.x * gridDim.x) {
-      idx[i] = col_offset + i % col_samples;
+    idx[i] = col_offset + i % col_samples;
+  }
+}
+
+__global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
+  float* all_sorted_dists, long* all_sorted_idx, int segment_size, int n_out,
+    int kNN, int sketch_block_idx) {
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_out;
+    i += blockDim.x * gridDim.x) {
+    const int offset_in = (i / kNN) * segment_size + i % kNN;
+    const int offset_out = offset_in + kNN * sketch_block_idx;
+    all_sorted_dists[offset_out] = sorted_dists[offset_in];
+    all_sorted_idx[offset_out] = sorted_idx[offset_in];
+  }
 }
 
 __global__ void calculate_dists(
@@ -335,7 +349,7 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
 
 // Writes a progress meter using the device int which keeps
 // track of completed jobs
-void reportDistProgress(progress_atomics progress, long long dist_rows) {
+void reportDistProgress(progress_atomics& progress, long long dist_rows) {
   int now_completed = 0;
   float kern_progress = 0;
   if (dist_rows > progress_blocks) {
@@ -407,7 +421,6 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
 
   // Progress meter
   progress_atomics progress;
-  progress.init();
 
   RandomStrides random_strides = std::get<0>(flat_random);
   long long dist_rows;
@@ -466,7 +479,6 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
   CUDA_CALL(cudaGetLastError());
   reportDistProgress(progress, dist_rows);
   fprintf(stderr, "%cProgress (GPU): 100.0%%\n", 13);
-  progress.free();
 
   // Copy results back to host
   CUDA_CALL(cudaDeviceSynchronize());
@@ -495,9 +507,6 @@ sparse_coo sparseDists(const dist_params params,
 
   // Progress meter
   progress_atomics progress;
-  progress.init();
-
-  RandomStrides random_strides = std::get<0>(flat_random);
 
   // Storage for results on host
   std::vector<float> dists(params.n_samples * kNN);
@@ -509,104 +518,174 @@ sparse_coo sparseDists(const dist_params params,
   std::tie(use_shared, shared_size_bytes) =
     check_shared_size(query_strides, shared_size);
 
+  const size_t n_chunks = ref_sketches.size();
+
   // Allocate space for:
   //   sketch block 1
   //   sketch block 2
   //   sketch block 3
   //   sketch block 4
-  //   dists (chunk_size * kNN + chunk size^2) [first part is sorted; second part from new run]
-  //   dists idx (dists.size())
-  //   sorted dists (dists.size())
-  //   sorted dists idx (dists.size())
-  //   random
   device_array<uint64_t> block1(ref_sketches[0].size());
   device_array<uint64_t> block2(block1.size());
   device_array<uint64_t> block3(block1.size());
   device_array<uint64_t> block4(block1.size());
+  //   dists (chunk size^2)
+  //   dists idx (dists.size())
   // TODO make sure on the small chunks the unused distances are set to a large value
-  device_array<float> dists(samples_per_chunk * kNN + samples_per_chunk * samples_per_chunk);
-  const float* dist_ptr = dists.data() + samples_per_chunk * kNN;
-  device_array<float> sorted_dists(dists.size());
+  device_array<float> dists((samples_per_chunk + 1) * (samples_per_chunk + 1));
   device_array<long> dists_idx(dists.size());
-  const long* dist_idx_ptr = dists_idx.data() + samples_per_chunk * kNN;
-  device_array<long> sorted_dists_idx(dists.size());
 
-  std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
+  // inner loop sorting
+  //   sorted dists (dists.size())
+  //   sorted dists idx (dists.size())
+  //   offsets
+  //   tmp space
+  device_array<float> sorted_dists(dists.size());
+  device_array<long> sorted_dists_idx(dists.size());
+  device_array<int> dist_partitions(samples_per_chunk + 2);
+  device_array<void> dist_sort_tmp();
+
+  // outer loop sorting
+  //   sorted dists (dists.size())
+  //   sorted dists idx (dists.size())
+  //   offsets
+  //   tmp space
+  device_array<float> all_sorted_dists(kNN * n_chunks * (samples_per_chunk + 1));
+  device_array<long> all_sorted_dists_idx(all_sorted_dists.size());
+  device_array<int> all_dist_partitions(samples_per_chunk + 2);
+  device_array<void> all_dist_sort_tmp();
+
+  //   kmers
+  const std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
   device_array<int> kmers(kmer_ints);
-  // TODO need to make sure indexing into these correctly (offset to kernel launch should be enough)
+  //   random
+  RandomStrides random_strides = std::get<0>(flat_random);
   device_array<float> random_table(std::get<1>(flat_random));
   device_array<uint16_t> random_idx(ref_random_idx);
 
-  // Set i_vec via kernel or CPU (it just needs to be 0, 0, 0..., 1, 1, 1...)
+  // Set i_vec (it just needs to be 0, 0, 0..., 1, 1, 1...)
   #pragma omp parallel for num_threads(cpu_threads)
   for (size_t sample_idx = 0; sample_idx < params.n_samples; ++sample_idx) {
     std::fill_n(i_vec.begin() + sample_idx * kNN, kNN, sample_idx);
   }
 
-  cuda_stream dist_stream, idx_stream, mem_stream;
-  for (size_t chunk_idx = 0; chunk_idx < ref_sketches.size(); ++chunk_idx) {
+  for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
     CUDA_CALL(cudaHostRegister(ref_sketches[chunk_idx].data(), ref_sketches[chunk_idx].size() * sizeof(uint64_t)));
   }
 
-  // LOOP over n_chunks lots of refs
   const bool self = false;
+  const double total_blocks = static_cast<double>(n_chunks) * n_chunks;
   const size_t idx_blockSize = 64;
+  const size_t copy_blockSize = 64;
+  size_t row_offset = 0;
+  const int begin_sort_bit = 0;
+  const int end_sort_bit = 8 * sizeof(float);
+
+  // Copy first set of refs in. Block 4 is used to store this permanently to stop
+  // two copies being needed when entering a new row
+  cuda_stream dist_stream, idx_stream, mem_stream, sort_stream;
   block1.set_array_async(ref_sketches[0].data(), ref_sketches[0].size(), mem_stream.stream());
   block4.set_array_async(block1.data(), block1.size(), mem_stream.stream());
-  for (size_t row_chunk_idx = 0; row_chunk_idx < ref_sketches.size(); ++row_chunk_idx) {
+  mem_stream.sync();
+
+  // LOOP over n_chunks lots of refs
+  for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
     size_t row_samples = samples_per_chunk + row_chunk_idx < num_big_chunks ? 1 : 0;
     size_t col_offset = 0;
+    std::vector<int> host_partitions;
+    for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
+      host_partitions.push_back(partition_idx * row_samples);
+    }
+    dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
     //  LOOP over n_chunks lots of queries
-    for (size_t col_chunk_idx = 0; col_chunk_idx < ref_sketches.size(); ++col_chunk_idx) {
+    for (size_t col_chunk_idx = 0; col_chunk_idx < n_chunks; ++col_chunk_idx) {
+      // Check for interrupts
+      if (PyErr_CheckSignals() != 0) {
+        throw py::error_already_set();
+      }
+
       //    (stream 1 async) Run dists on 1 vs 2
       size_t col_samples = samples_per_chunk + col_chunk_idx < num_big_chunks ? 1 : 0;
       size_t dist_rows = row_samples * col_samples;
       std::tie(blockSize, blockCount) =
         getBlockSize(row_samples, col_samples, dist_rows, self);
       uint64_t* query_ptr = col_chunk_idx == 0 ? block4.data() : block2.data();
-        calculate_dists<<<blockCount, blockSize, shared_size_bytes, dist_stream.stream()>>>(
-          self, block1.data(), row_samples,
-          query_ptr, col_samples,
-          kmers.data(), kmers.size(), dist_ptr,
-          dist_rows, random_table.data(), random_idx.data(),
-          random_table.data(), ref_strides[row_chunk_idx], ref_strides[col_chunk_idx],
-          random_strides, progress, use_shared, dist_col);
+      calculate_dists<<<blockCount, blockSize, shared_size_bytes, dist_stream.stream()>>>(
+        self, block1.data(), row_samples,
+        query_ptr, col_samples,
+        kmers.data(), kmers.size(), dists.data(),
+        dist_rows, random_table.data(), random_idx.data() + row_offset,
+        random_idx.data() + col_offset, ref_strides[row_chunk_idx], ref_strides[col_chunk_idx],
+        random_strides, progress, use_shared, dist_col);
 
       //    (stream 2 async) Load next into block 3
-      if (col_chunk_idx + 1 < ref_sketches.size()) {
+      if (col_chunk_idx + 1 < n_chunks) {
         block3.set_array_async(ref_sketches[col_chunk_idx + 1].data(), ref_sketches[col_chunk_idx + 1].size(), mem_stream.stream());
-      } else if (row_chunk_idx + 1 < ref_sketches.size()) {
+      } else if (row_chunk_idx + 1 < n_chunks) {
         block3.set_array_async(ref_sketches[row_chunk_idx + 1].data(), ref_sketches[row_chunk_idx + 1].size(), mem_stream.stream());
       }
 
       //    (stream 3 async) Set dist idx via kernel
-      size_t idx_blockCount = (dist_rows + idx_blockSize - 1) / idx_blockSize;
+      const size_t idx_blockCount = (dist_rows + idx_blockSize - 1) / idx_blockSize;
       set_idx<<<idx_blockCount, idx_blockSize, 0, idx_stream.stream()>>>(
-        dist_idx_ptr, row_samples, col_samples, col_offset
+        dist_idx.data(), row_samples, col_samples, col_offset
       )
 
-      // sync streams 1 and 3
+      //    (stream 4) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
+      const int num_items = dist_rows;
+      const int num_segments = host_partitions.size();
+      int *d_offsets = dist_partitions.data();
+      int *d_keys_in = dists.data();
+      int *d_keys_out = sorted_dists.data();
+      int *d_values_in = dist_idx.data();
+      int *d_values_out = sorted_dist_idx.data();
+      // Determine temporary device storage requirements
+      size_t temp_storage_bytes = 0;
+      cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), temp_storage_bytes,
+          d_keys_in, d_keys_out, d_values_in, d_values_out,
+          num_items, num_segments, d_offsets, d_offsets + 1,
+          begin_sort_bit, end_sort_bit, sort_stream.stream());
+      dist_sort_tmp.set_size(temp_storage_bytes);
+      // Run sorting operation
       dist_stream.sync();
       idx_stream.sync();
+      cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), temp_storage_bytes,
+          d_keys_in, d_keys_out, d_values_in, d_values_out,
+          num_items, num_segments, d_offsets, d_offsets + 1,
+          begin_sort_bit, end_sort_bit, sort_stream.stream());
 
-      // TODO
-      //    (stream 1) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
-      //    (stream 1) D->D copy of top kNN dists to start of dists
+      //    (stream 4) D->D copy of top kNN dists to start of dists
+      const size_t dist_out_size = kNN * num_segments;
+      const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
+      copy_top_k<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
+        sorted_dists.data(), sorted_dist_idx.data(), all_sorted_dists.data(), all_sorted_dists_idx.data(),
+        col_samples, dist_out_size, kNN, col_chunk_idx
+      );
 
       // Set up next block of sketches
       //    sync stream 2
       //    swap ptrs for block 2 <-> 3
       mem_stream.sync();
-      if (col_chunk_idx + 1 < ref_sketches.size()) {
+      if (col_chunk_idx + 1 < n_chunks) {
         block2.swap(block3);
-      } else if (row_chunk_idx + 1 < ref_sketches.size()) {
+      } else if (row_chunk_idx + 1 < n_chunks) {
         block1.swap(block3);
       }
 
       col_offset += col_samples;
+
+      // Update progress
+      const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx;
+      fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, blocks_done / total_blocks);
+    }
+    row_offset += row_samples;
+
+    // sort the sort results
+
+    // take top kNN
   }
 
-  for (size_t chunk_idx = 0; chunk_idx < ref_sketches.size(); ++chunk_idx) {
+  for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
     CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data());
   }
 

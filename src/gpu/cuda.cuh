@@ -28,22 +28,25 @@ static void HandleCUDAError(const char *file, int line,
 #define CUDA_CALL(err) (HandleCUDAError(__FILE__, __LINE__, err))
 #define CUDA_CALL_NOTHROW( err ) (err)
 
-// A bit lazy... should be a class and just use the destructor
-struct progress_atomics {
-  volatile int *blocks_complete;
-  bool *kill_kernel;
-
-  void init() {
+class progress_atomics {
+public:
+  progress_atomics() {
     CUDA_CALL(cudaMallocManaged(&blocks_complete, sizeof(int)));
     CUDA_CALL(cudaMallocManaged(&kill_kernel, sizeof(bool)));
     *blocks_complete = 0;
     *kill_kernel = false;
   }
 
-  void free() {
+  ~progress_atomics() {
     CUDA_CALL(cudaFree((void *)blocks_complete));
     CUDA_CALL(cudaFree(kill_kernel));
   }
+private:
+  progress_atomics(const progress_atomics &) = delete;
+  progress_atomics(progress_atomics &&) = delete;
+
+  volatile int *blocks_complete;
+  bool *kill_kernel;
 };
 
 // Use atomic add to update a counter, so progress works regardless of
