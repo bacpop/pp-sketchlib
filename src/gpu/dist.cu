@@ -148,11 +148,16 @@ __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_
 
 __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
   float* all_sorted_dists, long* all_sorted_idx, int segment_size, int n_out,
-    int kNN, int sketch_block_idx) {
+    int kNN, int sketch_block_idx, bool second_sort) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_out;
     i += blockDim.x * gridDim.x) {
     const int offset_in = (i / kNN) * segment_size + i % kNN;
-    const int offset_out = offset_in + kNN * sketch_block_idx;
+    const int offset_out;
+    if (second_sort) {
+      offset_out = offset_in + kNN * sketch_block_idx;
+    } else {
+      offset_out = i;
+    }
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
     all_sorted_idx[offset_out] = sorted_idx[offset_in];
   }
@@ -509,7 +514,7 @@ sparse_coo sparseDists(const dist_params params,
   progress_atomics progress;
 
   // Storage for results on host
-  std::vector<float> dists(params.n_samples * kNN);
+  std::vector<float> host_dists(params.n_samples * kNN);
   std::vector<long> i_vec(params.n_samples * kNN);
   std::vector<long> j_vec(params.n_samples * kNN);
 
@@ -546,14 +551,14 @@ sparse_coo sparseDists(const dist_params params,
   device_array<void> dist_sort_tmp();
 
   // outer loop sorting
-  //   sorted dists (dists.size())
-  //   sorted dists idx (dists.size())
-  //   offsets
-  //   tmp space
+  //   sorted dists
+  //   sorted dists idx
   device_array<float> all_sorted_dists(kNN * n_chunks * (samples_per_chunk + 1));
   device_array<long> all_sorted_dists_idx(all_sorted_dists.size());
-  device_array<int> all_dist_partitions(samples_per_chunk + 2);
-  device_array<void> all_dist_sort_tmp();
+  device_array<float> doubly_sorted_dists(all_sorted_dists.size());
+  device_array<long> doubly_sorted_dists_idx(all_sorted_dists.size());
+  device_array<float> final_dists(kNN * (samples_per_chunk + 1));
+  device_array<float> final_dists_idx(kNN * (samples_per_chunk + 1));
 
   //   kmers
   const std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
@@ -569,6 +574,7 @@ sparse_coo sparseDists(const dist_params params,
     std::fill_n(i_vec.begin() + sample_idx * kNN, kNN, sample_idx);
   }
 
+  // Register sketches on host so they can be copied async
   for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
     CUDA_CALL(cudaHostRegister(ref_sketches[chunk_idx].data(), ref_sketches[chunk_idx].size() * sizeof(uint64_t)));
   }
@@ -655,11 +661,12 @@ sparse_coo sparseDists(const dist_params params,
           begin_sort_bit, end_sort_bit, sort_stream.stream());
 
       //    (stream 4) D->D copy of top kNN dists to start of dists
+      const bool second_sort = false;
       const size_t dist_out_size = kNN * num_segments;
       const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
       copy_top_k<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
         sorted_dists.data(), sorted_dist_idx.data(), all_sorted_dists.data(), all_sorted_dists_idx.data(),
-        col_samples, dist_out_size, kNN, col_chunk_idx
+        col_samples, dist_out_size, kNN, col_chunk_idx, second_sort
       );
 
       // Set up next block of sketches
@@ -678,20 +685,54 @@ sparse_coo sparseDists(const dist_params params,
       const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx;
       fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, blocks_done / total_blocks);
     }
-    row_offset += row_samples;
 
     // sort the sort results
+    host_partitions.clear();
+    for (int partition_idx = 0; partition_idx < col_samples + 1; ++partition_idx) {
+      host_partitions.push_back(partition_idx * kNN);
+    }
+    dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
+
+    const int num_items = all_sorted_dists.size();
+    const int num_segments = host_partitions.size();
+    int *d_offsets = dist_partitions.data();
+    int *d_keys_in = all_sorted_dists.data();
+    int *d_keys_out = doubly_sorted_dists.data();
+    int *d_values_in = all_sorted_dists_idx.data();
+    int *d_values_out = doubly_sorted_dists_idx.data()
+    // Determine temporary device storage requirements
+    size_t temp_storage_bytes = 0;
+    cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), temp_storage_bytes,
+        d_keys_in, d_keys_out, d_values_in, d_values_out,
+        num_items, num_segments, d_offsets, d_offsets + 1,
+        begin_sort_bit, end_sort_bit, sort_stream.stream());
+    dist_sort_tmp.set_size(temp_storage_bytes);
+    // Run sorting operation
+    cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), temp_storage_bytes,
+        d_keys_in, d_keys_out, d_values_in, d_values_out,
+        num_items, num_segments, d_offsets, d_offsets + 1,
+        begin_sort_bit, end_sort_bit, sort_stream.stream());
 
     // take top kNN
+    const bool second_sort = true;
+    const int block_offset = 0;
+    const size_t dist_out_size = kNN * num_segments;
+    const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
+    copy_top_k<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
+      all_sorted_dists.data(), all_sorted_dist_idx.data(), final_dists.data(), final_dists_idx.data(),
+      row_samples, dist_out_size, kNN, block_offset, second_sort
+    );
+    // Copy back to host
+    final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
+    final_dists_idx.get_array_async(j_vec.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
+
+    row_offset += row_samples;
   }
 
+  // Unregister host memory
   for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
     CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data());
   }
 
-  // TODO
-  //  memcpy D->H first part of dists into host vec, idx into j_vec (with offset for n_chunk)
-
-
-  return (std::make_tuple(i_vec, j_vec, dists));
+  return (std::make_tuple(i_vec, j_vec, host_dists));
 }
