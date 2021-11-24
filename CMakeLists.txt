@@ -58,8 +58,8 @@ add_library("${TARGET_NAME}" MODULE)
 # Check for CUDA and compiles GPU library
 include(CheckLanguage)
 check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
-    message(STATUS "CUDA found, compiling both GPU and CPU code")
+if(CMAKE_CUDA_COMPILER AND CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
+    message(STATUS "CUDA >11.0 found, compiling both GPU and CPU code")
     enable_language(CUDA)
 
     # PIC/relocatable-device-code needed as this is linked by gcc later
@@ -68,7 +68,7 @@ if(CMAKE_CUDA_COMPILER)
     # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
     set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr")
     # Turn on link time optimisation if available
-    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0 AND CMAKE_BUILD_TYPE MATCHES Release)
+    if(CMAKE_BUILD_TYPE MATCHES Release)
         string(APPEND CUDA_OPTS " -dlto -arch=sm_86")
     else()
         string(APPEND CUDA_OPTS " -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86")

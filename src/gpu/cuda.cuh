@@ -3,6 +3,9 @@
 #include <stdexcept>
 #include <stdio.h>
 
+#include <type_traits>
+static_assert(__CUDACC_VER_MAJOR__ >= 11, "CUDA >=11.0 required");
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
