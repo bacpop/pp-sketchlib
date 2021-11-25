@@ -264,7 +264,7 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::return_value_policy::reference_internal,
         "Find self-self distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"), py::arg("rlist"), py::arg("klist"), py::arg("random_correct") = true,
-        py::arg("jaccard") = false, py::arg("kNN") = 0, py::arg("dist_col") = true,
+        py::arg("jaccard") = false, py::arg("kNN") = 0, py::arg("dist_col") = 0,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 

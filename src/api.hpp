@@ -64,6 +64,13 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
                           RandomMC &random_chance,
                           const int device_id = 0,
                           const unsigned int num_cpu_threads = 1);
+
+sparse_coo query_db_sparse_cuda(std::vector<Reference> &ref_sketches,
+                          const std::vector<size_t> &kmer_lengths,
+                          RandomMC &random_match,
+                          const int kNN, const size_t dist_col,
+                          const int device_id,
+                          const unsigned int num_cpu_threads);
 #endif
 
 bool same_db_version(const std::string &db1_name,

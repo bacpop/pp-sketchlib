@@ -46,6 +46,18 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
                                  const bool self, const int cpu_threads,
                                  const size_t shared_size);
 
+sparse_coo sparseDists(const dist_params params,
+  const std::vector<std::vector<uint64_t>> &ref_sketches,
+  const std::vector<SketchStrides> &ref_strides,
+  const FlatRandom &flat_random,
+  const std::vector<uint16_t> &ref_random_idx,
+  const std::vector<size_t> &kmer_lengths,
+  const int kNN,
+  const size_t dist_col,
+  const size_t samples_per_chunk,
+  const size_t num_big_chunks,
+  const int cpu_threads);
+
 // in sketch.cu
 void copyNtHashTablesToDevice();
 

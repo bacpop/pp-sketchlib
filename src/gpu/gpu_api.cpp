@@ -503,7 +503,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
   return dists_ret_matrix;
 }
 
-sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+sparse_coo query_db_sparse_cuda(std::vector<Reference> &ref_sketches,
                           const std::vector<size_t> &kmer_lengths,
                           RandomMC &random_match,
                           const int kNN, const size_t dist_col,
