@@ -774,5 +774,8 @@ sparse_coo sparseDists(const dist_params params,
     CUDA_CALL(cudaHostUnregister((void *)ref_sketches[chunk_idx].data()));
   }
 
+  for (int i = 0; i < i_vec.size(); ++i) {
+    std::cout << i_vec[i] << "\t" << j_vec[i] << "\t" << host_dists[i] << std::endl;
+  }
   return (std::make_tuple(i_vec, j_vec, host_dists));
 }
