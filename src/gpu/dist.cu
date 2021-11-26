@@ -9,6 +9,7 @@
 // std
 #include <algorithm>
 #include <assert.h>
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -172,7 +173,7 @@ __global__ void calculate_dists(
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
     progress_atomics& progress, const bool use_shared,
-    const int dist_col) {
+    const int dist_col, const bool max_diagonal) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
   if (self) {
@@ -300,8 +301,14 @@ __global__ void calculate_dists(
   if (ref_idx < ref_n) {
     // Run the regression, and store results in dists
     float fitted_dists[2];
-    simple_linear_regression(fitted_dists, xsum, ysum, xysum, xsquaresum,
-                             ysquaresum, kmer_used, dist_col);
+    // Set diagonal if you wish to ignore diagonals (set them to max)
+    if (max_diagonal && ref_idx == query_idx) {
+      fitted_dists[0] = FLT_MAX;
+      fitted_dists[1] = FLT_MAX;
+    } else {
+      simple_linear_regression(fitted_dists, xsum, ysum, xysum, xsquaresum,
+                               ysquaresum, kmer_used, dist_col);
+    }
     if (dist_col < 0) {
       dists[dist_idx] = fitted_dists[0];
       dists[dist_idx + dist_n] = fitted_dists[1];
@@ -439,6 +446,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
     check_shared_size(query_strides, shared_size);
 
   size_t blockSize, blockCount;
+  bool max_diagonal = false;
   int dist_col = -1;
   if (self) {
     std::tie(blockSize, blockCount) = getBlockSize(
@@ -453,7 +461,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.ref_random(), ref_strides, ref_strides, random_strides,
-        progress, use_shared, dist_col);
+        progress, use_shared, dist_col, max_diagonal);
   } else {
     std::tie(blockSize, blockCount) =
         getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size,
@@ -468,7 +476,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.query_random(), ref_strides, query_strides,
-        random_strides, progress, use_shared, dist_col);
+        random_strides, progress, use_shared, dist_col, max_diagonal);
   }
 
   // Check for error in kernel launch
@@ -650,6 +658,7 @@ sparse_coo sparseDists(const dist_params params,
       std::tie(blockSize, blockCount) =
         getBlockSize(row_samples, col_samples, dist_rows, self);
       uint64_t* query_ptr = col_chunk_idx == 0 ? block4.data() : block2.data();
+      bool max_diagonal = col_chunk_idx == row_chunk_idx;
       mem_stream.sync();
       // NB in calculate_dists ref idx changes fastest (so should be the column)
       // so ref and query are 'backwards'
@@ -661,7 +670,7 @@ sparse_coo sparseDists(const dist_params params,
         dists.data(), dist_rows,
         random_table.data(), random_idx.data() + col_offset, random_idx.data() + row_offset,
         ref_strides[col_chunk_idx], ref_strides[row_chunk_idx],
-        random_strides, progress, use_shared, dist_col
+        random_strides, progress, use_shared, dist_col, max_diagonal
       );
 
       //    (stream 2 async) Load next into block 3
