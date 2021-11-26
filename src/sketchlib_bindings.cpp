@@ -181,18 +181,19 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
     random = RandomMC();
   }
 #ifdef GPU_AVAILABLE
+  sparse_coo dists;
   if (use_gpu) {
-    sparse_coo dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
+    dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
       jaccard, kNN, dist_col, device_id);
   } else {
-    sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
+    dists = query_db_sparse(ref_sketches, kmer_lengths, random,
       jaccard, kNN, dist_col, num_threads);
   }
 #else
   sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
     jaccard, kNN, dist_col, num_threads);
 #endif
-  return (dists);
+  return dists;
 }
 
 void addRandomToDb(const std::string &db_name,

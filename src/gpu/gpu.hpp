@@ -28,6 +28,8 @@ struct ALIGN(16) dist_params {
   long long dist_rows;
   long n_samples;
   size_t shared_size;
+  size_t mem_free;
+  size_t mem_total;
 };
 
 // defined in dist.cu
