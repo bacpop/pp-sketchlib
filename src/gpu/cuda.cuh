@@ -44,6 +44,30 @@ public:
     CUDA_CALL(cudaFree((void *)blocks_complete));
     CUDA_CALL(cudaFree(kill_kernel));
   }
+
+  __host__
+  void set_kill() {
+    *kill_kernel = true;
+  }
+
+  __device__
+  void check_kill() {
+    if (*kill_kernel) {
+      __trap();
+    }
+  }
+
+  __device__
+  void tick(const int advance) {
+    atomicAdd((int *)blocks_complete, advance);
+    __threadfence_system();
+  }
+
+  __host__ __device__
+  int complete() {
+    return *blocks_complete;
+  }
+
 private:
   progress_atomics(const progress_atomics &) = delete;
   progress_atomics(progress_atomics &&) = delete;
@@ -58,10 +82,7 @@ __device__ inline void update_progress(long long dist_idx, long long dist_n,
                                        progress_atomics progress) {
   // Progress indicator
   if (dist_idx % (dist_n / progress_blocks) == 0) {
-    if (*(progress.kill_kernel) == true) {
-      __trap();
-    }
-    atomicAdd((int *)progress.blocks_complete, 1);
-    __threadfence_system();
+    progress.check_kill();
+    progress.tick(1);
   }
 }

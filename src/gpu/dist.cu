@@ -349,11 +349,11 @@ void reportDistProgress(progress_atomics& progress, long long dist_rows) {
   if (dist_rows > progress_blocks) {
     while (now_completed < progress_blocks - 1) {
       if (PyErr_CheckSignals() != 0) {
-        *(progress.kill_kernel) = true;
+        progress.set_kill();
         throw py::error_already_set();
       }
-      if (*(progress.blocks_complete) > now_completed) {
-        now_completed = *(progress.blocks_complete);
+      if (progress.complete() > now_completed) {
+        now_completed = progress.complete();
         kern_progress = now_completed / (float)progress_blocks;
         fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, kern_progress * 100);
       } else {
@@ -764,7 +764,7 @@ sparse_coo sparseDists(const dist_params params,
 
   // Unregister host memory
   for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
-    CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data());
+    CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data()));
   }
 
   return (std::make_tuple(i_vec, j_vec, host_dists));
