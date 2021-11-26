@@ -303,15 +303,7 @@ flatten_by_samples(const std::vector<Reference> &sketches,
   return flat_ref;
 }
 
-// Small struct used in cuda_dists_init
-struct dist_params {
-  bool self;
-  SketchStides ref_strides;
-  SketchStrides query_strides;
-  long long dist_rows;
-  long n_samples;
-  size_t shared_size;
-};
+
 
 // Helper function which checks device memory size and whether chunking
 // of input is necessary

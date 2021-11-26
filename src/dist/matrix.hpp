@@ -15,11 +15,11 @@
 
 #include <Eigen/Dense>
 
+#include "matrix_types.hpp"
 #include "matrix_idx.hpp"
 
-typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
-typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<float>> sparse_coo;
-typedef std::tuple<std::vector<long>, std::vector<long>, std::vector<long>> network_coo;
+// This type not used in any nvcc code
+using NumpyMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
 
 //https://stackoverflow.com/a/12399290
 template <typename T>

@@ -14,10 +14,22 @@
 #include "device_memory.cuh"
 #include "gpu_countmin.cuh"
 #include "device_reads.cuh"
+#include "dist/matrix_types.hpp"
 
 static const int warp_size = 32;
 
 #ifdef GPU_AVAILABLE
+
+// Small struct used in cuda_dists_init
+struct dist_params {
+  bool self;
+  SketchStides ref_strides;
+  SketchStrides query_strides;
+  long long dist_rows;
+  long n_samples;
+  size_t shared_size;
+};
+
 // defined in dist.cu
 std::tuple<size_t, size_t, size_t> initialise_device(const int device_id);
 
