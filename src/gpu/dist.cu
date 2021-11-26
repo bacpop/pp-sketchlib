@@ -698,7 +698,8 @@ sparse_coo sparseDists(const dist_params params,
       // Run sorting operation
       dist_stream.sync();
       idx_stream.sync();
-      cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), dist_sort_tmp.size(),
+      size_t temp_storage_bytes = dist_sort_tmp.size();
+      cub::DeviceSegmentedRadixSort::SortPairs(dist_sort_tmp.data(), temp_storage_bytes,
           d_keys_in, d_keys_out, d_values_in, d_values_out,
           num_items, num_segments, d_offsets, d_offsets + 1,
           begin_sort_bit, end_sort_bit, sort_stream.stream());
@@ -742,7 +743,8 @@ sparse_coo sparseDists(const dist_params params,
       outer_dist_sort_tmp.set_size(temp_storage_bytes);
     }
     // Run sorting operation
-    cub::DeviceSegmentedRadixSort::SortPairs(outer_dist_sort_tmp.data(), outer_dist_sort_tmp.size(),
+    size_t temp_storage_bytes = outer_dist_sort_tmp.size();
+    cub::DeviceSegmentedRadixSort::SortPairs(outer_dist_sort_tmp.data(), temp_storage_bytes,
         d_keys_in, d_keys_out, d_values_in, d_values_out,
         num_items, num_segments, d_offsets, d_offsets + 1,
         begin_sort_bit, end_sort_bit, sort_stream.stream());
@@ -767,7 +769,7 @@ sparse_coo sparseDists(const dist_params params,
 
   // Unregister host memory
   for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
-    CUDA_CALL(cudaHostUnregister(ref_sketches[chunk_idx].data()));
+    CUDA_CALL(cudaHostUnregister((void *)ref_sketches[chunk_idx].data()));
   }
 
   return (std::make_tuple(i_vec, j_vec, host_dists));
