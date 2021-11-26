@@ -377,7 +377,7 @@ std::tuple<size_t, size_t, size_t> initialise_device(const int device_id) {
       std::make_tuple(mem_free, mem_total, static_cast<size_t>(shared_size)));
 }
 
-std::tuple<bool, size_t> check_shared_size(SketchStrides& strides, const size_t shared_size) {
+std::tuple<bool, size_t> check_shared_size(const SketchStrides& strides, const size_t shared_size) {
   size_t sketch_size_bytes =
     strides.sketchsize64 * strides.bbits * sizeof(uint64_t);
   bool use_shared = true;
@@ -555,7 +555,7 @@ sparse_coo sparseDists(const dist_params params,
   device_array<float> sorted_dists(dists.size());
   device_array<long> sorted_dists_idx(dists.size());
   device_array<int> dist_partitions(samples_per_chunk + 2);
-  device_array<void> dist_sort_tmp();
+  device_array<void> dist_sort_tmp;
 
   // inner loop kNN pick (copy_top_k)
   //   sorted dists
@@ -569,13 +569,13 @@ sparse_coo sparseDists(const dist_params params,
   //   tmp space
   device_array<float> doubly_sorted_dists(all_sorted_dists.size());
   device_array<long> doubly_sorted_dists_idx(all_sorted_dists.size());
-  device_array<void> outer_dist_sort_tmp();
+  device_array<void> outer_dist_sort_tmp;
 
   // out loop kNN pick (copy_top_k)
   //   final dists (staging for final results, copied to host)
   //   final dists idx (as above)
   device_array<float> final_dists(kNN * (samples_per_chunk + 1));
-  device_array<float> final_dists_idx(kNN * (samples_per_chunk + 1));
+  device_array<long> final_dists_idx(kNN * (samples_per_chunk + 1));
 
   //   kmers
   const std::vector<int> kmer_ints(kmer_lengths.begin(), kmer_lengths.end());
@@ -684,7 +684,7 @@ sparse_coo sparseDists(const dist_params params,
       int *d_offsets = dist_partitions.data();
       float *d_keys_in = dists.data();
       float *d_keys_out = sorted_dists.data();
-      long *d_values_in = dist_idx.data();
+      long *d_values_in = dists_idx.data();
       long *d_values_out = sorted_dists_idx.data();
       // Determine temporary device storage requirements (first run only)
       if (row_chunk_idx == 0 && col_chunk_idx == 0) {
@@ -707,8 +707,8 @@ sparse_coo sparseDists(const dist_params params,
       const bool second_sort = false;
       const size_t dist_out_size = kNN * num_segments;
       const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
-      copy_top_k<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
-        sorted_dists.data(), sorted_dist_idx.data(), all_sorted_dists.data(), all_sorted_dists_idx.data(),
+      copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
+        sorted_dists.data(), sorted_dists_idx.data(), all_sorted_dists.data(), all_sorted_dists_idx.data(),
         col_samples, dist_out_size, kNN, col_chunk_idx, second_sort
       );
 
@@ -720,7 +720,7 @@ sparse_coo sparseDists(const dist_params params,
 
     // sort the sort results
     host_partitions.clear();
-    for (int partition_idx = 0; partition_idx < col_samples + 1; ++partition_idx) {
+    for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
       host_partitions.push_back(partition_idx * kNN);
     }
     dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
@@ -731,7 +731,7 @@ sparse_coo sparseDists(const dist_params params,
     float *d_keys_in = all_sorted_dists.data();
     float *d_keys_out = doubly_sorted_dists.data();
     long *d_values_in = all_sorted_dists_idx.data();
-    long *d_values_out = doubly_sorted_dists_idx.data()
+    long *d_values_out = doubly_sorted_dists_idx.data();
     // Determine temporary device storage requirements
     if (row_chunk_idx == 0) {
       size_t temp_storage_bytes = 0;
@@ -752,7 +752,7 @@ sparse_coo sparseDists(const dist_params params,
     const int block_offset = 0;
     const size_t dist_out_size = kNN * num_segments;
     const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
-    copy_top_k<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
+    copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
       all_sorted_dists.data(), all_sorted_dist_idx.data(), final_dists.data(), final_dists_idx.data(),
       row_samples, dist_out_size, kNN, block_offset, second_sort
     );
