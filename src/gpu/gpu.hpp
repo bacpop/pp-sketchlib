@@ -21,9 +21,9 @@ static const int warp_size = 32;
 #ifdef GPU_AVAILABLE
 
 // Small struct used in cuda_dists_init
-struct dist_params {
+struct ALIGN(16) dist_params {
   bool self;
-  SketchStides ref_strides;
+  SketchStrides ref_strides;
   SketchStrides query_strides;
   long long dist_rows;
   long n_samples;

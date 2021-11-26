@@ -26,7 +26,7 @@ namespace py = pybind11;
 #include <cub/cub.cuh>
 #include <cuda/barrier>
 #include <cooperative_groups.h>
-#pragma diag_suppress static_var_with_dynamic_init
+#pragma nv_diag_suppress static_var_with_dynamic_init
 
 // internal headers
 #include "cuda.cuh"
@@ -149,7 +149,7 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_out;
     i += blockDim.x * gridDim.x) {
     const int offset_in = (i / kNN) * segment_size + i % kNN;
-    const int offset_out;
+    int offset_out;
     if (second_sort) {
       // If copying from the sorted kNN * n_chunk list into the final sparse matrix
       offset_out = offset_in + kNN * sketch_block_idx;
@@ -169,7 +169,7 @@ __global__ void calculate_dists(
     const float *random_table, const uint16_t *ref_idx_lookup,
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
-    progress_atomics progress, const bool use_shared,
+    progress_atomics& progress, const bool use_shared,
     const int dist_col) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
@@ -299,7 +299,7 @@ __global__ void calculate_dists(
     // Run the regression, and store results in dists
     float fitted_dists[2];
     simple_linear_regression(fitted_dists, xsum, ysum, xysum, xsquaresum,
-                             ysquaresum, kmer_used);
+                             ysquaresum, kmer_used, dist_col);
     if (dist_col < 0) {
       dists[dist_idx] = fitted_dists[0];
       dists[dist_idx + dist_n] = fitted_dists[1];
@@ -387,7 +387,7 @@ std::tuple<bool, size_t> check_shared_size(SketchStrides& strides, const size_t 
               << std::endl;
     std::cerr << "Reduce sketch size to "
               << std::floor(64 * shared_size /
-                            (query_strides.bbits * sizeof(uint64_t)))
+                            (strides.bbits * sizeof(uint64_t)))
               << " or less for better performance" << std::endl;
     sketch_size_bytes = 0;
     use_shared = false;
@@ -508,6 +508,7 @@ sparse_coo sparseDists(const dist_params params,
   progress_atomics progress;
 
   // const parameters for functions
+  const size_t n_chunks = ref_sketches.size();
   const bool self = false;
   const double total_blocks = static_cast<double>(n_chunks) * n_chunks;
   const size_t idx_blockSize = 64;
@@ -518,9 +519,7 @@ sparse_coo sparseDists(const dist_params params,
   bool use_shared;
   size_t shared_size_bytes;
   std::tie(use_shared, shared_size_bytes) =
-    check_shared_size(query_strides, shared_size);
-
-  const size_t n_chunks = ref_sketches.size();
+    check_shared_size(ref_strides[0], params.shared_size);
 
   /*
    *
@@ -604,7 +603,9 @@ sparse_coo sparseDists(const dist_params params,
 
   // Register sketches on host so they can be copied async
   for (size_t chunk_idx = 0; chunk_idx < n_chunks; ++chunk_idx) {
-    CUDA_CALL(cudaHostRegister(ref_sketches[chunk_idx].data(), ref_sketches[chunk_idx].size() * sizeof(uint64_t)));
+    CUDA_CALL(cudaHostRegister((void *)ref_sketches[chunk_idx].data(),
+                               ref_sketches[chunk_idx].size() * sizeof(uint64_t),
+                               cudaHostRegisterReadOnly));
   }
 
   // Four CUDA streams used in loops
@@ -643,6 +644,7 @@ sparse_coo sparseDists(const dist_params params,
       //    (stream 1 async) Run dists on 1 vs 2
       size_t col_samples = samples_per_chunk + col_chunk_idx < num_big_chunks ? 1 : 0;
       size_t dist_rows = row_samples * col_samples;
+      size_t blockSize, blockCount;
       std::tie(blockSize, blockCount) =
         getBlockSize(row_samples, col_samples, dist_rows, self);
       uint64_t* query_ptr = col_chunk_idx == 0 ? block4.data() : block2.data();
@@ -657,7 +659,8 @@ sparse_coo sparseDists(const dist_params params,
         dists.data(), dist_rows,
         random_table.data(), random_idx.data() + col_offset, random_idx.data() + row_offset,
         ref_strides[col_chunk_idx], ref_strides[row_chunk_idx],
-        random_strides, progress, use_shared, dist_col);
+        random_strides, progress, use_shared, dist_col
+      );
 
       //    (stream 2 async) Load next into block 3
       //    swap ptrs for block 2 <-> 3
@@ -672,8 +675,8 @@ sparse_coo sparseDists(const dist_params params,
       //    (stream 3 async) Set dist idx via kernel
       const size_t idx_blockCount = (dist_rows + idx_blockSize - 1) / idx_blockSize;
       set_idx<<<idx_blockCount, idx_blockSize, 0, idx_stream.stream()>>>(
-        dist_idx.data(), row_samples, col_samples, col_offset
-      )
+        dists_idx.data(), row_samples, col_samples, col_offset
+      );
 
       //    (stream 4) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
       const int num_items = dist_rows;
@@ -682,7 +685,7 @@ sparse_coo sparseDists(const dist_params params,
       float *d_keys_in = dists.data();
       float *d_keys_out = sorted_dists.data();
       long *d_values_in = dist_idx.data();
-      long *d_values_out = sorted_dist_idx.data();
+      long *d_values_out = sorted_dists_idx.data();
       // Determine temporary device storage requirements (first run only)
       if (row_chunk_idx == 0 && col_chunk_idx == 0) {
         size_t temp_storage_bytes = 0;

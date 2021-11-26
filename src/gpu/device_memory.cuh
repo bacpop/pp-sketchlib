@@ -20,7 +20,7 @@ struct ALIGN(8) RandomStrides {
   size_t cluster_outer_stride;
 };
 
-typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
+using FlatRandom = std::tuple<RandomStrides, std::vector<float>>;
 
 #ifdef GPU_AVAILABLE
 

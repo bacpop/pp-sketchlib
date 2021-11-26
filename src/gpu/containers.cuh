@@ -116,7 +116,6 @@ private:
 
 // Specialisation of the above for void* memory needed by some cub functions
 // Construct once and use set_size() to modify
-// Still using malloc/free instead of new and delete, as void type problematic
 template <> class device_array<void> {
 public:
   // Default constructor
@@ -131,12 +130,14 @@ public:
   ~device_array() { CUDA_CALL_NOTHROW(cudaFree(data_)); }
 
   void set_size(size_t size) {
-    size_ = size;
-    CUDA_CALL(cudaFree(data_));
-    if (size_ > 0) {
-      CUDA_CALL(cudaMalloc((void **)&data_, size_));
-    } else {
-      data_ = nullptr;
+    if (size != size_) {
+      size_ = size;
+      CUDA_CALL(cudaFree(data_));
+      if (size_ > 0) {
+        CUDA_CALL(cudaMalloc((void **)&data_, size_));
+      } else {
+        data_ = nullptr;
+      }
     }
   }
 
