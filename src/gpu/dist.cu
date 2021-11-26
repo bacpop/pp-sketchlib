@@ -627,7 +627,7 @@ sparse_coo sparseDists(const dist_params params,
   // LOOP over n_chunks lots of refs
   size_t row_offset = 0;
   for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
-    size_t row_samples = samples_per_chunk + row_chunk_idx < num_big_chunks ? 1 : 0;
+    size_t row_samples = samples_per_chunk + (row_chunk_idx < num_big_chunks ? 1 : 0);
     size_t col_offset = 0;
     std::vector<int> host_partitions;
     for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
@@ -642,7 +642,7 @@ sparse_coo sparseDists(const dist_params params,
       }
 
       //    (stream 1 async) Run dists on 1 vs 2
-      size_t col_samples = samples_per_chunk + col_chunk_idx < num_big_chunks ? 1 : 0;
+      size_t col_samples = samples_per_chunk + (col_chunk_idx < num_big_chunks ? 1 : 0);
       size_t dist_rows = row_samples * col_samples;
       size_t blockSize, blockCount;
       std::tie(blockSize, blockCount) =

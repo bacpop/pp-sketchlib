@@ -510,14 +510,15 @@ sparse_coo query_db_sparse_cuda(std::vector<Reference> &ref_sketches,
   // Use a fixed chunk size of ~3000 samples per chunk
   // TODO restore this line
   //const size_t chunks = 1 + params.n_samples / 3000;
-  const size_t chunks = 3;
+  const size_t chunks = 2;
   const size_t samples_per_chunk = params.n_samples / chunks;
   const unsigned int num_big_chunks = params.n_samples % chunks;
   std::vector<std::vector<uint64_t>> sample_blocks;
   std::vector<SketchStrides> sample_block_strides(chunks, params.ref_strides);
   size_t start_idx = 0;
   for (size_t chunk_idx = 0; chunk_idx < chunks; ++chunk_idx) {
-    size_t end_idx = start_idx + samples_per_chunk + chunk_idx < num_big_chunks ? 1 : 0;
+    size_t end_idx = start_idx + samples_per_chunk +
+      (chunk_idx < num_big_chunks ? 1 : 0);
     sample_blocks.push_back(
       flatten_by_samples(ref_sketches, kmer_lengths,
               sample_block_strides[chunk_idx], start_idx, end_idx, num_cpu_threads));
