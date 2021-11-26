@@ -715,8 +715,8 @@ sparse_coo sparseDists(const dist_params params,
 
       // Update progress
       col_offset += col_samples;
-      const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx;
-      fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, blocks_done / total_blocks);
+      const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx + 1;
+      fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, 100 * blocks_done / total_blocks);
     }
 
     // sort the sort results
