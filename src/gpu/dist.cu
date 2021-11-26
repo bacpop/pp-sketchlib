@@ -139,7 +139,7 @@ __device__ void simple_linear_regression(float dists[],
 __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
     i += blockDim.x * gridDim.x) {
-    printf("i:%d idx:%u\n", i, col_offset + i % col_samples);
+    printf("i:%d idx:%lu\n", i, col_offset + i % col_samples);
     idx[i] = col_offset + i % col_samples;
   }
 }
