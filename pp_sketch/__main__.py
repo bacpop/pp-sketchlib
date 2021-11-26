@@ -5,7 +5,7 @@ Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib query sparse <db1> [<db2>] (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib join <db1> <db2> -o <output>
   sketchlib (add|remove) random <db1> [--cpus <cpus>]
@@ -301,7 +301,7 @@ def main():
                                               args['--cpus'],
                                               args['--use-gpu'],
                                               args['--gpu'])
-            # Otherwise use general version
+            # Otherwise use general version (potentially large memory use)
             else:
                 sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
                                                             args['db2'],
