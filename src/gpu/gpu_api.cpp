@@ -372,7 +372,7 @@ NumpyMatrix query_db_cuda(std::vector<Reference> &ref_sketches,
             << params.mem_free / (1048576) << "Mb" << std::endl;
 
   unsigned int chunks = 1;
-  if (est_size > params.mem_free * (1 - mem_epsilon) {
+  if (est_size > params.mem_free * (1 - mem_epsilon)) {
     if (params.self) {
       // To prevent memory being exceeded, total distance matrix is split up into
       // chunks which do fit in memory. The most is needed in the 'corners' where
@@ -522,6 +522,8 @@ sparse_coo query_db_sparse_cuda(std::vector<Reference> &ref_sketches,
     start_idx = end_idx;
   }
 
-  return sparseDists(params, sample_blocks, sample_block_strides, kmer_lengths, flat_random, ref_random_idx,
-                    kNN, dist_col, num_cpu_threads);
+  return sparseDists(params, sample_blocks, sample_block_strides,
+                     flat_random, ref_random_idx, kmer_lengths,
+                     kNN, dist_col, samples_per_chunk, num_big_chunks,
+                     num_cpu_threads);
 }
