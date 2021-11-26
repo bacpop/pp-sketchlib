@@ -157,7 +157,7 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
       offset_out = offset_in + kNN * sketch_block_idx;
     } else {
       // If copying from the sorted n_chunk dense list into the kNN * n_chunk list
-      offset_out = i;
+      offset_out = i + (i / kNN) * kNN + kNN * sketch_block_idx;
     }
     printf("i:%d offset_in:%d offset_out:%d\n", i, offset_in, offset_out);
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
@@ -691,7 +691,7 @@ sparse_coo sparseDists(const dist_params params,
 
       //    (stream 4) cub::DeviceSegmentedRadixSort::SortPairs on dists, dists idx -> sorted dists, sorted dists idx
       const int num_items = dist_rows;
-      const int num_segments = host_partitions.size();
+      const int num_segments = host_partitions.size() - 1;
       int *d_offsets = dist_partitions.data();
       float *d_keys_in = dists.data();
       float *d_keys_out = sorted_dists.data();
@@ -738,7 +738,7 @@ sparse_coo sparseDists(const dist_params params,
     dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
 
     const int num_items = all_sorted_dists.size();
-    const int num_segments = host_partitions.size();
+    const int num_segments = host_partitions.size() - 1;
     int *d_offsets = dist_partitions.data();
     float *d_keys_in = all_sorted_dists.data();
     float *d_keys_out = doubly_sorted_dists.data();
