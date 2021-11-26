@@ -347,8 +347,8 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
     } else {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
         if (jaccard) {
-            row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
-                ref_sketches[j], kmer_lengths[dist_col], random_chance);
+          row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
+              ref_sketches[j], kmer_lengths[dist_col], random_chance);
         } else {
           float core, acc;
           std::tie(core, acc) =
@@ -366,22 +366,24 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
             progress += MIN(1, n_progress_ticks / dist_rows);
             dist_progress.tick_count(progress);
           }
-      }
-      long offset = i * kNN;
-      std::vector<long> ordered_dists = sort_indexes(row_dists);
-      std::fill_n(i_vec.begin() + offset, kNN, i);
-      // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
-
-      int ordered_dist_idx = 0;
-      if (ordered_dists[0] == i) {
-        ordered_dist_idx = 1;
-      }
-      for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
-        j_vec[offset + k] = ordered_dists[ordered_dist_idx];
-        dists[offset + k] = row_dists[ordered_dists[ordered_dist_idx]];
-        if (ordered_dists[ordered_dist_idx] == i) {
-          ++ordered_dist_idx;
         }
+        long offset = i * kNN;
+        std::vector<long> ordered_dists = sort_indexes(row_dists);
+        std::fill_n(i_vec.begin() + offset, kNN, i);
+        // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
+
+        int ordered_dist_idx = 0;
+        if (ordered_dists[0] == i) {
+          ordered_dist_idx = 1;
+        }
+        for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
+          j_vec[offset + k] = ordered_dists[ordered_dist_idx];
+          dists[offset + k] = row_dists[ordered_dists[ordered_dist_idx]];
+          if (ordered_dists[ordered_dist_idx] == i) {
+            ++ordered_dist_idx;
+          }
+        }
+
       }
     }
   }
