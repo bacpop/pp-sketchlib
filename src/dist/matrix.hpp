@@ -19,7 +19,7 @@
 #include "matrix_idx.hpp"
 
 // This type not used in any nvcc code
-using NumpyMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> NumpyMatrix;
+using NumpyMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
 //https://stackoverflow.com/a/12399290
 template <typename T>
