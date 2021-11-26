@@ -508,7 +508,9 @@ sparse_coo query_db_sparse_cuda(std::vector<Reference> &ref_sketches,
   // Flatten all of the sketches in blocks
   //   (as stride is bins) - return vector<vector<uint64_t>>
   // Use a fixed chunk size of ~3000 samples per chunk
-  const size_t chunks = 1 + params.n_samples / 3000;
+  // TODO restore this line
+  //const size_t chunks = 1 + params.n_samples / 3000;
+  const size_t chunks = 3;
   const size_t samples_per_chunk = params.n_samples / chunks;
   const unsigned int num_big_chunks = params.n_samples % chunks;
   std::vector<std::vector<uint64_t>> sample_blocks;
