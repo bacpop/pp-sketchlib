@@ -139,6 +139,7 @@ __device__ void simple_linear_regression(float dists[],
 __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
     i += blockDim.x * gridDim.x) {
+    printf("i:%d idx:%d\n", i, col_offset + i % col_samples);
     idx[i] = col_offset + i % col_samples;
   }
 }
@@ -157,6 +158,7 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
       // If copying from the sorted n_chunk dense list into the kNN * n_chunk list
       offset_out = i;
     }
+    printf("i:%d offset_in:%d offset_out:%d\n", i, offset_in, offset_out);
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
     all_sorted_idx[offset_out] = sorted_idx[offset_in];
   }
