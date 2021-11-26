@@ -16,6 +16,7 @@
 #include "gpu/gpu.hpp"
 #include "reference.hpp"
 #include "sketch/progress.hpp"
+#include "sketch/bitfuncs.hpp"
 
 using namespace Eigen;
 namespace py = pybind11;
@@ -174,10 +175,10 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   // Set up progress meter
   if (ref_sketches == query_sketches) {
     // calculate dists
-    size_t dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
+    dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
                                            (ref_sketches.size() - 1));
   } else {
-    size_t dist_rows = ref_sketches.size() * query_sketches.size();
+    dist_rows = ref_sketches.size() * query_sketches.size();
   }
   static const uint64_t n_progress_ticks = 1000;
   uint64_t update_every = 1;
@@ -225,7 +226,6 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
         }
       }
     }
-    dist_progress.finalise();
   } else {
     // If ref != query, make a thread queue, with each element one ref
     // calculate dists
@@ -269,20 +269,21 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           }
           if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp critical
-          {
-            progress += MIN(1, n_progress_ticks / dist_rows);
-            dist_progress.tick_count(progress);
+            {
+              progress += MIN(1, n_progress_ticks / dist_rows);
+              dist_progress.tick_count(progress);
+            }
           }
         }
       }
     }
-    dist_progress.finalise();
   }
 
   // Handle Ctrl-C from python
   if (interrupt) {
     throw py::error_already_set();
   }
+  dist_progress.finalise();
 
   return (distMat);
 }
