@@ -267,7 +267,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                 query_sketches[q_idx].core_acc_dist<std::vector<double>>(
                     ref_sketches[r_idx], kmer_mat, jaccard_random);
           }
-          if ((i * ref_sketches.size() + j) % update_every == 0) {
+          if ((q_idx * ref_sketches.size() + r_idx) % update_every == 0) {
 #pragma omp critical
             {
               progress += MIN(1, n_progress_ticks / dist_rows);
@@ -318,7 +318,8 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                      RandomMC &random_chance, const bool jaccard,
                      const int kNN, const size_t dist_col,
                      const size_t num_threads) {
-  check_sparse_inputs(ref_sketches, kmer_lengths, random_chances, jaccard, dist_col);
+  check_sparse_inputs(ref_sketches, kmer_lengths, random_chance,
+                      jaccard, dist_col);
 
   std::cerr << "Calculating distances using " << num_threads << " thread(s)"
             << std::endl;
