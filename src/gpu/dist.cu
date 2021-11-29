@@ -319,7 +319,7 @@ __global__ void calculate_dists(
     } else {
       dists[dist_idx] = fitted_dists[dist_col];
     }
-    printf("query:%d ref:%d dist_idx:%d core:%d acc: %f\n", query_idx, ref_idx, dist_idx, fitted_dists[0], fitted_dists[1]);
+    printf("query:%d ref:%d dist_idx:%d core:%f acc:%f\n", query_idx, ref_idx, dist_idx, fitted_dists[0], fitted_dists[1]);
 
     update_progress(dist_idx, dist_n, progress);
   }
