@@ -142,16 +142,12 @@ sparseQuery(const std::string &ref_db_name, const std::string &query_db_name,
             const std::vector<std::string> &query_names,
             std::vector<size_t> kmer_lengths, const bool random_correct = true,
             const float dist_cutoff = 0, const unsigned long int kNN = 0,
-            const bool core = true, const size_t num_threads = 1,
+            const size_t dist_col = 0, const size_t num_threads = 1,
             const bool use_gpu = false, const int device_id = 0) {
   NumpyMatrix dists = queryDatabase(ref_db_name, query_db_name, ref_names,
                                     query_names, kmer_lengths, random_correct,
                                     false, num_threads, use_gpu, device_id);
 
-  unsigned int dist_col = 0;
-  if (!core) {
-    dist_col = 1;
-  }
   Eigen::VectorXf dummy_query_ref;
   Eigen::VectorXf dummy_query_query;
   NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
@@ -167,7 +163,7 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
             const bool jaccard = false, const unsigned long int kNN = 0,
             const size_t dist_col = 0, const size_t num_threads = 1,
             const bool use_gpu = false, const int device_id = 0) {
-  if (use_gpu && (jaccard || kmer_lengths.size() < 2)) {
+  if (use_gpu && (jaccard || kmer_lengths.size() < 2 || dist_col > 1)) {
     throw std::runtime_error(
         "Extracting Jaccard distances not supported on GPU");
   }
@@ -257,7 +253,7 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         "Find distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"), py::arg("query_db_name"), py::arg("rList"),
         py::arg("qList"), py::arg("klist"), py::arg("random_correct") = true,
-        py::arg("dist_cutoff") = 0, py::arg("kNN") = 0, py::arg("core") = true,
+        py::arg("dist_cutoff") = 0, py::arg("kNN") = 0, py::arg("dist_col") = 0,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 

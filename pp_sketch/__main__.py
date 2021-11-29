@@ -7,6 +7,7 @@ Usage:
   sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib query sparse <db1> [<db2>] (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query sparse jaccard <db1> --kNN <k> --kmer <k> [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib join <db1> <db2> -o <output>
   sketchlib (add|remove) random <db1> [--cpus <cpus>]
   sketchlib (-h | --help)
@@ -22,7 +23,7 @@ Options:
   --gpu <gpu>    Use GPU with specified device ID [default: -1].
 
   -k <kseq>     Sequence of k-mers to sketch (min,max,step) [default: 15,31,4].
-  --kmer <k>    Sketch at a single k-mer length k.
+  --kmer <k>    Sketch (or distance) at a single k-mer length k.
   -s <size>     Sketch size [default: 10000].
   --single-strand  Ignore the reverse complement (e.g. in RNA viruses).
   --codon-phased  Use codon phased seeds X--X--X
@@ -129,7 +130,7 @@ def get_options():
             if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
                 raise RuntimeError("Invalid k-mer sizes")
             arguments['kmers'] = np.arange(int(min_k), int(max_k) + 1, int(k_step))
-        except:
+        except RuntimeError:
             sys.stderr.write("Minimum kmer size must be smaller than maximum kmer size; " +
                              "range must be between 3 and 101, step must be at least one\n")
             sys.exit(1)
@@ -219,6 +220,8 @@ def main():
                 sys.stderr.write("One database uses codon-phased seeds - cannot join "
                                  "with a standard seed database\n")
         except RuntimeError as e:
+            hdf1.close()
+            hdf2.close()
             sys.stderr.write("Unable to check sketch version\n")
 
         hdf_join = h5py.File(join_name + ".tmp", 'w') # add .tmp in case join_name exists
@@ -235,17 +238,15 @@ def main():
                 sys.stderr.write("Random matches found in one database, which will not be copied\n"
                                  "Use --add-random to recalculate for the joined DB\n")
         except RuntimeError as e:
-            hdf1.close()
-            hdf2.close()
-            hdf_join.close()
             sys.stderr.write("ERROR: " + str(e) + "\n")
             sys.stderr.write("Joining sketches failed\n")
             sys.exit(1)
+        finally:
+            hdf1.close()
+            hdf2.close()
+            hdf_join.close()
 
         # Clean up
-        hdf1.close()
-        hdf2.close()
-        hdf_join.close()
         os.rename(join_name + ".tmp", join_name)
 
     #
@@ -289,20 +290,33 @@ def main():
         query.close()
 
         if args['sparse']:
-            # Can use memory efficient version
+            # Set which distance to output (sparse only supports a single value)
+            if args['jaccard']:
+                dist_col = query_kmers.index(args['kmers'])
+            else:
+                if args['--accessory']:
+                    dist_col = 1
+                else:
+                    dist_col = 0
+            # Can use memory efficient version with self and kNN
             if args['db1'] == args['db2'] and args['--threshold'] == 0:
                 sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
                                               rList,
                                               query_kmers,
                                               args['--adj-random'],
-                                              False,
+                                              args['jaccard'],
                                               args['--kNN'],
-                                              not args['--accessory'],
+                                              dist_col,
                                               args['--cpus'],
                                               args['--use-gpu'],
                                               args['--gpu'])
-            # Otherwise use general version (potentially large memory use)
+            # Otherwise use general version (potentially large memory use as it
+            # actually calculates the dense distances, then sparsifies them)
             else:
+                # This should be prohibited by docopt, but just in case
+                if args['jaccard']:
+                    raise ValueError("Cannot use sparse jaccard with non-self "
+                                     "or --threshold")
                 sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
                                                             args['db2'],
                                                             rList,
@@ -311,7 +325,7 @@ def main():
                                                             args['--adj-random'],
                                                             args['--threshold'],
                                                             args['--kNN'],
-                                                            not args['--accessory'],
+                                                            dist_col,
                                                             args['--cpus'],
                                                             args['--use-gpu'],
                                                             args['--gpu'])
