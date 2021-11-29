@@ -157,17 +157,15 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_out;
     i += blockDim.x * gridDim.x) {
     const int offset_in = (i / kNN) * segment_size + i % kNN;
-    int offset_out;
-    if (second_sort) {
-      // If copying from the sorted kNN * n_chunk list into the final sparse matrix
-      offset_out = i;
-    } else {
+    int offset_out = i;
+    // If copying from the sorted kNN * n_chunk list into the final sparse matrix
+    if (!second_sort) {
       // If copying from the sorted n_chunk dense list into the kNN * n_chunk list
-      offset_out = i + (i / kNN) * kNN + kNN * sketch_block_idx;
+      offset_out += ((i / kNN) * kNN) + (kNN * sketch_block_idx);
     }
-    printf("i:%d offset_in:%d offset_out:%d\n", i, offset_in, offset_out);
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
     all_sorted_idx[offset_out] = sorted_idx[offset_in];
+    printf("i:%d offset_in:%d offset_out:%d val:%f idx:%lu\n", i, offset_in, offset_out, all_sorted_dists[offset_out], all_sorted_idx[offset_out]);
   }
 }
 
@@ -790,6 +788,13 @@ sparse_coo sparseDists(const dist_params params,
       all_sorted_dists.data(), all_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
       kNN * n_chunks, dist_out_size, kNN, block_offset, second_sort
     );
+    std::vector<float> dists_h(dist_out_size);
+    std::vector<long> idx_h(dist_out_size);
+    final_dists.get_array(dists_h.data());
+    final_dists.get_array(idx_h.data());
+    for (int i = 0; i < dist_out_size; ++i) {
+      printf("i:%d dist:%f idx:%lu\n", i, dists_h[i], idx_h[i]);
+    }
     // Copy chunk of results back to host
     final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
     final_dists_idx.get_array_async(j_vec.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
