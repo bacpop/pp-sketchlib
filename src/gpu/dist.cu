@@ -753,7 +753,7 @@ sparse_coo sparseDists(const dist_params params,
     }
 
     const int num_items = all_sorted_dists.size();
-    const int num_segments = second_sort_partitions.size() - 1;
+    const int num_segments = row_samples;
     int *d_offsets = second_sort_partitions.data();
     float *d_keys_in = all_sorted_dists.data();
     float *d_keys_out = doubly_sorted_dists.data();
