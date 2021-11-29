@@ -137,6 +137,12 @@ __device__ void simple_linear_regression(float dists[],
 // Main kernel functions run on the device,
 // but callable from the host
 
+__global__ void print_device_vec(const float* sorted_dist, const long* sorted_idx, size_t size) {
+  for (int i = 0; i < size: ++i) {
+    printf("i:%d val:%f idx:%ld\n",i, sorted_dist[i], sorted_idx[i]);
+  }
+}
+
 __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
     i += blockDim.x * gridDim.x) {
@@ -715,6 +721,12 @@ sparse_coo sparseDists(const dist_params params,
           num_items, num_segments, d_offsets, d_offsets + 1,
           begin_sort_bit, end_sort_bit, sort_stream.stream());
 
+      // TMP
+      sort_stream.sync();
+      print_device_vec<<<1, 1, 0, sort_stream.stream()>>>(
+        d_keys_out, d_values_out, num_items);
+      sort_stream.sync();
+
       //    (stream 4) D->D copy of top kNN dists to start of dists
       const bool second_sort = false;
       const size_t dist_out_size = kNN * num_segments;
@@ -759,6 +771,12 @@ sparse_coo sparseDists(const dist_params params,
         d_keys_in, d_keys_out, d_values_in, d_values_out,
         num_items, num_segments, d_offsets, d_offsets + 1,
         begin_sort_bit, end_sort_bit, sort_stream.stream());
+
+    // TMP
+    sort_stream.sync();
+    print_device_vec<<<1, 1, 0, sort_stream.stream()>>>(
+      d_keys_out, d_values_out, num_items);
+    sort_stream.sync();
 
     // take top kNN
     const bool second_sort = true;
