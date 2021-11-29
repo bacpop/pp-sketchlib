@@ -137,16 +137,9 @@ __device__ void simple_linear_regression(float dists[],
 // Main kernel functions run on the device,
 // but callable from the host
 
-__global__ void print_device_vec(const float* sorted_dist, const long* sorted_idx, size_t size) {
-  for (int i = 0; i < size; ++i) {
-    printf("i:%d val:%f idx:%ld\n",i, sorted_dist[i], sorted_idx[i]);
-  }
-}
-
 __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_t col_offset) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < row_samples * col_samples;
     i += blockDim.x * gridDim.x) {
-    printf("i:%d idx:%lu\n", i, col_offset + i % col_samples);
     idx[i] = col_offset + i % col_samples;
   }
 }
@@ -165,7 +158,6 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
     }
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
     all_sorted_idx[offset_out] = sorted_idx[offset_in];
-    printf("i:%d offset_in:%d offset_out:%d val:%f idx:%lu\n", i, offset_in, offset_out, all_sorted_dists[offset_out], all_sorted_idx[offset_out]);
   }
 }
 
@@ -319,7 +311,6 @@ __global__ void calculate_dists(
     } else {
       dists[dist_idx] = fitted_dists[dist_col];
     }
-    printf("query:%d ref:%d dist_idx:%d core:%f acc:%f\n", query_idx, ref_idx, dist_idx, fitted_dists[0], fitted_dists[1]);
 
     update_progress(dist_idx, dist_n, progress);
   }
@@ -646,7 +637,7 @@ sparse_coo sparseDists(const dist_params params,
    *
    */
 
-  // LOOP over n_chunks lots of refs
+  // OUTER LOOP over n_chunks lots of refs
   size_t row_offset = 0;
   for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
     size_t row_samples = samples_per_chunk + (row_chunk_idx < num_big_chunks ? 1 : 0);
@@ -659,7 +650,7 @@ sparse_coo sparseDists(const dist_params params,
       }
       dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
     }
-    //  LOOP over n_chunks lots of queries
+    //  INNER LOOP over n_chunks lots of queries
     for (size_t col_chunk_idx = 0; col_chunk_idx < n_chunks; ++col_chunk_idx) {
       // Check for interrupts
       if (PyErr_CheckSignals() != 0) {
@@ -730,12 +721,6 @@ sparse_coo sparseDists(const dist_params params,
           num_items, num_segments, d_offsets, d_offsets + 1,
           begin_sort_bit, end_sort_bit, sort_stream.stream());
 
-      // TMP
-      sort_stream.sync();
-      print_device_vec<<<1, 1, 0, sort_stream.stream()>>>(
-        d_keys_out, d_values_out, num_items);
-      sort_stream.sync();
-
       //    (stream 4) D->D copy of top kNN dists to start of dists
       const bool second_sort = false;
       const size_t dist_out_size = kNN * num_segments;
@@ -774,12 +759,6 @@ sparse_coo sparseDists(const dist_params params,
         num_items, num_segments, d_offsets, d_offsets + 1,
         begin_sort_bit, end_sort_bit, sort_stream.stream());
 
-    // TMP
-    sort_stream.sync();
-    print_device_vec<<<1, 1, 0, sort_stream.stream()>>>(
-      d_keys_out, d_values_out, num_items);
-    sort_stream.sync();
-
     // take top kNN
     const bool second_sort = true;
     const int block_offset = 0;
@@ -789,13 +768,6 @@ sparse_coo sparseDists(const dist_params params,
       doubly_sorted_dists.data(), doubly_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
       kNN * n_chunks, dist_out_size, kNN, block_offset, second_sort
     );
-    std::vector<float> dists_h(dist_out_size);
-    std::vector<long> idx_h(dist_out_size);
-    final_dists.get_array(dists_h);
-    final_dists_idx.get_array(idx_h);
-    for (int i = 0; i < dist_out_size; ++i) {
-      printf("i:%d dist:%f idx:%lu\n", i, dists_h[i], idx_h[i]);
-    }
     // Copy chunk of results back to host
     final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
     final_dists_idx.get_array_async(j_vec.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
@@ -810,8 +782,5 @@ sparse_coo sparseDists(const dist_params params,
     CUDA_CALL(cudaHostUnregister((void *)ref_sketches[chunk_idx].data()));
   }
 
-  for (int i = 0; i < i_vec.size(); ++i) {
-    std::cout << i_vec[i] << "\t" << j_vec[i] << "\t" << host_dists[i] << std::endl;
-  }
   return (std::make_tuple(i_vec, j_vec, host_dists));
 }
