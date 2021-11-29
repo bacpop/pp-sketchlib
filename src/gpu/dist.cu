@@ -790,8 +790,8 @@ sparse_coo sparseDists(const dist_params params,
     );
     std::vector<float> dists_h(dist_out_size);
     std::vector<long> idx_h(dist_out_size);
-    final_dists.get_array(dists_h.data());
-    final_dists.get_array(idx_h.data());
+    final_dists.get_array(dists_h);
+    final_dists_idx.get_array(idx_h);
     for (int i = 0; i < dist_out_size; ++i) {
       printf("i:%d dist:%f idx:%lu\n", i, dists_h[i], idx_h[i]);
     }
