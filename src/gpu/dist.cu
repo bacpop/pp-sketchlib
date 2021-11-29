@@ -785,7 +785,7 @@ sparse_coo sparseDists(const dist_params params,
     const size_t dist_out_size = kNN * num_segments;
     const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
     copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
-      all_sorted_dists.data(), all_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
+      doubly_sorted_dists.data(), doubly_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
       kNN * n_chunks, dist_out_size, kNN, block_offset, second_sort
     );
     std::vector<float> dists_h(dist_out_size);
