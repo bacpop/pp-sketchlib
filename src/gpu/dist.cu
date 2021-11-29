@@ -138,7 +138,7 @@ __device__ void simple_linear_regression(float dists[],
 // but callable from the host
 
 __global__ void print_device_vec(const float* sorted_dist, const long* sorted_idx, size_t size) {
-  for (int i = 0; i < size: ++i) {
+  for (int i = 0; i < size; ++i) {
     printf("i:%d val:%f idx:%ld\n",i, sorted_dist[i], sorted_idx[i]);
   }
 }
