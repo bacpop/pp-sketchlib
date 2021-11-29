@@ -570,7 +570,7 @@ sparse_coo sparseDists(const dist_params params,
   //   tmp space
   device_array<float> sorted_dists(dists.size());
   device_array<long> sorted_dists_idx(dists.size());
-  device_array<int> dist_partitions(samples_per_chunk + 2);
+  device_array<int> dist_partitions((samples_per_chunk + 1) + 1);
   device_array<void> dist_sort_tmp;
 
   // inner loop kNN pick (copy_top_k)
@@ -582,9 +582,16 @@ sparse_coo sparseDists(const dist_params params,
   // outer loop sorting
   //   doubly sorted dists (staging for final results, copied to host)
   //   doubly sorted dists idx (as above)
+  //   offsets
   //   tmp space
   device_array<float> doubly_sorted_dists(all_sorted_dists.size());
   device_array<long> doubly_sorted_dists_idx(all_sorted_dists.size());
+  std::vector<int> host_partitions;
+  for (int partition_idx = 0; partition_idx < n_chunks + 1; ++partition_idx) {
+    host_partitions.push_back(partition_idx * kNN * n_chunks);
+  }
+  device_array<int> second_sort_partitions(host_partitions);
+  host_partitions.clear();
   device_array<void> outer_dist_sort_tmp;
 
   // out loop kNN pick (copy_top_k)
@@ -645,11 +652,14 @@ sparse_coo sparseDists(const dist_params params,
   for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
     size_t row_samples = samples_per_chunk + (row_chunk_idx < num_big_chunks ? 1 : 0);
     size_t col_offset = 0;
-    std::vector<int> host_partitions;
-    for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
-      host_partitions.push_back(partition_idx * row_samples);
+    // Only need to set new sort partitions if moving to a smaller chunk
+    if (host_partitions.size() != row_samples + 1) {
+      host_partitions.clear();
+      for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
+        host_partitions.push_back(partition_idx * row_samples);
+      }
+      dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
     }
-    dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
     //  LOOP over n_chunks lots of queries
     for (size_t col_chunk_idx = 0; col_chunk_idx < n_chunks; ++col_chunk_idx) {
       // Check for interrupts
@@ -742,16 +752,9 @@ sparse_coo sparseDists(const dist_params params,
       fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, 100 * blocks_done / total_blocks);
     }
 
-    // sort the sort results
-    host_partitions.clear();
-    for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
-      host_partitions.push_back(partition_idx * kNN);
-    }
-    dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
-
     const int num_items = all_sorted_dists.size();
-    const int num_segments = host_partitions.size() - 1;
-    int *d_offsets = dist_partitions.data();
+    const int num_segments = second_sort_partitions.size() - 1;
+    int *d_offsets = second_sort_partitions.data();
     float *d_keys_in = all_sorted_dists.data();
     float *d_keys_out = doubly_sorted_dists.data();
     long *d_values_in = all_sorted_dists_idx.data();
@@ -785,7 +788,7 @@ sparse_coo sparseDists(const dist_params params,
     const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
     copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
       all_sorted_dists.data(), all_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
-      kNN * row_samples, dist_out_size, kNN, block_offset, second_sort
+      kNN * n_chunks, dist_out_size, kNN, block_offset, second_sort
     );
     // Copy chunk of results back to host
     final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
