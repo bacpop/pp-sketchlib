@@ -587,7 +587,7 @@ sparse_coo sparseDists(const dist_params params,
   device_array<float> doubly_sorted_dists(all_sorted_dists.size());
   device_array<long> doubly_sorted_dists_idx(all_sorted_dists.size());
   std::vector<int> host_partitions;
-  for (int partition_idx = 0; partition_idx < n_chunks + 1; ++partition_idx) {
+  for (int partition_idx = 0; partition_idx < dist_partitions.size(); ++partition_idx) {
     host_partitions.push_back(partition_idx * kNN * n_chunks);
   }
   device_array<int> second_sort_partitions(host_partitions);
