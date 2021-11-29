@@ -154,7 +154,7 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
     int offset_out;
     if (second_sort) {
       // If copying from the sorted kNN * n_chunk list into the final sparse matrix
-      offset_out = offset_in + kNN * sketch_block_idx;
+      offset_out = i;
     } else {
       // If copying from the sorted n_chunk dense list into the kNN * n_chunk list
       offset_out = i + (i / kNN) * kNN + kNN * sketch_block_idx;
@@ -767,7 +767,7 @@ sparse_coo sparseDists(const dist_params params,
     const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
     copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
       all_sorted_dists.data(), all_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
-      row_samples, dist_out_size, kNN, block_offset, second_sort
+      kNN * row_samples, dist_out_size, kNN, block_offset, second_sort
     );
     // Copy chunk of results back to host
     final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
