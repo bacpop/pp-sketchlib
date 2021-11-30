@@ -274,30 +274,35 @@ def main():
                 sys.exit(1)
 
         # Check inputs overlap
-        ref = h5py.File(args['db1'] + ".h5", 'r')
-        query = h5py.File(args['db2'] + ".h5", 'r')
-        db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
-           query['sketches/' + qList[0]].attrs['kmers']
-        )
-        query_kmers = sorted(db_kmers)
-        if args['jaccard'] and len(args['kmers']) == 1:
-            if args['kmers'][0] not in query_kmers:
-                sys.stderr.write("Selected --kmer is not in both query databases\n")
-                sys.exit(1)
-            else:
-                query_kmers = args['kmers']
-        ref.close()
-        query.close()
+        try:
+            ref = h5py.File(args['db1'] + ".h5", 'r')
+            query = h5py.File(args['db2'] + ".h5", 'r')
+            db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
+              query['sketches/' + qList[0]].attrs['kmers']
+            )
+            query_kmers = sorted(db_kmers)
+            if args['jaccard'] and len(args['kmers']) == 1:
+                if args['kmers'][0] not in query_kmers:
+                    sys.stdout.write(f"Input --kmer {args['kmers']} not in (both) databases: {db_kmers}\n")
+                    raise
+                else:
+                    query_kmers = args['kmers']
+            elif not query_kmers:
+                raise RuntimeError("No overlapping k-mers in db1 and db2")
+        finally:
+            ref.close()
+            query.close()
 
         if args['sparse']:
             # Set which distance to output (sparse only supports a single value)
-            if args['jaccard']:
-                dist_col = query_kmers.index(args['kmers'])
-            else:
-                if args['--accessory']:
-                    dist_col = 1
-                else:
-                    dist_col = 0
+            dist_col = 0
+            if args['jaccard'] and len(query_kmers) != 1:
+                # Note default here is just to be sending a single-kmer length, so
+                # it does not need to be indexed into hence dist_col = 0 is correct
+                raise RuntimeError(f"For sparse jaccard a single k-mer must be selected {query_kmers}")
+            elif args['--accessory']:
+                dist_col = 1
+
             # Can use memory efficient version with self and kNN
             if args['db1'] == args['db2'] and args['--threshold'] == 0:
                 sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
