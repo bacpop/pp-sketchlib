@@ -349,6 +349,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
     } else {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
         if (jaccard) {
+          // Need 1-J here to sort correctly
           row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
               ref_sketches[j], kmer_lengths[dist_col], random_chance);
         } else {
@@ -375,13 +376,13 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
 
         int ordered_dist_idx = 0;
-        if (ordered_dists[0] == i) {
+        if (ordered_dists[0] == (int)i) {
           ordered_dist_idx = 1;
         }
         for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
           j_vec[offset + k] = ordered_dists[ordered_dist_idx];
           dists[offset + k] = row_dists[ordered_dists[ordered_dist_idx]];
-          if (ordered_dists[ordered_dist_idx] == i) {
+          if (ordered_dists[ordered_dist_idx] == (int)i) {
             ++ordered_dist_idx;
           }
         }
@@ -394,6 +395,14 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   // Handle Ctrl-C from python
   if (interrupt) {
     throw py::error_already_set();
+  }
+
+  // Revert to correct distance J = 1 - dist
+  if (jaccard) {
+    #pragma omp parallel for simd num_threads(num_threads)
+    for (size_t i = 0; i < dists.size(); ++i) {
+      dists[i] = 1.0f - dists[i];
+    }
   }
 
   return (std::make_tuple(i_vec, j_vec, dists));
