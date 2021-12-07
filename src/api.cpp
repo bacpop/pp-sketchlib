@@ -21,8 +21,6 @@
 using namespace Eigen;
 namespace py = pybind11;
 
-const int progressBitshift = 10;
-
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
   Database db1(db1_name + ".h5");

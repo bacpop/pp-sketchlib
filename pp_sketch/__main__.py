@@ -283,8 +283,8 @@ def main():
             query_kmers = sorted(db_kmers)
             if args['jaccard'] and len(args['kmers']) == 1:
                 if args['kmers'][0] not in query_kmers:
-                    sys.stdout.write(f"Input --kmer {args['kmers']} not in (both) databases: {db_kmers}\n")
-                    raise
+                    raise RuntimeError(f"Input --kmer {args['kmers'][0]} not in "
+                                       f"(both) databases: {sorted(db_kmers)}\n")
                 else:
                     query_kmers = args['kmers']
             elif not query_kmers:
@@ -299,7 +299,8 @@ def main():
             if args['jaccard'] and len(query_kmers) != 1:
                 # Note default here is just to be sending a single-kmer length, so
                 # it does not need to be indexed into hence dist_col = 0 is correct
-                raise RuntimeError(f"For sparse jaccard a single k-mer must be selected {query_kmers}")
+                raise RuntimeError(f"For sparse jaccard a single k-mer must be "
+                                   f"selected {sorted(query_kmers)}")
             elif args['--accessory']:
                 dist_col = 1
 
@@ -335,7 +336,9 @@ def main():
                                                             args['--use-gpu'],
                                                             args['--gpu'])
             if not args['-o']:
-                if args['--accessory']:
+                if args['jaccard']:
+                    distName = str(query_kmers[0])
+                elif args['--accessory']:
                     distName = 'Accessory'
                 else:
                     distName = 'Core'
