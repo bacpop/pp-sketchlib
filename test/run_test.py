@@ -50,7 +50,6 @@ subprocess.run("python ../sketchlib-runner.py sketch -l rlist.txt -o r_db --cpus
 subprocess.run("python ../sketchlib-runner.py sketch -l qlist.txt -o q_db --cpus 2", shell=True, check=True)
 subprocess.run("python ../sketchlib-runner.py query dist r_db q_db.h5", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query jaccard r_db q_db", shell=True, check=True) # checks if can be run
-subprocess.run("python ../sketchlib-runner.py query sparse r_db q_db --kNN 2", shell=True, check=True) # checks if can be run
 
 # Joining
 sys.stderr.write("Join smoke test\n")

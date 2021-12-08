@@ -6,7 +6,7 @@ Usage:
   sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>]
-  sketchlib query sparse <db1> [<db2>] (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query sparse <db1> (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query sparse jaccard <db1> --kNN <k> --kmer <k> [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib join <db1> <db2> -o <output>
   sketchlib (add|remove) random <db1> [--cpus <cpus>]
@@ -304,14 +304,15 @@ def main():
             elif args['--accessory']:
                 dist_col = 1
 
-            # Can use memory efficient version with self and kNN
-            if args['db1'] == args['db2'] and args['--threshold'] == 0:
+            # Can use memory efficient version with kNN
+            if args['--threshold'] == 0:
                 sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
                                               rList,
                                               query_kmers,
                                               args['--adj-random'],
                                               args['jaccard'],
                                               args['--kNN'],
+                                              0,
                                               dist_col,
                                               args['--cpus'],
                                               args['--use-gpu'],
@@ -323,18 +324,17 @@ def main():
                 if args['jaccard']:
                     raise ValueError("Cannot use sparse jaccard with non-self "
                                      "or --threshold")
-                sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
-                                                            args['db2'],
-                                                            rList,
-                                                            qList,
-                                                            query_kmers,
-                                                            args['--adj-random'],
-                                                            args['--threshold'],
-                                                            args['--kNN'],
-                                                            dist_col,
-                                                            args['--cpus'],
-                                                            args['--use-gpu'],
-                                                            args['--gpu'])
+                sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
+                              rList,
+                              query_kmers,
+                              args['--adj-random'],
+                              args['jaccard'],
+                              0,
+                              args['--threshold'],
+                              dist_col,
+                              args['--cpus'],
+                              args['--use-gpu'],
+                              args['--gpu'])
             if not args['-o']:
                 if args['jaccard']:
                     distName = str(query_kmers[0])

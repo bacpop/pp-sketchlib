@@ -137,32 +137,12 @@ NumpyMatrix queryDatabase(const std::string &ref_db_name,
 }
 
 sparse_coo
-sparseQuery(const std::string &ref_db_name, const std::string &query_db_name,
-            const std::vector<std::string> &ref_names,
-            const std::vector<std::string> &query_names,
-            std::vector<size_t> kmer_lengths, const bool random_correct = true,
-            const float dist_cutoff = 0, const unsigned long int kNN = 0,
-            const size_t dist_col = 0, const size_t num_threads = 1,
-            const bool use_gpu = false, const int device_id = 0) {
-  NumpyMatrix dists = queryDatabase(ref_db_name, query_db_name, ref_names,
-                                    query_names, kmer_lengths, random_correct,
-                                    false, num_threads, use_gpu, device_id);
-
-  Eigen::VectorXf dummy_query_ref;
-  Eigen::VectorXf dummy_query_query;
-  NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
-                                         dummy_query_query, num_threads);
-  sparse_coo sparse_return = sparsify_dists(long_form, dist_cutoff, kNN);
-
-  return (sparse_return);
-}
-
-sparse_coo
 sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &ref_names,
             std::vector<size_t> kmer_lengths, const bool random_correct = true,
             const bool jaccard = false, const unsigned long int kNN = 0,
-            const size_t dist_col = 0, const size_t num_threads = 1,
-            const bool use_gpu = false, const int device_id = 0) {
+            const float dist_cutoff = 0.0f, const size_t dist_col = 0,
+            const size_t num_threads = 1, const bool use_gpu = false,
+            const int device_id = 0) {
   if (use_gpu && (jaccard || kmer_lengths.size() < 2 || dist_col > 1)) {
     throw std::runtime_error(
         "Extracting Jaccard distances not supported on GPU");
@@ -176,20 +156,34 @@ sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &
   } else {
     random = RandomMC();
   }
-#ifdef GPU_AVAILABLE
-  sparse_coo dists;
-  if (use_gpu) {
-    dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
-      kNN, dist_col, device_id, num_threads);
+
+  sparse_coo sparse_dists;
+  if (dist_cutoff > 0) {
+    NumpyMatrix dists = queryDatabase(ref_db_name, ref_db_name, ref_names,
+                                    ref_names, kmer_lengths, random_correct,
+                                    false, num_threads, use_gpu, device_id);
+
+    Eigen::VectorXf dummy_query_ref;
+    Eigen::VectorXf dummy_query_query;
+    NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
+                                          dummy_query_query, num_threads);
+    sparse_dists = sparsify_dists(long_form, dist_cutoff, kNN);
   } else {
-    dists = query_db_sparse(ref_sketches, kmer_lengths, random,
-      jaccard, kNN, dist_col, num_threads);
-  }
+#ifdef GPU_AVAILABLE
+    if (use_gpu) {
+      sparse_dists = query_db_sparse_cuda(ref_sketches, kmer_lengths, random,
+        kNN, dist_col, device_id, num_threads);
+    } else {
+      sparse_dists = query_db_sparse(ref_sketches, kmer_lengths, random,
+        jaccard, kNN, dist_col, num_threads);
+    }
 #else
-  sparse_coo dists = query_db_sparse(ref_sketches, kmer_lengths, random,
-    jaccard, kNN, dist_col, num_threads);
+    sparse_dists = query_db_sparse(ref_sketches, kmer_lengths, random,
+      jaccard, kNN, dist_col, num_threads);
 #endif
-  return dists;
+  }
+
+  return sparse_dists;
 }
 
 void addRandomToDb(const std::string &db_name,
@@ -248,20 +242,13 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("jaccard") = false, py::arg("num_threads") = 1,
         py::arg("use_gpu") = false, py::arg("device_id") = 0);
 
-  m.def("queryDatabaseSparse", &sparseQuery,
-        py::return_value_policy::reference_internal,
-        "Find distances between sketches; return a sparse matrix",
-        py::arg("ref_db_name"), py::arg("query_db_name"), py::arg("rList"),
-        py::arg("qList"), py::arg("klist"), py::arg("random_correct") = true,
-        py::arg("dist_cutoff") = 0, py::arg("kNN") = 0, py::arg("dist_col") = 0,
-        py::arg("num_threads") = 1, py::arg("use_gpu") = false,
-        py::arg("device_id") = 0);
-
   m.def("querySelfSparse", &sparseQuerySelf,
         py::return_value_policy::reference_internal,
         "Find self-self distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"), py::arg("rlist"), py::arg("klist"), py::arg("random_correct") = true,
-        py::arg("jaccard") = false, py::arg("kNN") = 0, py::arg("dist_col") = 0,
+        py::arg("jaccard") = false,
+        py::arg("kNN") = 0, py::arg("dist_cutoff") = 0.0f,
+        py::arg("dist_col") = 0,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 
