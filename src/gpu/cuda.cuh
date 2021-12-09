@@ -10,6 +10,18 @@ static_assert(__CUDACC_VER_MAJOR__ >= 11, "CUDA >=11.0 required");
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
+// Align structs
+// https://stackoverflow.com/a/12779757
+#if defined(__CUDACC__) // NVCC
+#define ALIGN(n) __align__(n)
+#elif defined(__GNUC__) // GCC
+#define ALIGN(n) __attribute__((aligned(n)))
+#elif defined(_MSC_VER) // MSVC
+#define ALIGN(n) __declspec(align(n))
+#else
+#error "Please provide a definition for MY_ALIGN macro for your host compiler!"
+#endif
+
 const int progress_blocks = 1000; // Update 1000
 
 static void HandleCUDAError(const char *file, int line,
@@ -79,7 +91,7 @@ __device__ inline void update_progress(long long dist_idx, long long dist_n,
     if (*(progress.kill_kernel)) {
       __trap();
     }
-    atomicAdd((int *)progress.blocks_complete, advance);
+    atomicAdd((int *)progress.blocks_complete, 1);
     __threadfence_system();
   }
 }
