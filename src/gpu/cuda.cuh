@@ -79,10 +79,10 @@ private:
 // Use atomic add to update a counter, so progress works regardless of
 // dispatch order
 __device__ inline void update_progress(long long dist_idx, long long dist_n,
-                                       progress_atomics& progress) {
+                                       progress_atomics *progress) {
   // Progress indicator
   if (dist_idx % (dist_n / progress_blocks) == 0) {
-    progress.check_kill();
-    progress.tick(1);
+    progress->check_kill();
+    progress->tick(1);
   }
 }

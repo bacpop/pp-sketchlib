@@ -168,7 +168,7 @@ __global__ void calculate_dists(
     const float *random_table, const uint16_t *ref_idx_lookup,
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
-    progress_atomics& progress, const bool use_shared,
+    progress_atomics *progress, const bool use_shared,
     const int dist_col, const bool max_diagonal) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
@@ -333,7 +333,7 @@ std::tuple<size_t, size_t> getBlockSize(const size_t ref_samples,
   // We take the next multiple of 32 that is larger than the number of
   // reference sketches, up to a maximum of 512
   size_t blockSize =
-      std::min(512, 32 * static_cast<int>((ref_samples + 32 - 1) / 32));
+      std::min(256, 32 * static_cast<int>((ref_samples + 32 - 1) / 32));
   size_t blockCount = 0;
   if (self) {
     for (int i = 0; i < ref_samples; i++) {
@@ -457,7 +457,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.ref_random(), ref_strides, ref_strides, random_strides,
-        progress, use_shared, dist_col, max_diagonal);
+        &progress, use_shared, dist_col, max_diagonal);
   } else {
     std::tie(blockSize, blockCount) =
         getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size,
@@ -472,7 +472,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.query_random(), ref_strides, query_strides,
-        random_strides, progress, use_shared, dist_col, max_diagonal);
+        random_strides, &progress, use_shared, dist_col, max_diagonal);
   }
 
   // Check for error in kernel launch
@@ -676,7 +676,7 @@ sparse_coo sparseDists(const dist_params params,
         dists.data(), dist_rows,
         random_table.data(), random_idx.data() + col_offset, random_idx.data() + row_offset,
         ref_strides[col_chunk_idx], ref_strides[row_chunk_idx],
-        random_strides, progress, use_shared, dist_col, max_diagonal
+        random_strides, &progress, use_shared, dist_col, max_diagonal
       );
 
       //    (stream 2 async) Load next into block 3
