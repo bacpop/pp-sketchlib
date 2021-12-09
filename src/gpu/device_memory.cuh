@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuda.cuh"
+#include "align.hpp"
 #include "reference.hpp"
 
 struct ALIGN(8) RandomStrides {
