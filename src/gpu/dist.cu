@@ -168,7 +168,7 @@ __global__ void calculate_dists(
     const float *random_table, const uint16_t *ref_idx_lookup,
     const uint16_t *query_idx_lookup, const SketchStrides ref_strides,
     const SketchStrides query_strides, const RandomStrides random_strides,
-    progress_atomics *progress, const bool use_shared,
+    progress_ptrs progress, const bool use_shared,
     const int dist_col, const bool max_diagonal) {
   // Calculate indices for query, ref and results
   int ref_idx, query_idx, dist_idx;
@@ -357,8 +357,9 @@ void reportDistProgress(progress_atomics& progress, long long dist_rows) {
         progress.set_kill();
         throw py::error_already_set();
       }
-      if (progress.complete() > now_completed) {
-        now_completed = progress.complete();
+      int complete = progress.complete();
+      if (complete > now_completed) {
+        now_completed = complete;
         kern_progress = now_completed / (float)progress_blocks;
         fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, kern_progress * 100);
       } else {
@@ -457,7 +458,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.ref_random(), ref_strides, ref_strides, random_strides,
-        &progress, use_shared, dist_col, max_diagonal);
+        progress.get_ptrs(), use_shared, dist_col, max_diagonal);
   } else {
     std::tie(blockSize, blockCount) =
         getBlockSize(sketch_subsample.ref_size, sketch_subsample.query_size,
@@ -472,7 +473,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
         device_arrays.kmers(), kmer_lengths.size(), device_arrays.dist_mat(),
         dist_rows, device_arrays.random_table(), device_arrays.ref_random(),
         device_arrays.query_random(), ref_strides, query_strides,
-        random_strides, &progress, use_shared, dist_col, max_diagonal);
+        random_strides, progress.get_ptrs(), use_shared, dist_col, max_diagonal);
   }
 
   // Check for error in kernel launch
@@ -636,6 +637,7 @@ sparse_coo sparseDists(const dist_params params,
    *   Inner loop over chunks of columns
    *
    */
+  fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, 0.0f);
 
   // OUTER LOOP over n_chunks lots of refs
   size_t row_offset = 0;
@@ -676,7 +678,7 @@ sparse_coo sparseDists(const dist_params params,
         dists.data(), dist_rows,
         random_table.data(), random_idx.data() + col_offset, random_idx.data() + row_offset,
         ref_strides[col_chunk_idx], ref_strides[row_chunk_idx],
-        random_strides, &progress, use_shared, dist_col, max_diagonal
+        random_strides, progress.get_ptrs(), use_shared, dist_col, max_diagonal
       );
 
       //    (stream 2 async) Load next into block 3
@@ -733,7 +735,7 @@ sparse_coo sparseDists(const dist_params params,
       // Update progress
       col_offset += col_samples;
       const size_t blocks_done = row_chunk_idx * n_chunks + col_chunk_idx + 1;
-      fprintf(stderr, "%cProgress (GPU): %.1lf%%\n", 13, 100 * blocks_done / total_blocks);
+      fprintf(stderr, "%cProgress (GPU): %.1lf%%", 13, 100 * blocks_done / total_blocks);
     }
 
     const int num_items = all_sorted_dists.size();
