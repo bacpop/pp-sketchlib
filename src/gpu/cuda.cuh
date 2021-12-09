@@ -67,12 +67,12 @@ public:
   }
 
   progress_ptrs get_ptrs() {
-    return progress_ptrs;
+    return managed_ptrs;
   }
 
   __host__
   int complete() {
-    return *(progress_ptrs.blocks_complete);
+    return *(managed_ptrs.blocks_complete);
   }
 
 private:
