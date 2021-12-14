@@ -146,7 +146,7 @@ __global__ void set_idx(long* idx, size_t row_samples, size_t col_samples, size_
 
 __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
   float* all_sorted_dists, long* all_sorted_idx, int segment_size, int n_out,
-    int kNN, int sketch_block_idx, bool second_sort) {
+    int kNN, int sketch_block_idx, int n_chunks, bool second_sort) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_out;
     i += blockDim.x * gridDim.x) {
     const int offset_in = (i / kNN) * segment_size + i % kNN;
@@ -154,7 +154,7 @@ __global__ void copy_top_k(float* sorted_dists, long* sorted_idx,
     // If copying from the sorted kNN * n_chunk list into the final sparse matrix
     if (!second_sort) {
       // If copying from the sorted n_chunk dense list into the kNN * n_chunk list
-      offset_out += ((i / kNN) * kNN) + (kNN * sketch_block_idx);
+      offset_out += ((i / kNN) * (kNN * (n_chunks - 1))) + (kNN * sketch_block_idx);
     }
     all_sorted_dists[offset_out] = sorted_dists[offset_in];
     all_sorted_idx[offset_out] = sorted_idx[offset_in];
@@ -490,7 +490,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
 
 
 // Function which sparsifies distances on the fly. Distances are calculated in
-// blocks, sorted and top top k stored.
+// blocks, sorted and top k stored.
 // NB graph probably not needed as API calls faster than ops here
 sparse_coo sparseDists(const dist_params params,
   const std::vector<std::vector<uint64_t>> &ref_sketches,
@@ -729,7 +729,7 @@ sparse_coo sparseDists(const dist_params params,
       const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
       copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
         sorted_dists.data(), sorted_dists_idx.data(), all_sorted_dists.data(), all_sorted_dists_idx.data(),
-        col_samples, dist_out_size, kNN, col_chunk_idx, second_sort
+        col_samples, dist_out_size, kNN, col_chunk_idx, n_chunks, second_sort
       );
 
       // Update progress
@@ -768,7 +768,7 @@ sparse_coo sparseDists(const dist_params params,
     const size_t copy_blockCount = (dist_out_size + copy_blockSize - 1) / copy_blockSize;
     copy_top_k<<<copy_blockCount, copy_blockSize, 0, sort_stream.stream()>>>(
       doubly_sorted_dists.data(), doubly_sorted_dists_idx.data(), final_dists.data(), final_dists_idx.data(),
-      kNN * n_chunks, dist_out_size, kNN, block_offset, second_sort
+      kNN * n_chunks, dist_out_size, kNN, block_offset, n_chunks, second_sort
     );
     // Copy chunk of results back to host
     final_dists.get_array_async(host_dists.data() + row_offset * kNN, dist_out_size, sort_stream.stream());
