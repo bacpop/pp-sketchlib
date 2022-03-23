@@ -44,7 +44,7 @@ installed (tested on 10.2 and 11.0).
 Create a set of sketches and save these as a database:
 
 ```
-poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --sketch-size 156 --cpus 4 --min-k 15 --k-step 2
+poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --sketch-size 10000 --cpus 4 --min-k 15 --k-step 2
 ```
 
 The input file `rfiles.txt` has one sequence per line. The first column is the sample name, subsequent tab-separated
