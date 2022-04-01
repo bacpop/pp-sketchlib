@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
-cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18")
+  cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+endif()
 
 # Set sketch version
 file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
