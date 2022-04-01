@@ -40,6 +40,27 @@ For this option you will need (all available through conda):
 If you wish to compile the GPU code you will also need the CUDA toolkit
 installed (tested on 10.2 and 11.0).
 
+Or install through pip
+
+You need to have suitable system dependencies installed.  On ubuntu, this suffices:
+
+```
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+```
+
+For reasons that are not yet clear, make sure that you have a copy of pybind11 available:
+
+```
+pip3 install --user pybind11
+```
+
+At which point you can install pp-sketchlib:
+
+```
+pip3 install --user pp-sketchlib
+```
+
 ## Usage
 Create a set of sketches and save these as a database:
 
@@ -429,3 +450,9 @@ pip install -i https://test.pypi.org/simple/ \
 updated with your current version to force installation of the new one.
 
 I have no idea how to force pip to install pybind11 before installing the package. Trying to do it automatically results in a broken installation where pip just installs the package with no binary extensions.
+
+Once satisfied that pip/twine haven't uploaded a completely broken package (and once the PR is merged) upload to the main pypi.
+
+```
+twine upload dist/*
+```
