@@ -3,4 +3,4 @@
 
 '''PopPUNK sketching functions'''
 
-__version__ = '1.7.5'
+__version__ = '1.7.5.1'
