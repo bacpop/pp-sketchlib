@@ -41,9 +41,10 @@ if(DEFINED ENV{CONDA_PREFIX})
 endif()
 
 # Add libraries
+execute_process(COMMAND pybind11-config --cmakedir PYBIND11_DIR)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-find_package(pybind11 REQUIRED)
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(pybind11 REQUIRED HINTS PYBIND11_DIR )
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 #find_package(OpenMP) # This links system openmp if present - conda sorts out rpath but take care
