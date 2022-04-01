@@ -42,9 +42,9 @@ endif()
 
 # Add libraries
 execute_process(COMMAND pybind11-config --cmakedir
-                OUTPUT_VARIABLE PYBIND11_DIR)
+                OUTPUT_VARIABLE pybind11_DIR)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-find_package(pybind11 REQUIRED HINTS ${PYBIND11_DIR})
+find_package(pybind11 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
