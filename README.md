@@ -403,3 +403,29 @@ Modifiers:
 - `DEBUG=1` runs with debug flags
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
+
+### Publish to pypi
+
+```
+python3 setup.py sdist
+twine upload --repository testpypi dist/*
+docker run --rm -it --entrypoint bash python:3
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+pip install pybind11
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib
+```
+
+It can take a few minutes for the new version to become available so you may want to do
+
+```
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib==1.7.5.3
+```
+
+updated with your current version to force installation of the new one.
+
+I have no idea how to force pip to install pybind11 before installing the package. Trying to do it automatically results in a broken installation where pip just installs the package with no binary extensions.
