@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -ex
+
+HERE=$(dirname $0)
+. $HERE/common
+
+## Just check that we can bring up the container and run something
+docker run -it -w /src --rm mrcide/pp-sketchlib:latest poppunk_sketch --version
