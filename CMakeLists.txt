@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.18)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
 cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
@@ -43,7 +43,7 @@ endif()
 # Add libraries
 execute_process(COMMAND pybind11-config --cmakedir PYBIND11_DIR)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-find_package(pybind11 REQUIRED HINTS PYBIND11_DIR )
+find_package(pybind11 REQUIRED HINTS ${PYBIND11_DIR})
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
