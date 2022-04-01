@@ -125,8 +125,8 @@ setup(
     },
     install_requires=['numpy',
                       'scipy',
-                      'h5py'],
-    setup_requires=['pybind11'],
+                      'h5py',
+                      'pybind11'],
     ext_modules=[CMakeExtension('pp_sketchlib')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False
