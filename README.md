@@ -425,15 +425,33 @@ Modifiers:
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
 
+### Test that Python can build an installable package
+
+Build a python source package and install it into an empty docker container with vanilla python 3. If this works, then there's a good chance that the version uploaded to pypi will work
+
+```
+rm -rf dist
+python3 setup.py sdist
+docker run --rm -it -v "${PWD}:/src:ro" python:3 /src/docker/install
+```
+
+See [this PR](https://github.com/bacpop/pp-sketchlib/pull/70) for the sorts of things we're trying to work around here.
+
 ### Publish to pypi
+
+If things are being weird, the test index can be useful:
 
 ```
 python3 setup.py sdist
 twine upload --repository testpypi dist/*
+```
+
+You can test installing this into an empty docker container with
+
+```
 docker run --rm -it --entrypoint bash python:3
 apt-get update && apt-get install -y --no-install-recommends \
   cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
-pip install pybind11
 pip install -i https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple \
   pp-sketchlib
@@ -449,9 +467,7 @@ pip install -i https://test.pypi.org/simple/ \
 
 updated with your current version to force installation of the new one.
 
-I have no idea how to force pip to install pybind11 before installing the package. Trying to do it automatically results in a broken installation where pip just installs the package with no binary extensions.
-
-Once satisfied that pip/twine haven't uploaded a completely broken package (and once the PR is merged) upload to the main pypi.
+Once satisfied that pip/twine haven't uploaded a completely broken package (and typically once the PR is merged) upload to the main pypi.
 
 ```
 twine upload dist/*
