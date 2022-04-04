@@ -49,13 +49,7 @@ apt-get update && apt-get install -y --no-install-recommends \
   cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
 ```
 
-For reasons that are not yet clear, make sure that you have a copy of pybind11 available:
-
-```
-pip3 install --user pybind11
-```
-
-At which point you can install pp-sketchlib:
+Then install pp-sketchlib via pip:
 
 ```
 pip3 install --user pp-sketchlib
