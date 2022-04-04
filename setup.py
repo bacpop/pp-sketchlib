@@ -123,6 +123,7 @@ setup(
             'poppunk_sketch = pp_sketch.__main__:main'
             ]
     },
+    setup_requires=['pybind11'],
     install_requires=['numpy',
                       'scipy',
                       'h5py',
