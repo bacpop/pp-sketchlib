@@ -35,7 +35,7 @@ steps:
     sudo apt-get -y install cuda=11.2.2-1
   displayName: Install nvcc
 
-- bash: conda env create --quiet --file environment.yml
+- bash: conda env create --file environment.yml
   displayName: Create Anaconda environment and install dependencies
 
 # to add C++ tests add the following line, and remove --no-cpp

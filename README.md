@@ -9,6 +9,9 @@
 Library of sketching functions used by [PopPUNK](https://www.poppunk.net>).
 
 ## Installation
+
+### conda
+
 Install using conda (recommended):
 
 ```
@@ -20,6 +23,25 @@ conda install -c conda-forge pp-sketchlib
     [tips on conda-forge](https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>).
     It may also help if you downgrade your version of conda (to 4.5). Installing into
     a new environment is recommended.
+
+### pip
+
+Or install through pip
+
+You need to have suitable system dependencies installed.  On ubuntu, this suffices:
+
+```
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+```
+
+Then install pp-sketchlib via pip:
+
+```
+pip3 install --user pp-sketchlib
+```
+
+### local (build w/ compile)
 
 Or install locally:
 
@@ -40,20 +62,6 @@ For this option you will need (all available through conda):
 If you wish to compile the GPU code you will also need the CUDA toolkit
 installed (tested on 10.2 and 11.0).
 
-Or install through pip
-
-You need to have suitable system dependencies installed.  On ubuntu, this suffices:
-
-```
-apt-get update && apt-get install -y --no-install-recommends \
-  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
-```
-
-Then install pp-sketchlib via pip:
-
-```
-pip3 install --user pp-sketchlib
-```
 
 ## Usage
 Create a set of sketches and save these as a database:
