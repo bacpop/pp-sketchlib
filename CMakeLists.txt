@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.16)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
-cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18")
+  cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+endif()
 
 # Set sketch version
 file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
@@ -41,9 +44,15 @@ if(DEFINED ENV{CONDA_PREFIX})
 endif()
 
 # Add libraries
+
+find_package(HDF5 REQUIRED COMPONENTS CXX)
+include_directories(${HDF5_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/highfive/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-find_package(pybind11 REQUIRED)
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+
+execute_process(COMMAND pybind11-config --cmakedir OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE pybind11_DIR)
+find_package(pybind11 2.6 CONFIG REQUIRED)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 #find_package(OpenMP) # This links system openmp if present - conda sorts out rpath but take care
@@ -124,8 +133,7 @@ if(CMAKE_CUDA_COMPILER)
     set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
-target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
-                                               z hdf5_cpp hdf5 gomp openblas lapack gfortran m dl)
+target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen z ${HDF5_LIBRARIES} gomp openblas lapack gfortran m dl)
 #if(OpenMP_CXX_FOUND)
 #    target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
 #endif()
