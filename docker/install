@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -eux
+
+SRC="${1:-/src/dist}"
+TGZ=$(ls -1 $SRC/*.tar.gz | tail -n1)
+
+apt-get update && \
+    apt-get install -y --no-install-recommends \
+            cmake \
+            gfortran \
+            libarmadillo-dev \
+            libeigen3-dev \
+            libopenblas-dev
+
+pip install "$TGZ"

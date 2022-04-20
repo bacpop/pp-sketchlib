@@ -1,7 +1,10 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.16)
 project(pp_sketchlib)
 set(CMAKE_CXX_STANDARD 14)
-cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18")
+  cmake_policy(SET CMP0104 OLD) # Can't get CUDA_ARCHITECTURES to work with NEW
+endif()
 
 # Set sketch version
 file(GLOB VERSION_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/*.hpp)
@@ -47,10 +50,16 @@ else()
 endif()
 
 # Add libraries
+
+find_package(HDF5 REQUIRED COMPONENTS CXX)
+include_directories(${HDF5_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/highfive/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 find_package(ZLIB)
-find_package(pybind11 REQUIRED)
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+execute_process(COMMAND pybind11-config --cmakedir OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE pybind11_DIR)
+find_package(pybind11 2.6 CONFIG REQUIRED)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Armadillo REQUIRED)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 
@@ -134,8 +143,7 @@ if(CMAKE_CUDA_COMPILER)
     set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
-target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
-                                               hdf5_cpp hdf5 openblas lapack gfortran m dl)
+target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen ${HDF5_LIBRARIES} openblas lapack gfortran m dl)
 if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda"))
     target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()

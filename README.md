@@ -9,6 +9,9 @@
 Library of sketching functions used by [PopPUNK](https://www.poppunk.net>). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
 
 ## Installation
+
+### conda
+
 Install using conda (recommended):
 
 ```
@@ -20,6 +23,25 @@ conda install -c conda-forge pp-sketchlib
     [tips on conda-forge](https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>).
     It may also help if you downgrade your version of conda (to 4.5). Installing into
     a new environment is recommended.
+
+### pip
+
+Or install through pip
+
+You need to have suitable system dependencies installed.  On ubuntu, this suffices:
+
+```
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+```
+
+Then install pp-sketchlib via pip:
+
+```
+pip3 install --user pp-sketchlib
+```
+
+### local (build w/ compile)
 
 Or install locally:
 
@@ -39,6 +61,7 @@ For this option you will need (all available through conda):
 
 If you wish to compile the GPU code you will also need the CUDA toolkit
 installed (tested on 10.2 and 11.0).
+
 
 ## Usage
 Create a set of sketches and save these as a database:
@@ -332,3 +355,51 @@ Modifiers:
 - `DEBUG=1` runs with debug flags
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
+
+### Test that Python can build an installable package
+
+Build a python source package and install it into an empty docker container with vanilla python 3. If this works, then there's a good chance that the version uploaded to pypi will work
+
+```
+rm -rf dist
+python3 setup.py sdist
+docker run --rm -it -v "${PWD}:/src:ro" python:3 /src/docker/install
+```
+
+See [this PR](https://github.com/bacpop/pp-sketchlib/pull/70) for the sorts of things we're trying to work around here.
+
+### Publish to pypi
+
+If things are being weird, the test index can be useful:
+
+```
+python3 setup.py sdist
+twine upload --repository testpypi dist/*
+```
+
+You can test installing this into an empty docker container with
+
+```
+docker run --rm -it --entrypoint bash python:3
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib
+```
+
+It can take a few minutes for the new version to become available so you may want to do
+
+```
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib==1.7.5.3
+```
+
+updated with your current version to force installation of the new one.
+
+Once satisfied that pip/twine haven't uploaded a completely broken package (and typically once the PR is merged) upload to the main pypi.
+
+```
+twine upload dist/*
+```
