@@ -647,6 +647,9 @@ sparse_coo sparseDists(const dist_params params,
 
     //  INNER LOOP over n_chunks lots of queries
     for (size_t col_chunk_idx = 0; col_chunk_idx < n_chunks; ++col_chunk_idx) {
+      size_t col_samples = samples_per_chunk + (col_chunk_idx < num_big_chunks ? 1 : 0);
+      size_t dist_rows = row_samples * col_samples;
+
       // Check for interrupts
       if (PyErr_CheckSignals() != 0) {
         throw py::error_already_set();
@@ -662,8 +665,6 @@ sparse_coo sparseDists(const dist_params params,
       }
 
       //    (stream 1 async) Run dists on 1 vs 2
-      size_t col_samples = samples_per_chunk + (col_chunk_idx < num_big_chunks ? 1 : 0);
-      size_t dist_rows = row_samples * col_samples;
       size_t blockSize, blockCount;
       std::tie(blockSize, blockCount) =
         getBlockSize(row_samples, col_samples, dist_rows, self);
