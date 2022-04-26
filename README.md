@@ -109,19 +109,17 @@ When working with large datasets, you can increase the `--cpus` to high numbers 
 a roughly proportional performance increase.
 
 For calculating sketches of read datasets, or large numbers of distances, and you have a CUDA compatible GPU,
-you can calculate distances on your graphics device even more quickly. Add the `--use-gpu` option:
+you can calculate distances on your graphics device even more quickly. Add the `--gpu` option with the desired
+device ID:
 
 ```
-poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --cpus 4 --use-gpu
-poppunk_sketch --query --ref-db listeria --query-db listeria --use-gpu
+sketchlib sketch -l rfiles.txt -o listeria --cpus 4 --gpu 0
+sketchlib query dist listeria --gpu 0
 ```
 
 Both CPU parallelism and the GPU will be used, so be sure to add
-both `--cpus` and `--use-gpu` for maximum speed. This is particularly efficient
-when sketching.
-
-You can set the `--gpu-id` if you have more than one device, which may be necessary on
-cluster systems. This mode can also benefit from having multiple CPU cores available too.
+both `--cpus` and `--gpu` for maximum speed. This is particularly efficient
+when sketching reads.
 
 ### Benchmarks
 
