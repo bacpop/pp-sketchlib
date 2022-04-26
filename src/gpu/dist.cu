@@ -644,19 +644,21 @@ sparse_coo sparseDists(const dist_params params,
   for (size_t row_chunk_idx = 0; row_chunk_idx < n_chunks; ++row_chunk_idx) {
     size_t row_samples = samples_per_chunk + (row_chunk_idx < num_big_chunks ? 1 : 0);
     size_t col_offset = 0;
-    // Only need to set new sort partitions if moving to a smaller chunk
-    if (host_partitions.size() != row_samples + 1) {
-      host_partitions.clear();
-      for (int partition_idx = 0; partition_idx < row_samples + 1; ++partition_idx) {
-        host_partitions.push_back(partition_idx * row_samples);
-      }
-      dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
-    }
+
     //  INNER LOOP over n_chunks lots of queries
     for (size_t col_chunk_idx = 0; col_chunk_idx < n_chunks; ++col_chunk_idx) {
       // Check for interrupts
       if (PyErr_CheckSignals() != 0) {
         throw py::error_already_set();
+      }
+
+      // Only need to set new sort partitions if moving to a smaller chunk
+      if (host_partitions.size() != col_samples + 1) {
+        host_partitions.clear();
+        for (int partition_idx = 0; partition_idx < col_samples + 1; ++partition_idx) {
+          host_partitions.push_back(partition_idx * col_samples);
+        }
+        dist_partitions.set_array_async(host_partitions.data(), host_partitions.size(), sort_stream.stream());
       }
 
       //    (stream 1 async) Run dists on 1 vs 2
