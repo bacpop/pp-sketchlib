@@ -45,12 +45,24 @@ for sample_name in list(ref['sketches'].keys()):
 db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
 ref.close()
 
-distMat = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList, db_kmers)
-jaccard_dists = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList,
-                                           db_kmers, jaccard = True)
-jaccard_dists_raw = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList,
-                                           db_kmers, jaccard = True,
-                                           random_correct = False)
+distMat = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                     query_db_name=args.ref_db,
+                                     rList=rList,
+                                     qList=rList,
+                                     klist=db_kmers)
+jaccard_dists = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                           query_db_name=args.ref_db,
+                                           rList=rList,
+                                           qList=rList,
+                                           klist=db_kmers,
+                                           jaccard = True)
+jaccard_dists_raw = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                               ref_db_name=args.ref_db,
+                                               rList=rList,
+                                               rList=rList,
+                                               klist=db_kmers,
+                                               jaccard = True,
+                                               random_correct = False)
 distMat = np.hstack((distMat, jaccard_dists, jaccard_dists_raw))
 
 # Read old distances
@@ -80,5 +92,35 @@ for i, (ref, query) in enumerate(names):
             if (abs(diff) > args.error_diff and abs(diff_fraction) > args.error_diff_frac):
                 sys.stderr.write("Difference outside tolerance")
                 sys.exit(1)
+
+# Test sparse queries
+from pp_sketch.matrix import sparsify
+kNN=3
+sparseDistMat = pp_sketchlib.sparseQuerySelf(ref_db_name=args.ref_db,
+                                             rList=rList,
+                                             klist=db_kmers,
+                                             kNN=kNN)
+sparse_knn = sparsify(distMat, cutoff=0, kNN=kNN, threads=2)
+if (sparseDistMat.data != sparse_knn.data or
+    sparseDistMat.row != sparse_knn.row or
+    sparseDistMat.col != sparse_knn.col):
+    sys.stderr.write("Sparse distances (kNN) mismatching\n")
+    print(sparseDistMat)
+    print(sparse_knn)
+    sys.exit(1)
+
+cutoff=0.01
+sparseDistMat = pp_sketchlib.sparseQuerySelf(ref_db_name=args.ref_db,
+                                             rList=rList,
+                                             klist=db_kmers,
+                                             dist_cutoff=cutoff)
+sparse_threshold = sparsify(distMat, cutoff=cutoff, kNN=0, threads=2)
+if (sparseDistMat.data != sparse_threshold.data or
+    sparseDistMat.row != sparse_threshold.row or
+    sparseDistMat.col != sparse_threshold.col):
+    sys.stderr.write("Sparse distances (kNN) mismatching\n")
+    print(sparseDistMat)
+    print(sparse_threshold)
+    sys.exit(1)
 
 sys.exit(0)

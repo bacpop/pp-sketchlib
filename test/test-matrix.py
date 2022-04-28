@@ -10,7 +10,7 @@ try:
 except ImportError as e:
     from scipy.sparse import coo_matrix
     def sparsify(distMat, cutoff, kNN, threads):
-        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat,
+        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat=distMat,
                                                         distCutoff=cutoff,
                                                         kNN=kNN)
         sparse_scipy = coo_matrix((sparse_coordinates[2],
@@ -36,8 +36,10 @@ qq_mat = np.array([8], dtype=np.float32)
 qr_mat = np.array([10, 11, 12, 13, 14, 15, 16, 17], dtype=np.float32)
 # NB r_idx is inner/fastest: q0r0, q0r1, q0r2, q0r3, q1r0, q1r1, q1r2, q1r3
 
-square1 = pp_sketchlib.longToSquare(rr_mat, 2)
-square2 = pp_sketchlib.longToSquareMulti(rr_mat, qr_mat, qq_mat)
+square1 = pp_sketchlib.longToSquare(distVec=rr_mat, num_threads=2)
+square2 = pp_sketchlib.longToSquareMulti(distVec=rr_mat,
+                                         query_ref_dist=qr_mat,
+                                         query_query_distVec=qq_mat)
 
 square1_res = np.array([[0, 1, 2, 3],
                         [1, 0, 4, 5],
@@ -55,7 +57,7 @@ square2_res = np.array([[0, 1, 2, 3, 10, 14],
 check_res(square1_res, square1)
 check_res(square2_res, square2)
 
-check_res(pp_sketchlib.squareToLong(square1_res, 2), rr_mat)
+check_res(pp_sketchlib.squareToLong(distMat=square1_res, num_threads=2), rr_mat)
 
 # sparsification
 sparse1 = sparsify(square2_res, cutoff=5, kNN=0, threads=2)

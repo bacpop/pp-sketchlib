@@ -307,7 +307,7 @@ def main():
             # Can use memory efficient version with kNN
             if args['--threshold'] == 0:
                 sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
-                                              rlist=rList,
+                                              rList=rList,
                                               klist=query_kmers,
                                               random_correct=args['--adj-random'],
                                               jaccard=args['jaccard'],
@@ -325,7 +325,7 @@ def main():
                     raise ValueError("Cannot use sparse jaccard with non-self "
                                      "or --threshold")
                 sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
-                              rlist=rList,
+                              rList=rList,
                               klist=query_kmers,
                               random_correct=args['--adj-random'],
                               jaccard=args['jaccard'],
