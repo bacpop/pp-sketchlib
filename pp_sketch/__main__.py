@@ -183,19 +183,19 @@ def main():
                              "All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args['-o'],
-                                       names,
-                                       sequences,
-                                       args['kmers'],
-                                       args['-s'],
-                                       args['--codon-phased'],
-                                       False,
-                                       not args['--single-strand'],
-                                       args['--min-count'],
-                                       args['--exact-counter'],
-                                       args['--cpus'],
-                                       args['--use-gpu'],
-                                       args['--gpu'])
+        pp_sketchlib.constructDatabase(db_name=args['-o'],
+                                       samples=names,
+                                       files=sequences,
+                                       klist=args['kmers'],
+                                       sketch_size=args['-s'],
+                                       codon_phased=args['--codon-phased'],
+                                       calc_random=False,
+                                       use_rc=not args['--single-strand'],
+                                       min_count=args['--min-count'],
+                                       exact=args['--exact-counter'],
+                                       num_threads=args['--cpus'],
+                                       use_gpu=args['--use-gpu'],
+                                       device_id=args['--gpu'])
 
     #
     # Join two databases
@@ -306,17 +306,17 @@ def main():
 
             # Can use memory efficient version with kNN
             if args['--threshold'] == 0:
-                sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
-                                              rList,
-                                              query_kmers,
-                                              args['--adj-random'],
-                                              args['jaccard'],
-                                              args['--kNN'],
-                                              0,
-                                              dist_col,
-                                              args['--cpus'],
-                                              args['--use-gpu'],
-                                              args['--gpu'])
+                sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
+                                              rlist=rList,
+                                              klist=query_kmers,
+                                              random_correct=args['--adj-random'],
+                                              jaccard=args['jaccard'],
+                                              kNN=args['--kNN'],
+                                              dist_cutoff=0,
+                                              dist_col=dist_col,
+                                              num_threads=args['--cpus'],
+                                              use_gpu=args['--use-gpu'],
+                                              device_id=args['--gpu'])
             # Otherwise use general version (potentially large memory use as it
             # actually calculates the dense distances, then sparsifies them)
             else:
@@ -324,17 +324,17 @@ def main():
                 if args['jaccard']:
                     raise ValueError("Cannot use sparse jaccard with non-self "
                                      "or --threshold")
-                sparseIdx = pp_sketchlib.querySelfSparse(args['db1'],
-                              rList,
-                              query_kmers,
-                              args['--adj-random'],
-                              args['jaccard'],
-                              0,
-                              args['--threshold'],
-                              dist_col,
-                              args['--cpus'],
-                              args['--use-gpu'],
-                              args['--gpu'])
+                sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
+                              rlist=rList,
+                              klist=query_kmers,
+                              random_correct=args['--adj-random'],
+                              jaccard=args['jaccard'],
+                              kNN=0,
+                              dist_cutoff=args['--threshold'],
+                              dist_col=dist_col,
+                              num_threads=args['--cpus'],
+                              use_gpu=args['--use-gpu'],
+                              device_id=args['--gpu'])
             if not args['-o']:
                 if args['jaccard']:
                     distName = str(query_kmers[0])
@@ -353,16 +353,16 @@ def main():
                 storePickle(rList, qList, rList == qList, coo_matrix, args['-o'])
 
         else:
-            distMat = pp_sketchlib.queryDatabase(args['db1'],
-                                                 args['db2'],
-                                                 rList,
-                                                 qList,
-                                                 query_kmers,
-                                                 args['--adj-random'],
-                                                 args['jaccard'],
-                                                 args['--cpus'],
-                                                 args['--use-gpu'],
-                                                 args['--gpu'])
+            distMat = pp_sketchlib.queryDatabase(ref_db_name=args['db1'],
+                                                 query_db_name=args['db2'],
+                                                 rList=rList,
+                                                 qList=qList,
+                                                 klist=query_kmers,
+                                                 random_correct=args['--adj-random'],
+                                                 jaccard=args['jaccard'],
+                                                 num_threads=args['--cpus'],
+                                                 use_gpu=args['--use-gpu'],
+                                                 device_id=args['--gpu'])
 
             # get names order
             if not args['-o']:
@@ -388,11 +388,11 @@ def main():
             db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
             ref.close()
 
-            pp_sketchlib.addRandom(args['db1'],
-                                   rList,
-                                   db_kmers,
-                                   not args['--single-strand'],
-                                   args['--cpus'])
+            pp_sketchlib.addRandom(db_name=args['db1'],
+                                   samples=rList,
+                                   klist=db_kmers,
+                                   use_rc=not args['--single-strand'],
+                                   num_threads=args['--cpus'])
         elif args['remove']:
             if 'random' in ref:
                 del ref['random']
