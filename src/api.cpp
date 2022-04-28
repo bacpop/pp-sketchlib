@@ -184,7 +184,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     update_every = dist_rows / n_progress_ticks;
   }
   ProgressMeter dist_progress(n_progress_ticks, true);
-  int progress = 0;
+  volatile int progress = 0;
 
   // These could be the same but out of order, which could be dealt with
   // using a sort, except the return order of the distances wouldn't be as
@@ -217,7 +217,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           if (pos % update_every == 0) {
 #pragma omp critical
               {
-                progress += MIN(1, n_progress_ticks / dist_rows);
+                progress += MAX(1, n_progress_ticks / dist_rows);
                 dist_progress.tick_count(progress);
               }
           }
@@ -268,7 +268,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           if ((q_idx * ref_sketches.size() + r_idx) % update_every == 0) {
 #pragma omp critical
             {
-              progress += MIN(1, n_progress_ticks / dist_rows);
+              progress += MAX(1, n_progress_ticks / dist_rows);
               dist_progress.tick_count(progress);
             }
           }
@@ -336,7 +336,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
     update_every = dist_rows / n_progress_ticks;
   }
   ProgressMeter dist_progress(n_progress_ticks, true);
-  int progress = 0;
+  volatile int progress = 0;
 
   arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
@@ -364,7 +364,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp critical
           {
-            progress += MIN(1, n_progress_ticks / dist_rows);
+            progress += MAX(1, n_progress_ticks / dist_rows);
             dist_progress.tick_count(progress);
           }
         }
