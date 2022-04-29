@@ -1,4 +1,4 @@
-# Copyright 2019-2021 John Lees
+# Copyright 2019-2022 John Lees
 """sketchlib: fast sketching and core/accessory distance estimation from assemblies and reads
 
 Usage:

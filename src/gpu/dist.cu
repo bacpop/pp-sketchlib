@@ -491,7 +491,7 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
 
 // Function which sparsifies distances on the fly. Distances are calculated in
 // blocks, sorted and top k stored.
-// NB graph probably not needed as API calls faster than ops here
+// NB cuda graph not needed as API calls faster than ops here
 sparse_coo sparseDists(const dist_params params,
   const std::vector<std::vector<uint64_t>> &ref_sketches,
   const std::vector<SketchStrides> &ref_strides,
