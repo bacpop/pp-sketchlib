@@ -1,18 +1,7 @@
 #pragma once
 
+#include "align.hpp"
 #include "reference.hpp"
-
-// Align structs
-// https://stackoverflow.com/a/12779757
-#if defined(__CUDACC__) // NVCC
-#define ALIGN(n) __align__(n)
-#elif defined(__GNUC__) // GCC
-#define ALIGN(n) __attribute__((aligned(n)))
-#elif defined(_MSC_VER) // MSVC
-#define ALIGN(n) __declspec(align(n))
-#else
-#error "Please provide a definition for MY_ALIGN macro for your host compiler!"
-#endif
 
 struct ALIGN(8) RandomStrides {
   size_t kmer_stride;
@@ -20,7 +9,7 @@ struct ALIGN(8) RandomStrides {
   size_t cluster_outer_stride;
 };
 
-typedef std::tuple<RandomStrides, std::vector<float>> FlatRandom;
+using FlatRandom = std::tuple<RandomStrides, std::vector<float>>;
 
 #ifdef GPU_AVAILABLE
 

@@ -1,12 +1,13 @@
 # pp-sketchlib <img src='sketchlib_logo.png' align="right" height="139" />
 
 <!-- badges: start -->
-[![Build status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/bacpop.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=4&branchName=master)
+[![Build status](https://badge.buildkite.com/b1bc9ccd16211ca5a55846b95e297554e5aa3b544d8cb752b0.svg?branch=master;theme=github)](https://buildkite.com/mrc-ide/pp-sketchlib)
 [![Anaconda package](https://anaconda.org/conda-forge/pp-sketchlib/badges/version.svg)](https://anaconda.org/conda-forge/pp-sketchlib)
 <!-- badges: end -->
 
 
-Library of sketching functions used by [PopPUNK](https://www.poppunk.net>).
+Library of sketching functions used by [PopPUNK](https://www.poppunk.net>). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
 
 ## Installation
 
@@ -67,7 +68,7 @@ installed (tested on 10.2 and 11.0).
 Create a set of sketches and save these as a database:
 
 ```
-poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --sketch-size 10000 --cpus 4 --min-k 15 --k-step 2
+sketchlib sketch -l rfiles.txt -o listeria --cpus 4
 ```
 
 The input file `rfiles.txt` has one sequence per line. The first column is the sample name, subsequent tab-separated
@@ -79,32 +80,29 @@ sample2    sample2.fa
 sample3    sample3_1.fq.gz     sample3_2.fq.gz
 ```
 
-Calculate core and accessory distances between databases with `--query`. If all-vs-all, only the upper triangle is calculated,
+Calculate core and accessory distances between databases with `query dist`. If all-vs-all, only the upper triangle is calculated,
 for example:
 
 ```
-poppunk_sketch --query --ref_db listeria --query_db listeria --cpus 4
+poppunk_sketch query dist listeria --cpus 4
 ```
 
-This will save output files as a database for use with PopPUNK. If you wish to output the
-distances add the `--print` option:
-
-```
-poppunk_sketch --query --ref_db listeria --query_db listeria --cpus 4 --print > distances.txt
-```
+This will print the distances to STDOUT and can be captured with `>`. If you wish to output save output files as a database for use with PopPUNK.add the `-o` option.
 
 ### Other options
 
 Sketching:
 
-- `--strand` ignores reverse complement k-mers, if input is all in the same sense
+- `--single-strand` ignores reverse complement k-mers, if input is all in the same sense
 - `--min-count` minimum k-mer count to include when using reads
 - `--exact-counter` uses a hash table to count k-mers, which is recommended for non-bacterial datasets.
 
 Query:
 
 - To only use some of the samples in the sketch database, you can add the `--subset` option with a file which lists the required sample names.
-- `--jaccard` will output the Jaccard distances, rather than core and accessory distances.
+- `query jaccard` will output the Jaccard distances, rather than core and accessory distances.
+- `query sparse` will output a sparse distance matrix,
+using either a `--threshold` or the k-nearest (`-kNN`).
 
 ### Large datasets
 
@@ -112,19 +110,17 @@ When working with large datasets, you can increase the `--cpus` to high numbers 
 a roughly proportional performance increase.
 
 For calculating sketches of read datasets, or large numbers of distances, and you have a CUDA compatible GPU,
-you can calculate distances on your graphics device even more quickly. Add the `--use-gpu` option:
+you can calculate distances on your graphics device even more quickly. Add the `--gpu` option with the desired
+device ID:
 
 ```
-poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --cpus 4 --use-gpu
-poppunk_sketch --query --ref-db listeria --query-db listeria --use-gpu
+sketchlib sketch -l rfiles.txt -o listeria --cpus 4 --gpu 0
+sketchlib query dist listeria --gpu 0
 ```
 
 Both CPU parallelism and the GPU will be used, so be sure to add
-both `--cpus` and `--use-gpu` for maximum speed. This is particularly efficient
-when sketching.
-
-You can set the `--gpu-id` if you have more than one device, which may be necessary on
-cluster systems. This mode can also benefit from having multiple CPU cores available too.
+both `--cpus` and `--gpu` for maximum speed. This is particularly efficient
+when sketching reads.
 
 ### Benchmarks
 
@@ -193,12 +189,16 @@ contain `sketch` and may contain `random`. Run `h5dump` to see the full contents
 Contents are programmatically accessible with any HDF5 API. See `__main__.py` for an
 example in python.
 
+See `poppunk_db_info` from the [PopPUNK](https://github.com/johnlees/PopPUNK) package for pretty printing.
+
 #### sketch
 
 Attributes:
 
 - `sketch_version` - version of sketching code used to create the database.
   The SHA1 hash of relevant code files (doesn't change with every commit).
+- `codon_phased` - 1 if codon-phased seeds were used.
+- `reverse_complement` - 0 if `--single-strand`.
 
 Contains a group for each sample, within each has attributes:
 
@@ -229,78 +229,6 @@ Datasets:
   as the k-mer keys, and row-major across centroid pairs.
 - `table_keys` - sample order of `table_values`.
 - `table_values` - centroid ID assigned to each sample.
-
-C++
----
-I have yet to set up a proper namespace for this, but you can include this
-code (`api.hpp` will do most functions) and use the parts you need. If you
-are interested in this becoming more functional, please raise an issue.
-
-See `main.cpp` for examples:
-
-```
-#include <fstream>
-#include <iostream>
-
-#include "reference.hpp"
-#include "database.hpp"
-#include "random_match.hpp"
-#include "api.hpp"
-
-// Set k-mer lengths
-std::vector<size_t> kmer_lengths {15, 17, 19, 21, 23, 25, 27, 29};
-
-// Create a two sketches
-Reference ref(argv[1], {argv[2]}, kmer_lengths, 156, true, 0, false);
-Reference query(argv[3], {argv[4]}, kmer_lengths, 156, true, 0, false);
-
-// Use default random match chances
-RandomMC random(true);
-
-// Output some distances at a single k-mer length
-std::cout << ref.jaccard_dist(query, 15, random) << std::endl;
-std::cout << ref.jaccard_dist(query, 29, random) << std::endl;
-
-// Calculate core and accessory distances between two sketches
-auto core_acc = ref.core_acc_dist<RandomMC>(query, random);
-std::cout << std::get<0>(core_acc) << "\t" << std::get<1>(core_acc) << std::endl;
-
-// Save sketches to file
-Database sketch_db("sketch.h5");
-sketch_db.add_sketch(ref);
-sketch_db.add_sketch(query);
-
-// Read sketches from file
-Reference ref_read = sketch_db.load_sketch(argv[1]);
-Reference query_read = sketch_db.load_sketch(argv[3]);
-// Create sketches using multiple threads, saving to file
-std::vector<Reference> ref_sketches = create_sketches("full",
-                           {argv[1], argv[3]},
-                           {{argv[2]}, {argv[4]}},
-                           kmer_lengths,
-                           156,
-                           true,
-                           0,
-                           false,
-                           2);
-// Calculate distances between sketches using multiple threads
-MatrixXf dists = query_db(ref_sketches,
-                          ref_sketches,
-                          kmer_lengths,
-                          random,
-                          false,
-                          2);
-std::cout << dists << std::endl;
-
-// Read sketches from an existing database, using random access
-HighFive::File h5_db("listeria.h5");
-Database listeria_db(h5_db);
-std::vector<Reference> listeria_sketches;
-for (auto name_it = names.cbegin(); name_it != names.cend(); name_it++)
-{
-    listeria_sketches.push_back(listeria_db.load_sketch(*name_it));
-}
-```
 
 ## Algorithms
 
@@ -363,7 +291,7 @@ Blais & Blanchette is used (formula 6 in the paper cited below).
   sketch each separately and join the databases.
 - GPU sketching filters out any read containing an N, which may give slightly
   different results from the CPU code.
-- GPU sketching with variable read lengths is untested, but theoretically supported.
+- GPU sketching with variable read lengths is unsupported. Illumina data only for now!
 - GPU distances use lower precision than the CPU code, so slightly different results
   are expected.
 
@@ -426,6 +354,9 @@ Modifiers:
 - `DEBUG=1` runs with debug flags
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
+
+### azure
+The repository key for the ubuntu CUDA install is periodically updated, which may cause build failures. See https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/ and update in `azure-pipelines.yml`.
 
 ### Test that Python can build an installable package
 

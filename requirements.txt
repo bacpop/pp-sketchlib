@@ -2,3 +2,4 @@ h5py
 numpy
 pybind11
 scipy
+docopt
