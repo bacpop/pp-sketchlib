@@ -1,7 +1,8 @@
 # pp-sketchlib <img src='sketchlib_logo.png' align="right" height="139" />
 
 <!-- badges: start -->
-[![Build status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/bacpop.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=4&branchName=master)
+[![Build status](https://badge.buildkite.com/b1bc9ccd16211ca5a55846b95e297554e5aa3b544d8cb752b0.svg?branch=main?theme=github)](https://buildkite.com/mrc-ide/pp-sketchlib)
 [![Anaconda package](https://anaconda.org/conda-forge/pp-sketchlib/badges/version.svg)](https://anaconda.org/conda-forge/pp-sketchlib)
 <!-- badges: end -->
 
@@ -353,6 +354,9 @@ Modifiers:
 - `DEBUG=1` runs with debug flags
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
+
+### azure
+The repository key for the ubuntu CUDA install is periodically updated, which may cause build failures. See https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/ and update in `azure-pipelines.yml`.
 
 ### Test that Python can build an installable package
 
