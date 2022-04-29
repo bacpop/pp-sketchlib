@@ -299,8 +299,8 @@ __global__ void calculate_dists(
     float fitted_dists[2];
     // Set diagonal if you wish to ignore diagonals (set them to max)
     if (max_diagonal && ref_idx == query_idx) {
-      fitted_dists[0] = FLT_MAX;
-      fitted_dists[1] = FLT_MAX;
+      fitted_dists[0] = INFINITY;
+      fitted_dists[1] = INFINITY;
     } else {
       simple_linear_regression(fitted_dists, xsum, ysum, xysum, xsquaresum,
                                ysquaresum, kmer_used, dist_col);

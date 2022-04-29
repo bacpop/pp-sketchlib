@@ -137,7 +137,7 @@ NumpyMatrix queryDatabase(const std::string &ref_db_name,
 }
 
 sparse_coo
-sparseQuerySelf(const std::string &ref_db_name, const std::vector<std::string> &ref_names,
+querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &ref_names,
             std::vector<size_t> kmer_lengths, const bool random_correct = true,
             const bool jaccard = false, const unsigned long int kNN = 0,
             const float dist_cutoff = 0.0f, const size_t dist_col = 0,
@@ -242,7 +242,7 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("jaccard") = false, py::arg("num_threads") = 1,
         py::arg("use_gpu") = false, py::arg("device_id") = 0);
 
-  m.def("querySelfSparse", &sparseQuerySelf,
+  m.def("querySelfSparse", &querySelfSparse,
         py::return_value_policy::reference_internal,
         "Find self-self distances between sketches; return a sparse matrix",
         py::arg("ref_db_name"), py::arg("rList"), py::arg("klist"), py::arg("random_correct") = true,

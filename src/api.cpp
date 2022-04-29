@@ -346,20 +346,24 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
       interrupt = true;
     } else {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
-        if (jaccard) {
-          // Need 1-J here to sort correctly
-          row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
-              ref_sketches[j], kmer_lengths[dist_col], random_chance);
-        } else {
-          float core, acc;
-          std::tie(core, acc) =
-              ref_sketches[i].core_acc_dist<RandomMC>(
-                  ref_sketches[j], kmer_mat, random_chance);
-          if (dist_col == 0) {
-            row_dists[j] = core;
+        if (i != j) {
+          if (jaccard) {
+            // Need 1-J here to sort correctly
+            row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
+                ref_sketches[j], kmer_lengths[dist_col], random_chance);
           } else {
-            row_dists[j] = acc;
+            float core, acc;
+            std::tie(core, acc) =
+                ref_sketches[i].core_acc_dist<RandomMC>(
+                    ref_sketches[j], kmer_mat, random_chance);
+            if (dist_col == 0) {
+              row_dists[j] = core;
+            } else {
+              row_dists[j] = acc;
+            }
           }
+        } else {
+          row_dists[j] = std::numeric_limits<float>::infinity();
         }
         if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp critical
@@ -373,16 +377,9 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         std::fill_n(i_vec.begin() + offset, kNN, i);
         // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
 
-        int ordered_dist_idx = 0;
-        if (ordered_dists[0] == (int)i) {
-          ordered_dist_idx = 1;
-        }
-        for (int k = 0; k < kNN; ++k, ++ordered_dist_idx) {
-          j_vec[offset + k] = ordered_dists[ordered_dist_idx];
-          dists[offset + k] = row_dists[ordered_dists[ordered_dist_idx]];
-          if (ordered_dists[ordered_dist_idx] == (int)i) {
-            ++ordered_dist_idx;
-          }
+        for (int k = 0; k < kNN; ++k) {
+          j_vec[offset + k] = ordered_dists[k];
+          dists[offset + k] = row_dists[ordered_dists[k]];
         }
 
       }
