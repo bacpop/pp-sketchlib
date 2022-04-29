@@ -2,7 +2,7 @@
 
 <!-- badges: start -->
 [![Build Status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/bacpop.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=4&branchName=master)
-[![Build status](https://badge.buildkite.com/b1bc9ccd16211ca5a55846b95e297554e5aa3b544d8cb752b0.svg?branch=master?theme=github)](https://buildkite.com/mrc-ide/pp-sketchlib)
+[![Build status](https://badge.buildkite.com/b1bc9ccd16211ca5a55846b95e297554e5aa3b544d8cb752b0.svg?branch=master;theme=github)](https://buildkite.com/mrc-ide/pp-sketchlib)
 [![Anaconda package](https://anaconda.org/conda-forge/pp-sketchlib/badges/version.svg)](https://anaconda.org/conda-forge/pp-sketchlib)
 <!-- badges: end -->
 
