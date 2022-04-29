@@ -14,10 +14,24 @@
 #include "device_memory.cuh"
 #include "gpu_countmin.cuh"
 #include "device_reads.cuh"
+#include "dist/matrix_types.hpp"
 
 static const int warp_size = 32;
 
 #ifdef GPU_AVAILABLE
+
+// Small struct used in cuda_dists_init
+struct ALIGN(16) dist_params {
+  bool self;
+  SketchStrides ref_strides;
+  SketchStrides query_strides;
+  long long dist_rows;
+  long n_samples;
+  size_t shared_size;
+  size_t mem_free;
+  size_t mem_total;
+};
+
 // defined in dist.cu
 std::tuple<size_t, size_t, size_t> initialise_device(const int device_id);
 
@@ -45,6 +59,18 @@ std::vector<float> dispatchDists(std::vector<Reference> &ref_sketches,
                                  const std::vector<size_t> &kmer_lengths,
                                  const bool self, const int cpu_threads,
                                  const size_t shared_size);
+
+sparse_coo sparseDists(const dist_params params,
+  const std::vector<std::vector<uint64_t>> &ref_sketches,
+  const std::vector<SketchStrides> &ref_strides,
+  const FlatRandom &flat_random,
+  const std::vector<uint16_t> &ref_random_idx,
+  const std::vector<size_t> &kmer_lengths,
+  const int kNN,
+  const size_t dist_col,
+  const size_t samples_per_chunk,
+  const size_t num_big_chunks,
+  const int cpu_threads);
 
 // in sketch.cu
 void copyNtHashTablesToDevice();

@@ -16,11 +16,10 @@
 #include "gpu/gpu.hpp"
 #include "reference.hpp"
 #include "sketch/progress.hpp"
+#include "sketch/bitfuncs.hpp"
 
 using namespace Eigen;
 namespace py = pybind11;
-
-const int progressBitshift = 10;
 
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
@@ -77,6 +76,7 @@ std::vector<Reference> create_sketches(
     KmerSeeds kmer_seeds = generate_seeds(kmer_lengths, codon_phased);
 
     ProgressMeter sketch_progress(names.size());
+    size_t done_count = 0;
     bool interrupt = false;
     std::vector<std::runtime_error> errors;
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads)
@@ -88,6 +88,8 @@ std::vector<Reference> create_sketches(
           SeqBuf seq_in(files[i], kmer_lengths.back());
           sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
                                   codon_phased, use_rc, min_count, exact);
+#pragma omp atomic
+          ++done_count;
         } catch (const std::runtime_error &e) {
 #pragma omp critical
           {
@@ -98,7 +100,7 @@ std::vector<Reference> create_sketches(
       }
 
       if (omp_get_thread_num() == 0) {
-        sketch_progress.tick(num_threads);
+        sketch_progress.tick_count(done_count);
       }
     }
     sketch_progress.finalise();
@@ -167,27 +169,31 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     dist_cols = 2;
   }
 
+  size_t dist_rows;
+  // Set up progress meter
+  if (ref_sketches == query_sketches) {
+    // calculate dists
+    dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
+                                           (ref_sketches.size() - 1));
+  } else {
+    dist_rows = ref_sketches.size() * query_sketches.size();
+  }
+  static const uint64_t n_progress_ticks = 1000;
+  uint64_t update_every = 1;
+  if (dist_rows > n_progress_ticks) {
+    update_every = dist_rows / n_progress_ticks;
+  }
+  ProgressMeter dist_progress(n_progress_ticks, true);
+  volatile int progress = 0;
+
   // These could be the same but out of order, which could be dealt with
   // using a sort, except the return order of the distances wouldn't be as
   // expected. self iff ref_names == query_names as input
   bool interrupt = false;
   if (ref_sketches == query_sketches) {
     // calculate dists
-    size_t dist_rows = static_cast<size_t>(0.5 * (ref_sketches.size()) *
-                                           (ref_sketches.size() - 1));
     distMat.resize(dist_rows, dist_cols);
-
     arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
-
-    // Set up progress meter
-    size_t progress_blocks = 1 << progressBitshift;
-    size_t update_every = dist_rows >> progressBitshift;
-    if (progress_blocks > dist_rows || update_every < 1) {
-      progress_blocks = dist_rows;
-      update_every = 1;
-    }
-    ProgressMeter dist_progress(progress_blocks, true);
-    int progress = 0;
 
     // Iterate upper triangle
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads) shared(progress)
@@ -209,18 +215,18 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                     ref_sketches[j], kmer_mat, random_chance);
           }
           if (pos % update_every == 0) {
-#pragma omp atomic
-              progress++;
-              dist_progress.tick(1);
+#pragma omp critical
+              {
+                progress += MAX(1, n_progress_ticks / dist_rows);
+                dist_progress.tick_count(progress);
+              }
           }
         }
       }
     }
-    dist_progress.finalise();
   } else {
     // If ref != query, make a thread queue, with each element one ref
     // calculate dists
-    size_t dist_rows = ref_sketches.size() * query_sketches.size();
     distMat.resize(dist_rows, dist_cols);
 
     // Prepare objects used in distance calculations
@@ -235,7 +241,6 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
           random_chance.closest_cluster(query_sketches[q_idx]);
     }
 
-    ProgressMeter dist_progress(dist_rows, true);
 #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
     for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
       for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
@@ -260,21 +265,142 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                 query_sketches[q_idx].core_acc_dist<std::vector<double>>(
                     ref_sketches[r_idx], kmer_mat, jaccard_random);
           }
-          if (omp_get_thread_num() == 0) {
-            dist_progress.tick(num_threads);
+          if ((q_idx * ref_sketches.size() + r_idx) % update_every == 0) {
+#pragma omp critical
+            {
+              progress += MAX(1, n_progress_ticks / dist_rows);
+              dist_progress.tick_count(progress);
+            }
           }
         }
       }
     }
-    dist_progress.finalise();
   }
 
   // Handle Ctrl-C from python
   if (interrupt) {
     throw py::error_already_set();
   }
+  dist_progress.finalise();
 
   return (distMat);
+}
+
+void check_sparse_inputs(const std::vector<Reference> &ref_sketches,
+                         const std::vector<size_t> &kmer_lengths,
+                         RandomMC &random_chance, const bool jaccard,
+                         const size_t dist_col) {
+  if (ref_sketches.size() < 1) {
+    throw std::runtime_error("Query with empty ref or query list!");
+  }
+  if (kmer_lengths[0] <
+      random_chance.min_supported_k(ref_sketches[0].seq_length())) {
+    throw std::runtime_error("Smallest k-mer has no signal above random "
+                             "chance; increase minimum k-mer length");
+  }
+  if ((jaccard && dist_col >= kmer_lengths.size()) || (dist_col != 0 && dist_col != 1)) {
+    throw std::runtime_error("dist_col out of range");
+  }
+
+  // Check all references are in the random object, add if not
+  if (random_chance.check_present(ref_sketches, true)) {
+    std::cerr
+        << "Some members of the reference database were not found "
+           "in its random match chances. Consider refreshing with addRandom"
+        << std::endl;
+  }
+}
+
+sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
+                     const std::vector<size_t> &kmer_lengths,
+                     RandomMC &random_chance, const bool jaccard,
+                     const int kNN, const size_t dist_col,
+                     const size_t num_threads) {
+  check_sparse_inputs(ref_sketches, kmer_lengths, random_chance,
+                      jaccard, dist_col);
+
+  std::cerr << "Calculating distances using " << num_threads << " thread(s)"
+            << std::endl;
+
+  std::vector<float> dists(ref_sketches.size() * kNN);
+  std::vector<long> i_vec(ref_sketches.size() * kNN);
+  std::vector<long> j_vec(ref_sketches.size() * kNN);
+
+  bool interrupt = false;
+
+  // Set up progress meter
+  size_t dist_rows = static_cast<size_t>(ref_sketches.size() * ref_sketches.size());
+  static const uint64_t n_progress_ticks = 1000;
+  uint64_t update_every = 1;
+  if (dist_rows > n_progress_ticks) {
+    update_every = dist_rows / n_progress_ticks;
+  }
+  ProgressMeter dist_progress(n_progress_ticks, true);
+  volatile int progress = 0;
+
+  arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+#pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
+  for (size_t i = 0; i < ref_sketches.size(); i++) {
+    std::vector<float> row_dists(ref_sketches.size());
+    if (interrupt || PyErr_CheckSignals() != 0) {
+      interrupt = true;
+    } else {
+      for (size_t j = 0; j < ref_sketches.size(); j++) {
+        if (i != j) {
+          if (jaccard) {
+            // Need 1-J here to sort correctly
+            row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
+                ref_sketches[j], kmer_lengths[dist_col], random_chance);
+          } else {
+            float core, acc;
+            std::tie(core, acc) =
+                ref_sketches[i].core_acc_dist<RandomMC>(
+                    ref_sketches[j], kmer_mat, random_chance);
+            if (dist_col == 0) {
+              row_dists[j] = core;
+            } else {
+              row_dists[j] = acc;
+            }
+          }
+        } else {
+          row_dists[j] = std::numeric_limits<float>::infinity();
+        }
+        if ((i * ref_sketches.size() + j) % update_every == 0) {
+#pragma omp critical
+          {
+            progress += MAX(1, n_progress_ticks / dist_rows);
+            dist_progress.tick_count(progress);
+          }
+        }
+        long offset = i * kNN;
+        std::vector<long> ordered_dists = sort_indexes(row_dists);
+        std::fill_n(i_vec.begin() + offset, kNN, i);
+        // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
+
+        for (int k = 0; k < kNN; ++k) {
+          j_vec[offset + k] = ordered_dists[k];
+          dists[offset + k] = row_dists[ordered_dists[k]];
+        }
+
+      }
+    }
+  }
+  dist_progress.finalise();
+
+  // Handle Ctrl-C from python
+  if (interrupt) {
+    throw py::error_already_set();
+  }
+
+  // Revert to correct distance J = 1 - dist
+  if (jaccard) {
+    #pragma omp parallel for simd num_threads(num_threads)
+    for (size_t i = 0; i < dists.size(); ++i) {
+      dists[i] = 1.0f - dists[i];
+    }
+  }
+
+  return (std::make_tuple(i_vec, j_vec, dists));
 }
 
 // Load sketches from a HDF5 file

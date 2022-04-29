@@ -1,9 +1,21 @@
 import sys
+#sys.path.insert(0, '../build/lib.macosx-10.9-x86_64-3.10')
 import pp_sketchlib
 import numpy as np
 import h5py
 import pickle
 import argparse
+
+def dist_in_tolerance(d1, d2, dist_name, sample_name, tols):
+    if d1 != 0 and d2 != 0:
+            diff = d1 - d2
+            diff_fraction = 2*(diff)/(d1 + d2)
+            if (abs(diff) > tols['warn_diff'] and abs(diff_fraction) > tols['warn_diff_frac']):
+                sys.stderr.write(dist_name + " mismatches for " + sample_name + "\n")
+                sys.stderr.write("expected: " + str(d1) + "; calculated: " + str(d2) + "\n")
+            if (abs(diff) > tols['err_diff'] and abs(diff_fraction) > tols['err_diff_frac']):
+                sys.stderr.write("Difference outside tolerance")
+                sys.exit(1)
 
 def iterDistRows(refSeqs, querySeqs, self=True):
     if self:
@@ -36,6 +48,11 @@ parser.add_argument('--error-diff-frac', type=float, default = 0.05,
 
 args = parser.parse_args()
 
+tols = {"warn_diff": args.warn_diff,
+        "warn_diff_frac": args.warn_diff_frac,
+        "err_diff": args.error_diff,
+        "err_diff_frac": args.error_diff_frac}
+
 # Generate distances
 rList = []
 ref = h5py.File(args.ref_db + ".h5", 'r')
@@ -45,13 +62,25 @@ for sample_name in list(ref['sketches'].keys()):
 db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
 ref.close()
 
-distMat = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList, db_kmers)
-jaccard_dists = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList,
-                                           db_kmers, jaccard = True)
-jaccard_dists_raw = pp_sketchlib.queryDatabase(args.ref_db, args.ref_db, rList, rList,
-                                           db_kmers, jaccard = True,
-                                           random_correct = False)
-distMat = np.hstack((distMat, jaccard_dists, jaccard_dists_raw))
+distMat = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                     query_db_name=args.ref_db,
+                                     rList=rList,
+                                     qList=rList,
+                                     klist=db_kmers)
+jaccard_dists = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                           query_db_name=args.ref_db,
+                                           rList=rList,
+                                           qList=rList,
+                                           klist=db_kmers,
+                                           jaccard = True)
+jaccard_dists_raw = pp_sketchlib.queryDatabase(ref_db_name=args.ref_db,
+                                               query_db_name=args.ref_db,
+                                               rList=rList,
+                                               qList=rList,
+                                               klist=db_kmers,
+                                               jaccard = True,
+                                               random_correct = False)
+distMat_all = np.hstack((distMat, jaccard_dists, jaccard_dists_raw))
 
 # Read old distances
 with open(args.results + ".pkl", 'rb') as pickle_file:
@@ -59,7 +88,7 @@ with open(args.results + ".pkl", 'rb') as pickle_file:
 oldDistMat = np.load(args.results + ".npy")
 oldJaccardDistMat = np.load(args.results + "_jaccard.npy")
 oldRawJaccardDistMat = np.load(args.results + "_raw_jaccard.npy")
-oldDistMat = np.hstack((oldDistMat, oldJaccardDistMat, oldRawJaccardDistMat))
+oldDistMat_all = np.hstack((oldDistMat, oldJaccardDistMat, oldRawJaccardDistMat))
 
 # Check both match
 if (rList_old != rList):
@@ -71,14 +100,41 @@ if (rList_old != rList):
 names = iterDistRows(rList, rList, True)
 for i, (ref, query) in enumerate(names):
     for j, (dist) in enumerate(['core', 'accessory'] + [str(x) for x in db_kmers]):
-        if oldDistMat[i, j] != 0 and distMat[i, j] != 0:
-            diff = distMat[i, j] - oldDistMat[i, j]
-            diff_fraction = 2*(diff)/(oldDistMat[i, j] + distMat[i, j])
-            if (abs(diff) > args.warn_diff and abs(diff_fraction) > args.warn_diff_frac):
-                sys.stderr.write(dist + " mismatches for " + ref + "," + query + "\n")
-                sys.stderr.write("expected: " + str(oldDistMat[i, j]) + "; calculated: " + str(distMat[i, j]) + "\n")
-            if (abs(diff) > args.error_diff and abs(diff_fraction) > args.error_diff_frac):
-                sys.stderr.write("Difference outside tolerance")
-                sys.exit(1)
+        dist_in_tolerance(oldDistMat_all[i, j], distMat_all[i, j], dist, ref + "," + query, tols)
+
+# Test sparse queries
+square_core_mat = pp_sketchlib.longToSquare(distVec=distMat[:, [0]])
+
+kNN=3
+sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
+                                             rList=rList,
+                                             klist=db_kmers,
+                                             kNN=kNN)
+sparse_knn = pp_sketchlib.sparsifyDists(distMat=square_core_mat, distCutoff=0, kNN=kNN)
+if (sparseDistMat[0] != sparse_knn[0] or
+    sparseDistMat[1] != sparse_knn[1]):
+    sys.stderr.write("Sparse distances (kNN) mismatching\n")
+    print(sparseDistMat)
+    print(sparse_knn)
+    sys.exit(1)
+
+for idx, (d1, d2) in enumerate(zip(sparseDistMat[2], sparseDistMat[2])):
+    dist_in_tolerance(d1, d2, "sparse distances (kNN)", str(idx), tols)
+
+cutoff=0.01
+sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
+                                             rList=rList,
+                                             klist=db_kmers,
+                                             dist_cutoff=cutoff)
+sparse_threshold = pp_sketchlib.sparsifyDists(distMat=square_core_mat, distCutoff=cutoff, kNN=0)
+if (sparseDistMat[0] != sparse_threshold[0] or
+    sparseDistMat[1] != sparse_threshold[1]):
+    sys.stderr.write("Sparse distances (cutoff) mismatching\n")
+    print(sparseDistMat)
+    print(sparse_threshold)
+    sys.exit(1)
+
+for idx, (d1, d2) in enumerate(zip(sparseDistMat[2], sparseDistMat[2])):
+    dist_in_tolerance(d1, d2, "sparse distances (cutoff)", str(idx), tols)
 
 sys.exit(0)

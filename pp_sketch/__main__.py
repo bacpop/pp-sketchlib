@@ -4,9 +4,10 @@
 Usage:
   sketchlib sketch <files>... -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
-  sketchlib query sparse <db1> [<db2>] (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>]
+  sketchlib query sparse <db1> (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query sparse jaccard <db1> --kNN <k> --kmer <k> [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib join <db1> <db2> -o <output>
   sketchlib (add|remove) random <db1> [--cpus <cpus>]
   sketchlib (-h | --help)
@@ -22,7 +23,7 @@ Options:
   --gpu <gpu>    Use GPU with specified device ID [default: -1].
 
   -k <kseq>     Sequence of k-mers to sketch (min,max,step) [default: 15,31,4].
-  --kmer <k>    Sketch at a single k-mer length k.
+  --kmer <k>    Sketch (or distance) at a single k-mer length k.
   -s <size>     Sketch size [default: 10000].
   --single-strand  Ignore the reverse complement (e.g. in RNA viruses).
   --codon-phased  Use codon phased seeds X--X--X
@@ -45,7 +46,6 @@ from scipy.sparse import save_npz
 import pickle
 import h5py
 
-#sys.path.insert(0, '/Users/jlees/Documents/Imperial/pp-sketchlib/build/lib.macosx-10.9-x86_64-3.8')
 import pp_sketchlib
 
 from .matrix import ijv_to_coo
@@ -130,7 +130,7 @@ def get_options():
             if min_k >= max_k or min_k < 3 or max_k > 101 or k_step < 1:
                 raise RuntimeError("Invalid k-mer sizes")
             arguments['kmers'] = np.arange(int(min_k), int(max_k) + 1, int(k_step))
-        except:
+        except RuntimeError:
             sys.stderr.write("Minimum kmer size must be smaller than maximum kmer size; " +
                              "range must be between 3 and 101, step must be at least one\n")
             sys.exit(1)
@@ -183,19 +183,19 @@ def main():
                              "All names must be unique\n")
             sys.exit(1)
 
-        pp_sketchlib.constructDatabase(args['-o'],
-                                       names,
-                                       sequences,
-                                       args['kmers'],
-                                       args['-s'],
-                                       args['--codon-phased'],
-                                       False,
-                                       not args['--single-strand'],
-                                       args['--min-count'],
-                                       args['--exact-counter'],
-                                       args['--cpus'],
-                                       args['--use-gpu'],
-                                       args['--gpu'])
+        pp_sketchlib.constructDatabase(db_name=args['-o'],
+                                       samples=names,
+                                       files=sequences,
+                                       klist=args['kmers'],
+                                       sketch_size=args['-s'],
+                                       codon_phased=args['--codon-phased'],
+                                       calc_random=False,
+                                       use_rc=not args['--single-strand'],
+                                       min_count=args['--min-count'],
+                                       exact=args['--exact-counter'],
+                                       num_threads=args['--cpus'],
+                                       use_gpu=args['--use-gpu'],
+                                       device_id=args['--gpu'])
 
     #
     # Join two databases
@@ -220,6 +220,8 @@ def main():
                 sys.stderr.write("One database uses codon-phased seeds - cannot join "
                                  "with a standard seed database\n")
         except RuntimeError as e:
+            hdf1.close()
+            hdf2.close()
             sys.stderr.write("Unable to check sketch version\n")
 
         hdf_join = h5py.File(join_name + ".tmp", 'w') # add .tmp in case join_name exists
@@ -236,17 +238,15 @@ def main():
                 sys.stderr.write("Random matches found in one database, which will not be copied\n"
                                  "Use --add-random to recalculate for the joined DB\n")
         except RuntimeError as e:
-            hdf1.close()
-            hdf2.close()
-            hdf_join.close()
             sys.stderr.write("ERROR: " + str(e) + "\n")
             sys.stderr.write("Joining sketches failed\n")
             sys.exit(1)
+        finally:
+            hdf1.close()
+            hdf2.close()
+            hdf_join.close()
 
         # Clean up
-        hdf1.close()
-        hdf2.close()
-        hdf_join.close()
         os.rename(join_name + ".tmp", join_name)
 
     #
@@ -274,36 +274,71 @@ def main():
                 sys.exit(1)
 
         # Check inputs overlap
-        ref = h5py.File(args['db1'] + ".h5", 'r')
-        query = h5py.File(args['db2'] + ".h5", 'r')
-        db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
-           query['sketches/' + qList[0]].attrs['kmers']
-        )
-        query_kmers = sorted(db_kmers)
-        if args['jaccard'] and len(args['kmers']) == 1:
-            if args['kmers'][0] not in query_kmers:
-                sys.stderr.write("Selected --kmer is not in both query databases\n")
-                sys.exit(1)
-            else:
-                query_kmers = args['kmers']
-        ref.close()
-        query.close()
+        try:
+            ref = h5py.File(args['db1'] + ".h5", 'r')
+            query = h5py.File(args['db2'] + ".h5", 'r')
+            db_kmers = set(ref['sketches/' + rList[0]].attrs['kmers']).intersection(
+              query['sketches/' + qList[0]].attrs['kmers']
+            )
+            query_kmers = sorted(db_kmers)
+            if args['jaccard'] and len(args['kmers']) == 1:
+                if args['kmers'][0] not in query_kmers:
+                    raise RuntimeError(f"Input --kmer {args['kmers'][0]} not in "
+                                       f"(both) databases: {sorted(db_kmers)}\n")
+                else:
+                    query_kmers = args['kmers']
+            elif not query_kmers:
+                raise RuntimeError("No overlapping k-mers in db1 and db2")
+        finally:
+            ref.close()
+            query.close()
 
         if args['sparse']:
-            sparseIdx = pp_sketchlib.queryDatabaseSparse(args['db1'],
-                                                         args['db2'],
-                                                         rList,
-                                                         qList,
-                                                         query_kmers,
-                                                         args['--adj-random'],
-                                                         args['--threshold'],
-                                                         args['--kNN'],
-                                                         not args['--accessory'],
-                                                         args['--cpus'],
-                                                         args['--use-gpu'],
-                                                         args['--gpu'])
+            # Set which distance to output (sparse only supports a single value)
+            dist_col = 0
+            if args['jaccard'] and len(query_kmers) != 1:
+                # Note default here is just to be sending a single-kmer length, so
+                # it does not need to be indexed into hence dist_col = 0 is correct
+                raise RuntimeError(f"For sparse jaccard a single k-mer must be "
+                                   f"selected {sorted(query_kmers)}")
+            elif args['--accessory']:
+                dist_col = 1
+
+            # Can use memory efficient version with kNN
+            if args['--threshold'] == 0:
+                sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
+                                              rList=rList,
+                                              klist=query_kmers,
+                                              random_correct=args['--adj-random'],
+                                              jaccard=args['jaccard'],
+                                              kNN=args['--kNN'],
+                                              dist_cutoff=0,
+                                              dist_col=dist_col,
+                                              num_threads=args['--cpus'],
+                                              use_gpu=args['--use-gpu'],
+                                              device_id=args['--gpu'])
+            # Otherwise use general version (potentially large memory use as it
+            # actually calculates the dense distances, then sparsifies them)
+            else:
+                # This should be prohibited by docopt, but just in case
+                if args['jaccard']:
+                    raise ValueError("Cannot use sparse jaccard with non-self "
+                                     "or --threshold")
+                sparseIdx = pp_sketchlib.querySelfSparse(ref_db_name=args['db1'],
+                              rList=rList,
+                              klist=query_kmers,
+                              random_correct=args['--adj-random'],
+                              jaccard=args['jaccard'],
+                              kNN=0,
+                              dist_cutoff=args['--threshold'],
+                              dist_col=dist_col,
+                              num_threads=args['--cpus'],
+                              use_gpu=args['--use-gpu'],
+                              device_id=args['--gpu'])
             if not args['-o']:
-                if args['--accessory']:
+                if args['jaccard']:
+                    distName = str(query_kmers[0])
+                elif args['--accessory']:
                     distName = 'Accessory'
                 else:
                     distName = 'Core'
@@ -318,16 +353,16 @@ def main():
                 storePickle(rList, qList, rList == qList, coo_matrix, args['-o'])
 
         else:
-            distMat = pp_sketchlib.queryDatabase(args['db1'],
-                                                 args['db2'],
-                                                 rList,
-                                                 qList,
-                                                 query_kmers,
-                                                 args['--adj-random'],
-                                                 args['jaccard'],
-                                                 args['--cpus'],
-                                                 args['--use-gpu'],
-                                                 args['--gpu'])
+            distMat = pp_sketchlib.queryDatabase(ref_db_name=args['db1'],
+                                                 query_db_name=args['db2'],
+                                                 rList=rList,
+                                                 qList=qList,
+                                                 klist=query_kmers,
+                                                 random_correct=args['--adj-random'],
+                                                 jaccard=args['jaccard'],
+                                                 num_threads=args['--cpus'],
+                                                 use_gpu=args['--use-gpu'],
+                                                 device_id=args['--gpu'])
 
             # get names order
             if not args['-o']:
@@ -353,11 +388,11 @@ def main():
             db_kmers = ref['sketches/' + rList[0]].attrs['kmers']
             ref.close()
 
-            pp_sketchlib.addRandom(args['db1'],
-                                   rList,
-                                   db_kmers,
-                                   not args['--single-strand'],
-                                   args['--cpus'])
+            pp_sketchlib.addRandom(db_name=args['db1'],
+                                   samples=rList,
+                                   klist=db_kmers,
+                                   use_rc=not args['--single-strand'],
+                                   num_threads=args['--cpus'])
         elif args['remove']:
             if 'random' in ref:
                 del ref['random']

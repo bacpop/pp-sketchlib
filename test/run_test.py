@@ -34,9 +34,16 @@ subprocess.run("python ../sketchlib-runner.py add random test_db --cpus 2", shel
 sys.stderr.write("Distance integration test\n")
 subprocess.run("python ../sketchlib-runner.py query dist test_db --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query dist test_db -o ppsketch --cpus 2", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query jaccard test_db_small --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db --results ppsketch_ref", shell=True, check=True) # checks results match
 subprocess.run("python ../sketchlib-runner.py query dist test_db_phased --cpus 2", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db_phased --results ppsketch_ref_phased", shell=True, check=True) # checks results match
+
+sys.stderr.write("Sparse distance smoke test\n")
+subprocess.run("python ../sketchlib-runner.py query sparse test_db --kNN 2", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse test_db -o sparse_query --kNN 2", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse test_db --threshold 0.01", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse jaccard test_db --kNN 2 --kmer 19", shell=True, check=True) # checks if can be run
 
 sys.stderr.write("Ref v query distance smoke test\n")
 subprocess.run("python ../sketchlib-runner.py sketch -l rlist.txt -o r_db --cpus 2", shell=True, check=True)
@@ -44,10 +51,6 @@ subprocess.run("python ../sketchlib-runner.py sketch -l qlist.txt -o q_db --cpus
 subprocess.run("python ../sketchlib-runner.py query dist r_db q_db.h5", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query jaccard r_db q_db", shell=True, check=True) # checks if can be run
 
-sys.stderr.write("Sparse distance smoke test\n")
-subprocess.run("python ../sketchlib-runner.py query sparse test_db --kNN 2", shell=True, check=True) # checks if can be run
-subprocess.run("python ../sketchlib-runner.py query sparse test_db -o sparse_query --kNN 2", shell=True, check=True) # checks if can be run
-subprocess.run("python ../sketchlib-runner.py query sparse test_db --threshold 0.01", shell=True, check=True) # checks if can be run
 # Joining
 sys.stderr.write("Join smoke test\n")
 subprocess.run("python ../sketchlib-runner.py sketch -l db1_refs.txt -o db1 --cpus 2", shell=True, check=True)

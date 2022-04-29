@@ -1,7 +1,8 @@
 # pp-sketchlib <img src='sketchlib_logo.png' align="right" height="139" />
 
 <!-- badges: start -->
-[![Build status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/johnlees.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://dev.azure.com/jlees/pp-sketchlib/_apis/build/status/bacpop.pp-sketchlib?branchName=master)](https://dev.azure.com/jlees/pp-sketchlib/_build/latest?definitionId=4&branchName=master)
+[![Build status](https://badge.buildkite.com/b1bc9ccd16211ca5a55846b95e297554e5aa3b544d8cb752b0.svg?branch=master;theme=github)](https://buildkite.com/mrc-ide/pp-sketchlib)
 [![Anaconda package](https://anaconda.org/conda-forge/pp-sketchlib/badges/version.svg)](https://anaconda.org/conda-forge/pp-sketchlib)
 <!-- badges: end -->
 
@@ -9,6 +10,9 @@
 Library of sketching functions used by [PopPUNK](https://www.poppunk.net>). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
 
 ## Installation
+
+### conda
+
 Install using conda (recommended):
 
 ```
@@ -20,6 +24,25 @@ conda install -c conda-forge pp-sketchlib
     [tips on conda-forge](https://conda-forge.org/docs/user/tipsandtricks.html#using-multiple-channels>).
     It may also help if you downgrade your version of conda (to 4.5). Installing into
     a new environment is recommended.
+
+### pip
+
+Or install through pip
+
+You need to have suitable system dependencies installed.  On ubuntu, this suffices:
+
+```
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+```
+
+Then install pp-sketchlib via pip:
+
+```
+pip3 install --user pp-sketchlib
+```
+
+### local (build w/ compile)
 
 Or install locally:
 
@@ -39,6 +62,7 @@ For this option you will need (all available through conda):
 
 If you wish to compile the GPU code you will also need the CUDA toolkit
 installed (tested on 10.2 and 11.0).
+
 
 ## Usage
 Create a set of sketches and save these as a database:
@@ -86,19 +110,17 @@ When working with large datasets, you can increase the `--cpus` to high numbers 
 a roughly proportional performance increase.
 
 For calculating sketches of read datasets, or large numbers of distances, and you have a CUDA compatible GPU,
-you can calculate distances on your graphics device even more quickly. Add the `--use-gpu` option:
+you can calculate distances on your graphics device even more quickly. Add the `--gpu` option with the desired
+device ID:
 
 ```
-poppunk_sketch --sketch --rfile rfiles.txt --ref-db listeria --cpus 4 --use-gpu
-poppunk_sketch --query --ref-db listeria --query-db listeria --use-gpu
+sketchlib sketch -l rfiles.txt -o listeria --cpus 4 --gpu 0
+sketchlib query dist listeria --gpu 0
 ```
 
 Both CPU parallelism and the GPU will be used, so be sure to add
-both `--cpus` and `--use-gpu` for maximum speed. This is particularly efficient
-when sketching.
-
-You can set the `--gpu-id` if you have more than one device, which may be necessary on
-cluster systems. This mode can also benefit from having multiple CPU cores available too.
+both `--cpus` and `--gpu` for maximum speed. This is particularly efficient
+when sketching reads.
 
 ### Benchmarks
 
@@ -332,3 +354,54 @@ Modifiers:
 - `DEBUG=1` runs with debug flags
 - `PROFILE=1` runs with profiler flags for `ncu` and `nsys`
 - `GPU=1` also build CUDA code (assumes `/usr/local/cuda-11.1/` and SM v8.6)
+
+### azure
+The repository key for the ubuntu CUDA install is periodically updated, which may cause build failures. See https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/ and update in `azure-pipelines.yml`.
+
+### Test that Python can build an installable package
+
+Build a python source package and install it into an empty docker container with vanilla python 3. If this works, then there's a good chance that the version uploaded to pypi will work
+
+```
+rm -rf dist
+python3 setup.py sdist
+docker run --rm -it -v "${PWD}:/src:ro" python:3 /src/docker/install
+```
+
+See [this PR](https://github.com/bacpop/pp-sketchlib/pull/70) for the sorts of things we're trying to work around here.
+
+### Publish to pypi
+
+If things are being weird, the test index can be useful:
+
+```
+python3 setup.py sdist
+twine upload --repository testpypi dist/*
+```
+
+You can test installing this into an empty docker container with
+
+```
+docker run --rm -it --entrypoint bash python:3
+apt-get update && apt-get install -y --no-install-recommends \
+  cmake gfortran libarmadillo-dev libeigen3-dev libopenblas-dev
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib
+```
+
+It can take a few minutes for the new version to become available so you may want to do
+
+```
+pip install -i https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple \
+  pp-sketchlib==1.7.5.3
+```
+
+updated with your current version to force installation of the new one.
+
+Once satisfied that pip/twine haven't uploaded a completely broken package (and typically once the PR is merged) upload to the main pypi.
+
+```
+twine upload dist/*
+```
