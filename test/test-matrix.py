@@ -38,7 +38,7 @@ qr_mat = np.array([10, 11, 12, 13, 14, 15, 16, 17], dtype=np.float32)
 
 square1 = pp_sketchlib.longToSquare(distVec=rr_mat, num_threads=2)
 square2 = pp_sketchlib.longToSquareMulti(distVec=rr_mat,
-                                         query_ref_dist=qr_mat,
+                                         query_ref_distVec=qr_mat,
                                          query_query_distVec=qq_mat)
 
 square1_res = np.array([[0, 1, 2, 3],
