@@ -44,6 +44,9 @@ subprocess.run("python ../sketchlib-runner.py query sparse test_db --kNN 2", she
 subprocess.run("python ../sketchlib-runner.py query sparse test_db -o sparse_query --kNN 2", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query sparse test_db --threshold 0.01", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query sparse jaccard test_db --kNN 2 --kmer 19", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse test_db --require-reciprocity", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse test_db --count-all-neighbours", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query sparse test_db --require-reciprocity --count-all-neighbours", shell=True, check=True) # checks if can be run
 
 sys.stderr.write("Ref v query distance smoke test\n")
 subprocess.run("python ../sketchlib-runner.py sketch -l rlist.txt -o r_db --cpus 2", shell=True, check=True)
