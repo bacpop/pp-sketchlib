@@ -259,6 +259,8 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("jaccard") = false,
         py::arg("kNN") = 0, py::arg("dist_cutoff") = 0.0f,
         py::arg("dist_col") = 0,
+        py::arg("reciprocal_only") = false,
+        py::arg("all_neighbours") = false,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 
