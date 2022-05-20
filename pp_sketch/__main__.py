@@ -145,6 +145,10 @@ def get_options():
         else:
             arguments['--kNN'] = 0
             arguments['--threshold'] = float(arguments['--threshold'])
+        if args['--require-reciprocity']:
+            args['--require-reciprocity'] = int(args['--require-reciprocity'])
+        if args['--count-all-neighbours']:
+            args['--count-all-neighbours'] = int(args['--count-all-neighbours'])
 
     arguments['--cpus'] = int(arguments['--cpus'])
     arguments['--gpu'] = int(arguments['--gpu'])
@@ -314,6 +318,8 @@ def main():
                                               kNN=args['--kNN'],
                                               dist_cutoff=0,
                                               dist_col=dist_col,
+                                              reciprocal_only=args['--require-reciprocity'],
+                                              all_neighbours=args['--count-all-neighbours'],
                                               num_threads=args['--cpus'],
                                               use_gpu=args['--use-gpu'],
                                               device_id=args['--gpu'])
