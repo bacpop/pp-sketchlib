@@ -25,55 +25,113 @@ void rectangle_block(const Eigen::VectorXf &longDists,
                      const size_t nqqSamples, const size_t start,
                      const size_t max_elems);
 
-sparse_coo sparsify_dists(const NumpyMatrix &denseDists, const float distCutoff,
-                          const unsigned long int kNN) {
-  if (kNN > 0 && distCutoff > 0) {
-    throw std::runtime_error("Specify only one of kNN or distCutoff");
-  } else if (kNN < 1 && distCutoff < 0) {
-    throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
-  }
-
-  // ijv vectors
-  std::vector<float> dists;
-  std::vector<long> i_vec;
-  std::vector<long> j_vec;
-  if (distCutoff > 0) {
-    for (long i = 0; i < denseDists.rows(); i++) {
-      for (long j = i + 1; j < denseDists.cols(); j++) {
-        if (denseDists(i, j) < distCutoff) {
-          dists.push_back(denseDists(i, j));
-          i_vec.push_back(i);
-          j_vec.push_back(j);
-        }
-      }
+sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
+                          const float distCutoff,
+                          const unsigned long int kNN,
+                          bool reciprocal_only,
+                          bool all_neighbours)
+{
+    if (kNN > 0 && distCutoff > 0)
+    {
+        throw std::runtime_error("Specify only one of kNN or distCutoff");
     }
-  } else if (kNN >= 1) {
-    // Only add the k nearest (unique) neighbours
-    // May be >k if repeats, often zeros
-    for (long i = 0; i < denseDists.rows(); i++) {
-      unsigned long unique_neighbors = 0;
-      float prev_value = -1;
-      for (auto j : sort_indexes(denseDists.row(i))) {
-        if (j == i) {
-          continue; // Ignore diagonal which will always be one of the closest
-        }
-        bool new_val = abs(denseDists(i, j) - prev_value) < epsilon;
-        if (unique_neighbors < kNN || new_val) {
-          dists.push_back(denseDists(i, j));
-          i_vec.push_back(i);
-          j_vec.push_back(j);
-          if (!new_val) {
-            unique_neighbors++;
-            prev_value = denseDists(i, j);
-          }
-        } else {
-          break;
-        }
-      }
+    else if (kNN < 1 && distCutoff < 0)
+    {
+        throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
-  }
 
-  return (std::make_tuple(i_vec, j_vec, dists));
+    // ijv vectors
+    std::vector<float> dists;
+    std::vector<long> i_vec;
+    std::vector<long> j_vec;
+    if (distCutoff > 0)
+    {
+        for (long i = 0; i < denseDists.rows(); i++)
+        {
+            for (long j = i + 1; j < denseDists.cols(); j++)
+            {
+                if (denseDists(i, j) < distCutoff)
+                {
+                    dists.push_back(denseDists(i, j));
+                    i_vec.push_back(i);
+                    j_vec.push_back(j);
+                }
+            }
+        }
+    }
+    else if (kNN >= 1)
+    {
+        // Only add the k nearest (unique) neighbours
+        // May be >k if repeats, often zeros
+        unsigned long int prev_j_vec = 0;
+        for (long i = 0; i < denseDists.rows(); i++)
+        {
+            unsigned long unique_neighbors = 0;
+            float prev_value = -1;
+            for (auto j : sort_indexes(denseDists.row(i)))
+            {
+                if (j == i)
+                {
+                    continue; // Ignore diagonal which will always be one of the closest
+                }
+                bool new_val = abs(denseDists(i, j) - prev_value) > epsilon;
+                if (unique_neighbors < kNN || !new_val)
+                {
+                    dists.push_back(denseDists(i, j));
+                    i_vec.push_back(i);
+                    j_vec.push_back(j);
+                    if (all_neighbours)
+                    {
+                        // count number of neighbours
+                        unique_neighbors++;
+                    }
+                    else if (new_val)
+                    {
+                        // count number of distances
+                        unique_neighbors++;
+                    }
+                    if (new_val)
+                    {
+                        prev_value = denseDists(i, j);
+                    }
+                }
+                else
+                {
+                    prev_j_vec = j_vec.size();
+                    break;
+                }
+            }
+        }
+    }
+    // Only count reciprocal matches
+    if (reciprocal_only)
+    {
+        std::vector<float> filtered_dists;
+        std::vector<long> filtered_i_vec;
+        std::vector<long> filtered_j_vec;
+
+        for (long x = 0; x < i_vec.size(); x++)
+        {
+            if (i_vec[x] < j_vec[x])
+            {
+                for (long y = 0; x < i_vec.size(); y++)
+                {
+                    if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
+                    {
+                        filtered_dists.push_back(dists[x]);
+                        filtered_i_vec.push_back(i_vec[x]);
+                        filtered_j_vec.push_back(j_vec[x]);
+                        break;
+                    }
+                }
+            }
+        }
+        return (std::make_tuple(filtered_i_vec, filtered_j_vec, filtered_dists));
+    }
+    else
+    {
+      return (std::make_tuple(i_vec, j_vec, dists));
+    }
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
