@@ -35,6 +35,8 @@ Options:
 
   --kNN <k>  Use k nearest neighbours to sparsify
   --threshold <max>  Remove distances over max to sparsify
+  --kNN <k>  Use k nearest neighbours to sparsify
+  --threshold <max>  Remove distances over max to sparsify
   --accessory  Use accessory distances rather than core to sparsify
 """
 
@@ -145,10 +147,14 @@ def get_options():
         else:
             arguments['--kNN'] = 0
             arguments['--threshold'] = float(arguments['--threshold'])
-        if args['--require-reciprocity']:
-            args['--require-reciprocity'] = int(args['--require-reciprocity'])
-        if args['--count-all-neighbours']:
-            args['--count-all-neighbours'] = int(args['--count-all-neighbours'])
+        if int(arguments['--require-reciprocity']) >= 0:
+            arguments['--require-reciprocity'] = True
+        else:
+            arguments['--require-reciprocity'] = False
+        if int(arguments['--count-all-neighbours']) >= 0:
+            arguments['--count-all-neighbours'] = True
+        else:
+            arguments['--count-all-neighbours'] = False
 
     arguments['--cpus'] = int(arguments['--cpus'])
     arguments['--gpu'] = int(arguments['--gpu'])
@@ -338,6 +344,8 @@ def main():
                               kNN=0,
                               dist_cutoff=args['--threshold'],
                               dist_col=dist_col,
+                              reciprocal_only=args['--require-reciprocity'],
+                              all_neighbours=args['--count-all-neighbours'],
                               num_threads=args['--cpus'],
                               use_gpu=args['--use-gpu'],
                               device_id=args['--gpu'])
