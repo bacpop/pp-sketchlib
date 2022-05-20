@@ -35,8 +35,8 @@ Options:
 
   --kNN <k>  Use k nearest neighbours to sparsify
   --threshold <max>  Remove distances over max to sparsify
-  --kNN <k>  Use k nearest neighbours to sparsify
-  --threshold <max>  Remove distances over max to sparsify
+  --require-reciprocity  Sparsify to only link sequences in each other's k nearest neighbours
+  --count-all-neighbours  Count neighbours rather than unique neighbouring distances
   --accessory  Use accessory distances rather than core to sparsify
 """
 
