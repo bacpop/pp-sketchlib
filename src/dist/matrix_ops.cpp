@@ -114,7 +114,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
         {
             if (i_vec[x] < j_vec[x])
             {
-                for (long y = 0; x < j_vec.size(); y++)
+                for (long y = 0; y < j_vec.size(); y++)
                 {
                     if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
                     {
