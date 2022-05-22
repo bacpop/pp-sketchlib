@@ -147,11 +147,11 @@ def get_options():
         else:
             arguments['--kNN'] = 0
             arguments['--threshold'] = float(arguments['--threshold'])
-        if int(arguments['--require-reciprocity']) >= 0:
+        if arguments['--require-reciprocity']:
             arguments['--require-reciprocity'] = True
         else:
             arguments['--require-reciprocity'] = False
-        if int(arguments['--count-all-neighbours']) >= 0:
+        if arguments['--count-all-neighbours']:
             arguments['--count-all-neighbours'] = True
         else:
             arguments['--count-all-neighbours'] = False
