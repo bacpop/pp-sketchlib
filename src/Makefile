@@ -51,6 +51,7 @@ CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o gpu/device_reads.cu.o gpu/gpu_countmin.c
 web: CXX = em++
 # optimised compile options
 # NB turn exceptions back on for testing
+# NB `--closure 1` can be used to reduce size of js file (this minifies variable names!)
 web: CXXFLAGS = -O3 -s ASSERTIONS=1  \
 				-DNOEXCEPT \
 				-DJSON_NOEXCEPTION \
