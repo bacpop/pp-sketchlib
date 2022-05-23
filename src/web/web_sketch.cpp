@@ -1,8 +1,10 @@
 
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <algorithm> // sort
 #include <string>
+#include <sstream>
 
 #include <emscripten/bind.h>
 using namespace emscripten;
@@ -60,7 +62,14 @@ std::string json_sketch(const std::string file,
     std::tie(kmer_sketch, minhash, densified) =
         sketch(sequence, sketchsize64, kmer_it->second, bbits,
                codon_phased, use_rc, 0, false);
-    sketch_json[std::to_string(kmer_it->first)] = kmer_sketch;
+    std::vector<std::string> kmer_sketch_hex;
+    for (int i = 0; i < kmer_sketch.size(); i++)
+    {
+      std::stringstream stream;
+      stream << "0x" << std::hex << kmer_sketch[i];
+      kmer_sketch_hex.push_back(stream.str());
+    }
+    sketch_json[std::to_string(kmer_it->first)] = kmer_sketch_hex;
 
     minhash_sum += minhash;
     densified |= k_densified; // Densified at any k-mer length
