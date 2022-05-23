@@ -184,7 +184,7 @@ querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &
       jaccard, kNN, dist_col, num_threads);
 #endif
   }
-
+    
   return sparse_dists;
 }
 
