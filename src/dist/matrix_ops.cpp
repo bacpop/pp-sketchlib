@@ -31,7 +31,6 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           bool reciprocal_only,
                           bool all_neighbours)
 {
-    std::cerr << "RR1: " << reciprocal_only << std::endl;
     if (kNN > 0 && distCutoff > 0)
     {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
@@ -105,10 +104,8 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
         }
     }
     // Only count reciprocal matches
-    std::cerr << "RR: " << reciprocal_only << std::endl;
     if (reciprocal_only)
     {
-        std::cerr << "This BIT" << std::endl;
         std::vector<float> filtered_dists;
         std::vector<long> filtered_i_vec;
         std::vector<long> filtered_j_vec;
@@ -119,7 +116,6 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
             {
                 for (long y = 0; y < j_vec.size(); y++)
                 {
-                    std::cerr << "i: " << i_vec[y] << " j: " << j_vec[y] << std::endl;
                     if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
                     {
                         filtered_dists.push_back(dists[x]);
