@@ -84,7 +84,7 @@ Calculate core and accessory distances between databases with `query dist`. If a
 for example:
 
 ```
-poppunk_sketch query dist listeria --cpus 4
+sketchlib query dist listeria --cpus 4
 ```
 
 This will print the distances to STDOUT and can be captured with `>`. If you wish to output save output files as a database for use with PopPUNK.add the `-o` option.
