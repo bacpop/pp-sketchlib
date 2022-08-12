@@ -84,7 +84,7 @@ Reference::Reference(const std::string &name,
                      const bool reads)
     : _name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true),
       _reads(reads), _seq_size(seq_size), _missing_bases(missing_bases),
-      _densified(false),
+      _densified(false)
 {
   _bases.a = bases[0];
   _bases.c = bases[1];
