@@ -39,7 +39,7 @@ Reference::Reference(const std::string &name,
       _bbits(def_bbits),
       _sketchsize64(sketchsize64),
       _use_rc(use_rc),
-      _reads(sequence.is_reads())
+      _reads(sequence.is_reads()),
       _seq_size(0),
       _densified(false)
 {
@@ -83,8 +83,8 @@ Reference::Reference(const std::string &name,
                      const unsigned long int missing_bases,
                      const bool reads)
     : _name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(true),
-      _seq_size(seq_size), _missing_bases(missing_bases), _densified(false),
-      _reads(reads)
+      _reads(reads), _seq_size(seq_size), _missing_bases(missing_bases),
+      _densified(false),
 {
   _bases.a = bases[0];
   _bases.c = bases[1];
@@ -104,8 +104,8 @@ Reference::Reference(const std::string &name,
                      const bool densified,
                      const bool reads)
     : _name(name), _bbits(bbits), _sketchsize64(sketchsize64), _use_rc(use_rc),
-      _seq_size(seq_size), _missing_bases(missing_bases), _densified(densified),
-      _bases(bases), usigs(sketch), _reads(reads) {}
+      _reads(reads), _seq_size(seq_size), _missing_bases(missing_bases),
+      _densified(densified), _bases(bases), usigs(sketch) {}
 
 double Reference::jaccard_dist(Reference &query, const int kmer_len, const double random_jaccard)
 {
