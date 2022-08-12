@@ -44,7 +44,8 @@ public:
             const size_t sketchsize64,
             const size_t seq_size,
             const std::vector<double> bases,
-            const unsigned long int missing_bases);
+            const unsigned long int missing_bases,
+            const bool reads);
 
   // Initialise from GPU sketch
   Reference(const std::string &name,
@@ -55,7 +56,8 @@ public:
             const BaseComp<double> &bases,
             const unsigned long int missing_bases,
             const bool use_rc,
-            const bool densified);
+            const bool densified,
+            const bool reads);
 
   const std::vector<uint64_t> &get_sketch(const int kmer_len) const;
   void add_kmer_sketch(const std::vector<uint64_t> &sketch, const int kmer_len);
@@ -74,6 +76,7 @@ public:
   size_t seq_length() const { return _seq_size; }
   bool densified() const { return _densified; }
   bool rc() const { return _use_rc; }
+  bool is_reads() const { return _reads; }
   std::vector<double> base_composition() const { return {_bases.a, _bases.c, _bases.g, _bases.t}; }
   unsigned long int missing_bases() const { return _missing_bases; }
 
@@ -93,6 +96,7 @@ private:
   size_t _bbits;
   size_t _sketchsize64;
   bool _use_rc;
+  bool _reads;
 
   // Sequence statistics
   size_t _seq_size;
