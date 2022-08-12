@@ -138,7 +138,8 @@ std::vector<Reference> create_sketches_cuda(
           sketches[i + j] =
               Reference(names[i + j], usigs, def_bbits, sketchsize64,
                         seq_length, seq_in_batch[j]->get_composition(),
-                        seq_in_batch[j]->missing_bases(), use_rc, densified);
+                        seq_in_batch[j]->missing_bases(), use_rc, densified,
+                        seq_in_batch[j]->is_reads());
           sketch_db.add_sketch(sketches[i + j]);
           if (densified) {
             std::cerr << "NOTE: " << names[i + j] << " required densification"

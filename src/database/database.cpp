@@ -68,6 +68,8 @@ void Database::add_sketch(const Reference &ref)
   length_a.write(ref.seq_length());
   HighFive::Attribute missing_a = sketch_group.createAttribute<unsigned long int>("missing_bases", HighFive::DataSpace::From(ref.missing_bases()));
   missing_a.write(ref.missing_bases());
+  HighFive::Attribute reads_a = sketch_group.createAttribute<bool>("reads", HighFive::DataSpace::From(ref.is_reads()));
+  reads_a.write(ref.is_reads());
 
   // Write base composition and k-mer length vectors as further group attributes
   const std::vector<double> bases = ref.base_composition();
@@ -117,6 +119,7 @@ Reference Database::load_sketch(const std::string &name)
   size_t seq_size = DEFAULT_LENGTH;
   std::vector<double> bases{0.25, 0.25, 0.25, 0.25};
   unsigned long int missing_bases = 0;
+  bool reads = false;
   std::vector<std::string> attributes_keys = sketch_group.listAttributeNames();
   for (const auto &attr : attributes_keys)
   {
@@ -132,9 +135,13 @@ Reference Database::load_sketch(const std::string &name)
     {
       sketch_group.getAttribute("missing_bases").read(missing_bases);
     }
+    else if (attr == "reads")
+    {
+      sketch_group.getAttribute("reads").read(reads);
+    }
   }
 
-  Reference new_ref(name, bbits, sketchsize64, seq_size, bases, missing_bases);
+  Reference new_ref(name, bbits, sketchsize64, seq_size, bases, missing_bases, reads);
   for (auto kmer_it = kmer_lengths.cbegin(); kmer_it != kmer_lengths.cend(); kmer_it++)
   {
     std::vector<uint64_t> usigs;
