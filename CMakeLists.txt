@@ -45,8 +45,6 @@ if(DEFINED ENV{CONDA_PREFIX})
     include_directories($ENV{CONDA_PREFIX}/include)
     link_directories($ENV{CONDA_PREFIX}/lib)
     link_directories($ENV{CONDA_PREFIX}/lib/intel64)
-else()
-    find_package(OpenMP)
 endif()
 
 # Add libraries
@@ -148,6 +146,7 @@ if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SK
     target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()
     target_link_libraries("${TARGET_NAME}" PRIVATE ZLIB::ZLIB)
+    find_package(OpenMP)
     if(OpenMP_CXX_FOUND)
         target_link_libraries("${TARGET_NAME}" PRIVATE OpenMP::OpenMP_CXX)
     endif()
