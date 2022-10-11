@@ -118,9 +118,10 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                 {
                     if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
                     {
-                        filtered_dists.push_back(dists[x]);
-                        filtered_i_vec.push_back(i_vec[x]);
-                        filtered_j_vec.push_back(j_vec[x]);
+                        // store redundant pair to enable modification as queries are added
+                        filtered_dists.insert(filtered_dists.end(),{dists[x],dists[x]});
+                        filtered_i_vec.insert(filtered_i_vec.end(),{i_vec[x],j_vec[x]});
+                        filtered_j_vec.insert(filtered_j_vec.end(),{j_vec[x],i_vec[x]});
                         break;
                     }
                 }
