@@ -48,11 +48,11 @@ GPU_SKETCH_OBJS=gpu/gpu_api.o
 CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o gpu/device_reads.cu.o gpu/gpu_countmin.cu.o gpu/device_memory.cu.o
 
 # web specific options
-web: CXX = emcc
+web: CXX = em++
 # optimised compile options
 # NB turn exceptions back on for testing
+# NB `--closure 1` can be used to reduce size of js file (this minifies variable names!)
 web: CXXFLAGS = -O3 -s ASSERTIONS=1  \
-				--closure 1 \
 				-DNOEXCEPT \
 				-DJSON_NOEXCEPTION \
 				-s DISABLE_EXCEPTION_CATCHING=1 \
@@ -62,7 +62,7 @@ web: CXXFLAGS = -O3 -s ASSERTIONS=1  \
 				-s USE_ZLIB=1 \
 				-s MODULARIZE=1 \
 				-s "EXPORTED_FUNCTIONS=['_malloc']" \
-				-s 'EXTRA_EXPORTED_RUNTIME_METHODS=["FS"]' \
+				-s 'EXPORTED_RUNTIME_METHODS=["FS"]' \
 				-s EXPORT_NAME=WebSketch \
 				-Wall -Wextra -std=c++14
 web: CPPFLAGS += -DWEB_SKETCH
