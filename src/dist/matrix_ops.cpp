@@ -112,20 +112,17 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
 
         for (long x = 0; x < i_vec.size(); x++)
         {
-            if (i_vec[x] < j_vec[x])
+          for (long y = 0; y < j_vec.size(); y++)
+          {
+            if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
             {
-                for (long y = 0; y < j_vec.size(); y++)
-                {
-                    if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
-                    {
-                        // store redundant pair to enable modification as queries are added
-                        filtered_dists.insert(filtered_dists.end(),{dists[x],dists[x]});
-                        filtered_i_vec.insert(filtered_i_vec.end(),{i_vec[x],i_vec[y]});
-                        filtered_j_vec.insert(filtered_j_vec.end(),{j_vec[x],j_vec[y]});
-                        break;
-                    }
-                }
+              // store redundant pair to enable modification as queries are added
+              filtered_dists.push_back(dists[x]);
+              filtered_i_vec.push_back(i_vec[x]);
+              filtered_j_vec.push_back(j_vec[x]);
+              break;
             }
+          }
         }
         return (std::make_tuple(filtered_i_vec, filtered_j_vec, filtered_dists));
     }
