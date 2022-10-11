@@ -120,8 +120,8 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                     {
                         // store redundant pair to enable modification as queries are added
                         filtered_dists.insert(filtered_dists.end(),{dists[x],dists[x]});
-                        filtered_i_vec.insert(filtered_i_vec.end(),{i_vec[x],j_vec[x]});
-                        filtered_j_vec.insert(filtered_j_vec.end(),{j_vec[x],i_vec[x]});
+                        filtered_i_vec.insert(filtered_i_vec.end(),{i_vec[x],i_vec[y]});
+                        filtered_j_vec.insert(filtered_j_vec.end(),{j_vec[x],j_vec[y]});
                         break;
                     }
                 }
