@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+#include <iostream>
+
 #include "api.hpp"
 
 const float epsilon = 1E-10;
@@ -61,75 +63,33 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
     }
     else if (kNN >= 1)
     {
-        // Only add the k nearest (unique) neighbours
-        // May be >k if repeats, often zeros
-        unsigned long int prev_j_vec = 0;
+        // Only add the k nearest neighbours
+        unsigned long int prev_j_vec_size = 0;
         for (long i = 0; i < denseDists.rows(); i++)
         {
-            unsigned long unique_neighbors = 0;
-            float prev_value = -1;
+            prev_j_vec_size = j_vec.size();
             for (auto j : sort_indexes(denseDists.row(i)))
             {
                 if (j == i)
                 {
                     continue; // Ignore diagonal which will always be one of the closest
                 }
-                bool new_val = abs(denseDists(i, j) - prev_value) > epsilon;
-                if (unique_neighbors < kNN || !new_val)
+                std::cout << "Testing i: " << i << " j: " << j << " prev_size " << prev_j_vec_size << " current size " << j_vec.size() << std::endl;
+                if ((j_vec.size() - prev_j_vec_size) < kNN)
                 {
                     dists.push_back(denseDists(i, j));
                     i_vec.push_back(i);
                     j_vec.push_back(j);
-                    if (all_neighbours)
-                    {
-                        // count number of neighbours
-                        unique_neighbors++;
-                    }
-                    else if (new_val)
-                    {
-                        // count number of distances
-                        unique_neighbors++;
-                    }
-                    if (new_val)
-                    {
-                        prev_value = denseDists(i, j);
-                    }
+                    std::cout << "i: " << i << " j: " << j << " prev_size " << prev_j_vec_size << " current size " << j_vec.size() << std::endl;
                 }
                 else
                 {
-                    prev_j_vec = j_vec.size();
                     break;
                 }
             }
         }
     }
-    // Only count reciprocal matches
-    if (reciprocal_only)
-    {
-        std::vector<float> filtered_dists;
-        std::vector<long> filtered_i_vec;
-        std::vector<long> filtered_j_vec;
-
-        for (long x = 0; x < i_vec.size(); x++)
-        {
-          for (long y = 0; y < j_vec.size(); y++)
-          {
-            if (i_vec[x] == j_vec[y] && j_vec[x] == i_vec[y])
-            {
-              // store redundant pair to enable modification as queries are added
-              filtered_dists.push_back(dists[x]);
-              filtered_i_vec.push_back(i_vec[x]);
-              filtered_j_vec.push_back(j_vec[x]);
-              break;
-            }
-          }
-        }
-        return (std::make_tuple(filtered_i_vec, filtered_j_vec, filtered_dists));
-    }
-    else
-    {
-      return (std::make_tuple(i_vec, j_vec, dists));
-    }
+    return (std::make_tuple(i_vec, j_vec, dists));
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
