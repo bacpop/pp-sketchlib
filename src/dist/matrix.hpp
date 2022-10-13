@@ -48,4 +48,5 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
                           bool reciprocal_only,
-                          bool all_neighbours);
+                          bool all_neighbours,
+                          const size_t num_threads);

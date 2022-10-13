@@ -222,13 +222,15 @@ sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
                          bool reciprocal_only,
-                         bool all_neighbours)
+                         bool all_neighbours,
+                         const size_t num_threads)
 {
   sparse_coo coo_idx = sparsify_dists(denseDists,
                                       distCutoff,
                                       kNN,
                                       reciprocal_only,
-                                      all_neighbours);
+                                      all_neighbours,
+                                      num_threads);
   return coo_idx;
 }
 
@@ -297,7 +299,8 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
         py::arg("reciprocal_only") = false,
-        py::arg("all_neighbours") = false);
+        py::arg("all_neighbours") = false,
+        py::arg("num_threads") = 1);
 
   m.attr("version") = VERSION_INFO;
   m.attr("sketchVersion") = SKETCH_VERSION;

@@ -39,9 +39,10 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
                           bool reciprocal_only,
-                          bool all_neighbours)
+                          bool all_neighbours,
+                          const size_t num_threads)
 {
-    printf("Starting the loop");
+    printf("Starting the loop with %zu threads\n",num_threads);
     if (kNN > 0 && distCutoff > 0)
     {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
@@ -53,7 +54,6 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
 
     // Parallelisation parameters
     const size_t num_samples = denseDists.rows();
-    const size_t num_threads = 2;
     size_t len = 0;
   
     // ijv vectors
