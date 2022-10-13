@@ -169,7 +169,7 @@ querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &
     NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
                                           dummy_query_query, num_threads);
     sparse_dists = sparsify_dists(long_form, dist_cutoff, kNN,
-                                  reciprocal_only, all_neighbours);
+                                  reciprocal_only, all_neighbours, num_threads);
   } else {
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
