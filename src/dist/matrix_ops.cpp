@@ -41,6 +41,7 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           bool reciprocal_only,
                           bool all_neighbours)
 {
+    printf("Starting the loop");
     if (kNN > 0 && distCutoff > 0)
     {
         throw std::runtime_error("Specify only one of kNN or distCutoff");
