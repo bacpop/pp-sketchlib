@@ -11,11 +11,7 @@
 #include <string>
 #include <vector>
 
-#include <iostream>
-
 #include "api.hpp"
-
-const float epsilon = 1E-10;
 
 // Prototypes for cppying functions run in threads
 void square_block(const Eigen::VectorXf &longDists, NumpyMatrix &squareMatrix,
@@ -26,6 +22,18 @@ void rectangle_block(const Eigen::VectorXf &longDists,
                      NumpyMatrix &squareMatrix, const size_t nrrSamples,
                      const size_t nqqSamples, const size_t start,
                      const size_t max_elems);
+
+template <typename T>
+std::vector<T> combine_vectors(const std::vector<std::vector<T>> &vec,
+                               const size_t len) {
+  std::vector<T> all(len);
+  auto all_it = all.begin();
+  for (size_t i = 0; i < vec.size(); ++i) {
+    std::copy(vec[i].cbegin(), vec[i].cend(), all_it);
+    all_it += vec[i].size();
+  }
+  return all;
+}
 
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
@@ -42,54 +50,64 @@ sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
         throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
 
+    // Parallelisation parameters
+    const size_t num_samples = denseDists.rows();
+    const size_t num_threads = 2;
+    size_t len = 0;
+  
     // ijv vectors
-    std::vector<float> dists;
-    std::vector<long> i_vec;
-    std::vector<long> j_vec;
+    std::vector<std::vector<float>> dists(num_samples);
+    std::vector<std::vector<long>> i_vec(num_samples);
+    std::vector<std::vector<long>> j_vec(num_samples);
     if (distCutoff > 0)
     {
+#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
         for (long i = 0; i < denseDists.rows(); i++)
         {
             for (long j = i + 1; j < denseDists.cols(); j++)
             {
                 if (denseDists(i, j) < distCutoff)
                 {
-                    dists.push_back(denseDists(i, j));
-                    i_vec.push_back(i);
-                    j_vec.push_back(j);
+                    dists[i].push_back(denseDists(i, j));
+                    i_vec[i].push_back(i);
+                    j_vec[i].push_back(j);
                 }
             }
+            len += i_vec[i].size();
         }
     }
     else if (kNN >= 1)
     {
         // Only add the k nearest neighbours
-        unsigned long int prev_j_vec_size = 0;
-        for (long i = 0; i < denseDists.rows(); i++)
+#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
+        for (long i = 0; i < num_samples; ++i)
         {
-            prev_j_vec_size = j_vec.size();
+            unsigned long counter = 0;
             for (auto j : sort_indexes(denseDists.row(i)))
             {
                 if (j == i)
                 {
                     continue; // Ignore diagonal which will always be one of the closest
                 }
-                std::cout << "Testing i: " << i << " j: " << j << " prev_size " << prev_j_vec_size << " current size " << j_vec.size() << std::endl;
-                if ((j_vec.size() - prev_j_vec_size) < kNN)
+                if (counter < kNN)
                 {
-                    dists.push_back(denseDists(i, j));
-                    i_vec.push_back(i);
-                    j_vec.push_back(j);
-                    std::cout << "i: " << i << " j: " << j << " prev_size " << prev_j_vec_size << " current size " << j_vec.size() << std::endl;
+                    dists[i].push_back(denseDists(i, j));
+                    i_vec[i].push_back(i);
+                    j_vec[i].push_back(j);
+                    ++counter;
                 }
                 else
                 {
                     break;
                 }
             }
+            len += i_vec[i].size();
         }
     }
-    return (std::make_tuple(i_vec, j_vec, dists));
+    std::vector<float> dists_all = combine_vectors(dists, len);
+    std::vector<long> i_vec_all = combine_vectors(i_vec, len);
+    std::vector<long> j_vec_all = combine_vectors(j_vec, len);
+    return (std::make_tuple(i_vec_all, j_vec_all, dists_all));
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
