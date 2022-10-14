@@ -38,8 +38,6 @@ std::vector<T> combine_vectors(const std::vector<std::vector<T>> &vec,
 sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
                           const float distCutoff,
                           const unsigned long int kNN,
-                          bool reciprocal_only,
-                          bool all_neighbours,
                           const size_t num_threads)
 {
     if (kNN > 0 && distCutoff > 0)

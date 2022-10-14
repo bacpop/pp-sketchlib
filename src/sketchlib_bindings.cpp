@@ -141,7 +141,6 @@ querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &
             std::vector<size_t> kmer_lengths, const bool random_correct = true,
             const bool jaccard = false, const unsigned long int kNN = 0,
             const float dist_cutoff = 0.0f, const size_t dist_col = 0,
-            const bool reciprocal_only = false, const bool all_neighbours = false,
             const size_t num_threads = 1, const bool use_gpu = false,
             const int device_id = 0) {
   if (use_gpu && (jaccard || kmer_lengths.size() < 2 || dist_col > 1)) {
@@ -169,7 +168,7 @@ querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &
     NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
                                           dummy_query_query, num_threads);
     sparse_dists = sparsify_dists(long_form, dist_cutoff, kNN,
-                                  reciprocal_only, all_neighbours, num_threads);
+                                  num_threads);
   } else {
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
@@ -221,15 +220,11 @@ double jaccardDist(const std::string &db_name, const std::string &sample1,
 sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                          const float distCutoff,
                          const unsigned long int kNN,
-                         bool reciprocal_only,
-                         bool all_neighbours,
                          const size_t num_threads)
 {
   sparse_coo coo_idx = sparsify_dists(denseDists,
                                       distCutoff,
                                       kNN,
-                                      reciprocal_only,
-                                      all_neighbours,
                                       num_threads);
   return coo_idx;
 }
@@ -261,8 +256,6 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("jaccard") = false,
         py::arg("kNN") = 0, py::arg("dist_cutoff") = 0.0f,
         py::arg("dist_col") = 0,
-        py::arg("reciprocal_only") = false,
-        py::arg("all_neighbours") = false,
         py::arg("num_threads") = 1, py::arg("use_gpu") = false,
         py::arg("device_id") = 0);
 
@@ -298,8 +291,6 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
         py::arg("kNN") = 0,
-        py::arg("reciprocal_only") = false,
-        py::arg("all_neighbours") = false,
         py::arg("num_threads") = 1);
 
   m.attr("version") = VERSION_INFO;

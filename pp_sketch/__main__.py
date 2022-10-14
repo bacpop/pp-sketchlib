@@ -35,8 +35,6 @@ Options:
 
   --kNN <k>  Use k nearest neighbours to sparsify
   --threshold <max>  Remove distances over max to sparsify
-  --require-reciprocity  Sparsify to only link sequences in each other's k nearest neighbours
-  --count-all-neighbours  Count neighbours rather than unique neighbouring distances
   --accessory  Use accessory distances rather than core to sparsify
 """
 
@@ -324,8 +322,6 @@ def main():
                                               kNN=args['--kNN'],
                                               dist_cutoff=0,
                                               dist_col=dist_col,
-                                              reciprocal_only=args['--require-reciprocity'],
-                                              all_neighbours=args['--count-all-neighbours'],
                                               num_threads=args['--cpus'],
                                               use_gpu=args['--use-gpu'],
                                               device_id=args['--gpu'])
@@ -344,8 +340,6 @@ def main():
                               kNN=0,
                               dist_cutoff=args['--threshold'],
                               dist_col=dist_col,
-                              reciprocal_only=args['--require-reciprocity'],
-                              all_neighbours=args['--count-all-neighbours'],
                               num_threads=args['--cpus'],
                               use_gpu=args['--use-gpu'],
                               device_id=args['--gpu'])
