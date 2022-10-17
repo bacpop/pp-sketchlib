@@ -6,7 +6,7 @@ Usage:
   sketchlib sketch -l <file-list> -o <output> [-k <kseq>|--kmer <k>] [-s <size>] [--single-strand] [--codon-phased] [--min-count <count>] [--exact-counter] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query dist <db1> [<db2>] [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query jaccard <db1> [<db2>] [-o <output>] [--kmer <k>] [--adj-random] [--subset <file>] [--cpus <cpus>]
-  sketchlib query sparse <db1> (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--require-reciprocity] [--count-all-neighbours] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
+  sketchlib query sparse <db1> (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query sparse jaccard <db1> --kNN <k> --kmer <k> [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib join <db1> <db2> -o <output>
   sketchlib (add|remove) random <db1> [--cpus <cpus>]
@@ -145,14 +145,6 @@ def get_options():
         else:
             arguments['--kNN'] = 0
             arguments['--threshold'] = float(arguments['--threshold'])
-        if arguments['--require-reciprocity']:
-            arguments['--require-reciprocity'] = True
-        else:
-            arguments['--require-reciprocity'] = False
-        if arguments['--count-all-neighbours']:
-            arguments['--count-all-neighbours'] = True
-        else:
-            arguments['--count-all-neighbours'] = False
 
     arguments['--cpus'] = int(arguments['--cpus'])
     arguments['--gpu'] = int(arguments['--gpu'])
