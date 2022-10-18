@@ -167,8 +167,8 @@ querySelfSparse(const std::string &ref_db_name, const std::vector<std::string> &
     Eigen::VectorXf dummy_query_query;
     NumpyMatrix long_form = long_to_square(dists.col(dist_col), dummy_query_ref,
                                           dummy_query_query, num_threads);
-    sparse_dists = sparsify_dists(long_form, dist_cutoff, kNN,
-                                  num_threads);
+    sparse_dists = sparsify_dists_by_threshold(long_form, dist_cutoff,
+                                                num_threads);
   } else {
 #ifdef GPU_AVAILABLE
     if (use_gpu) {
@@ -217,15 +217,13 @@ double jaccardDist(const std::string &db_name, const std::string &sample1,
 }
 
 // Wrapper which makes a ref to the python/numpy array
-sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
-                         const float distCutoff,
-                         const unsigned long int kNN,
-                         const size_t num_threads)
+sparse_coo sparsifyDistsByThreshold(const Eigen::Ref<NumpyMatrix> &denseDists,
+                                     const float distCutoff,
+                                     const size_t num_threads)
 {
-  sparse_coo coo_idx = sparsify_dists(denseDists,
-                                      distCutoff,
-                                      kNN,
-                                      num_threads);
+  sparse_coo coo_idx = sparsify_dists_by_threshold(denseDists,
+                                                    distCutoff,
+                                                    num_threads);
   return coo_idx;
 }
 
@@ -286,11 +284,10 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         py::arg("query_ref_distVec").noconvert(),
         py::arg("query_query_distVec").noconvert(), py::arg("num_threads") = 1);
 
-  m.def("sparsifyDists", &sparsifyDists, py::return_value_policy::reference_internal,
+  m.def("sparsifyDistsByThreshold", &sparsifyDistsByThreshold, py::return_value_policy::reference_internal,
         "Transform all distances into a sparse matrix",
         py::arg("distMat").noconvert(),
         py::arg("distCutoff") = 0,
-        py::arg("kNN") = 0,
         py::arg("num_threads") = 1);
 
   m.attr("version") = VERSION_INFO;

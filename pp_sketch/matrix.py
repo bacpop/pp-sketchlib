@@ -8,10 +8,10 @@ from scipy.sparse import coo_matrix
 
 import pp_sketchlib
 
-def sparsify(distMat, cutoff, kNN, threads):
-    sparse_coordinates = pp_sketchlib.sparsifyDists(distMat,
-                                                    distCutoff=cutoff,
-                                                    kNN=kNN)
+def sparsify(distMat, cutoff, threads):
+    sparse_coordinates = pp_sketchlib.sparsifyDistsByThreshold(distMat,
+                                                                distCutoff=cutoff,
+                                                                num_threads=threads)
     sparse_scipy = ijv_to_coo(sparse_coordinates, distMat.shape, np.float32)
 
     # Mirror to fill in lower triangle

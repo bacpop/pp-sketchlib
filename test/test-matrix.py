@@ -9,10 +9,10 @@ try:
     from pp_sketch.matrix import sparsify
 except ImportError as e:
     from scipy.sparse import coo_matrix
-    def sparsify(distMat, cutoff, kNN, threads):
-        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat=distMat,
-                                                        distCutoff=cutoff,
-                                                        kNN=kNN)
+    def sparsify(distMat, cutoff, threads):
+        sparse_coordinates = pp_sketchlib.sparsifyDistsByThreshold(distMat=distMat,
+                                                                  distCutoff=cutoff,
+                                                                  num_threads=threads)
         sparse_scipy = coo_matrix((sparse_coordinates[2],
                                 (sparse_coordinates[0], sparse_coordinates[1])),
                                 shape=distMat.shape,
@@ -60,7 +60,7 @@ check_res(square2_res, square2)
 check_res(pp_sketchlib.squareToLong(distMat=square1_res, num_threads=2), rr_mat)
 
 # sparsification
-sparse1 = sparsify(square2_res, cutoff=5, kNN=0, threads=2)
+sparse1 = sparsify(square2_res, cutoff=5, threads=2)
 
 sparse1_res = square2_res.copy()
 sparse1_res[sparse1_res >= 5] = 0

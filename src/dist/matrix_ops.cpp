@@ -35,72 +35,36 @@ std::vector<T> combine_vectors(const std::vector<std::vector<T>> &vec,
   return all;
 }
 
-sparse_coo sparsify_dists(const NumpyMatrix &denseDists,
-                          const float distCutoff,
-                          const unsigned long int kNN,
-                          const size_t num_threads)
+sparse_coo sparsify_dists_by_threshold(const NumpyMatrix &denseDists,
+                                        const float distCutoff,
+                                        const size_t num_threads)
 {
-    if (kNN > 0 && distCutoff > 0)
-    {
-        throw std::runtime_error("Specify only one of kNN or distCutoff");
-    }
-    else if (kNN < 1 && distCutoff < 0)
+      
+    if (distCutoff < 0)
     {
         throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
     }
 
-    // Parallelisation parameters
-    const size_t num_samples = denseDists.rows();
+    // Parallelisation parameter
     size_t len = 0;
-  
+
     // ijv vectors
-    std::vector<std::vector<float>> dists(num_samples);
-    std::vector<std::vector<long>> i_vec(num_samples);
-    std::vector<std::vector<long>> j_vec(num_samples);
-    if (distCutoff > 0)
-    {
+    std::vector<std::vector<float>> dists;
+    std::vector<std::vector<long>> i_vec;
+    std::vector<std::vector<long>> j_vec;
 #pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
-        for (long i = 0; i < denseDists.rows(); i++)
-        {
-            for (long j = i + 1; j < denseDists.cols(); j++)
-            {
-                if (denseDists(i, j) < distCutoff)
-                {
-                    dists[i].push_back(denseDists(i, j));
-                    i_vec[i].push_back(i);
-                    j_vec[i].push_back(j);
-                }
-            }
-            len += i_vec[i].size();
-        }
-    }
-    else if (kNN >= 1)
+    for (long i = 0; i < denseDists.rows(); i++)
     {
-        // Only add the k nearest neighbours
-#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
-        for (long i = 0; i < num_samples; ++i)
+        for (long j = i + 1; j < denseDists.cols(); j++)
         {
-            unsigned long counter = 0;
-            for (auto j : sort_indexes(denseDists.row(i)))
+            if (denseDists(i, j) < distCutoff)
             {
-                if (j == i)
-                {
-                    continue; // Ignore diagonal which will always be one of the closest
-                }
-                if (counter < kNN)
-                {
-                    dists[i].push_back(denseDists(i, j));
-                    i_vec[i].push_back(i);
-                    j_vec[i].push_back(j);
-                    ++counter;
-                }
-                else
-                {
-                    break;
-                }
+                dists[i].push_back(denseDists(i, j));
+                i_vec[i].push_back(i);
+                j_vec[i].push_back(j);
             }
-            len += i_vec[i].size();
         }
+        len += i_vec[i].size();
     }
     std::vector<float> dists_all = combine_vectors(dists, len);
     std::vector<long> i_vec_all = combine_vectors(i_vec, len);
