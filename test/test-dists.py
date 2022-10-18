@@ -47,6 +47,19 @@ def get_kNN_sparse_tuple(square_core_mat,kNN):
     sparse_knn = (i_vec,j_vec,dist_vec)
     return sparse_knn
 
+def get_threshold_sparse_tuple(square_core_mat,threshold):
+    i_vec = []
+    j_vec = []
+    dist_vec = []
+    for i in range(0,square_core_mat.shape[0]):
+        for j in range(i,square_core_mat.shape[1]):
+            if square_core_mat[i,j] < threshold and i != j:
+                i_vec.append(i)
+                j_vec.append(j)
+                dist_vec.append(square_core_mat[i,j])
+    sparse_threshold = (i_vec,j_vec,dist_vec)
+    return sparse_threshold
+
 description = 'Run poppunk sketching/distances'
 parser = argparse.ArgumentParser(description=description,
                                     prog='poppunk_sketch')
@@ -143,7 +156,7 @@ sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
                                              rList=rList,
                                              klist=db_kmers,
                                              dist_cutoff=cutoff)
-sparse_threshold = pp_sketchlib.sparsifyDistsByThreshold(distMat=square_core_mat, distCutoff=cutoff)
+sparse_threshold = get_threshold_sparse_tuple(square_core_mat,cutoff)
 if (sparseDistMat[0] != sparse_threshold[0] or
     sparseDistMat[1] != sparse_threshold[1]):
     sys.stderr.write("Sparse distances (cutoff) mismatching\n")
