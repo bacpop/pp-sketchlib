@@ -65,23 +65,3 @@ sparse1 = sparsify(square2_res, cutoff=5, threads=2)
 sparse1_res = square2_res.copy()
 sparse1_res[sparse1_res >= 5] = 0
 check_res(sparse1.todense(), sparse1_res)
-
-kNN = 2
-sparse2 = sparsify(square2_res, cutoff=0, kNN=kNN, threads=2)
-
-sparse2_res = square2_res.copy()
-row_sort = np.argsort(sparse2_res, axis=1)
-for i, row in enumerate(sparse2_res):
-    neighbours = 0
-    prev_val = 0
-    for j in row_sort[i, :]:
-        if i == j or row[j] == prev_val:
-            continue
-        else:
-            prev_val = row[j]
-            if neighbours >= kNN:
-                sparse2_res[i, j] = 0
-            else:
-                neighbours += 1
-
-check_res(sparse2.todense(), sparse2_res)
