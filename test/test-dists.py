@@ -156,15 +156,15 @@ sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
                                              rList=rList,
                                              klist=db_kmers,
                                              dist_cutoff=cutoff)
-###sparse_threshold = get_threshold_sparse_tuple(square_core_mat,cutoff)
-###if (sparseDistMat[0] != sparse_threshold[0] or
-###    sparseDistMat[1] != sparse_threshold[1]):
-###    sys.stderr.write("Sparse distances (cutoff) mismatching\n")
-###    print(sparseDistMat)
-###    print(sparse_threshold)
-###    sys.exit(1)
-###
-###for idx, (d1, d2) in enumerate(zip(sparseDistMat[2], sparseDistMat[2])):
-###    dist_in_tolerance(d1, d2, "sparse distances (cutoff)", str(idx), tols)
+sparse_threshold = get_threshold_sparse_tuple(square_core_mat,cutoff)
+if (sparseDistMat[0] != sparse_threshold[0] or
+    sparseDistMat[1] != sparse_threshold[1]):
+    sys.stderr.write("Sparse distances (cutoff) mismatching\n")
+    print(sparseDistMat)
+    print(sparse_threshold)
+    sys.exit(1)
+
+for idx, (d1, d2) in enumerate(zip(sparseDistMat[2], sparseDistMat[2])):
+    dist_in_tolerance(d1, d2, "sparse distances (cutoff)", str(idx), tols)
 
 sys.exit(0)
