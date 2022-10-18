@@ -36,40 +36,35 @@ std::vector<T> combine_vectors(const std::vector<std::vector<T>> &vec,
 }
 
 sparse_coo sparsify_dists_by_threshold(const NumpyMatrix &denseDists,
-                                        const float distCutoff,
-                                        const size_t num_threads)
-{
-      
-    if (distCutoff < 0)
-    {
-        throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
-    }
+                                       const float distCutoff,
+                                       const size_t num_threads) {
 
-    // Parallelisation parameter
-    size_t len = 0;
+  if (distCutoff < 0) {
+    throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
+  }
 
-    // ijv vectors
-    std::vector<std::vector<float>> dists;
-    std::vector<std::vector<long>> i_vec;
-    std::vector<std::vector<long>> j_vec;
+  // Parallelisation parameter
+  size_t len = 0;
+
+  // ijv vectors
+  std::vector<std::vector<float>> dists;
+  std::vector<std::vector<long>> i_vec;
+  std::vector<std::vector<long>> j_vec;
 #pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
-    for (long i = 0; i < denseDists.rows(); i++)
-    {
-        for (long j = i + 1; j < denseDists.cols(); j++)
-        {
-            if (denseDists(i, j) < distCutoff)
-            {
-                dists[i].push_back(denseDists(i, j));
-                i_vec[i].push_back(i);
-                j_vec[i].push_back(j);
-            }
-        }
-        len += i_vec[i].size();
+  for (long i = 0; i < denseDists.rows(); i++) {
+    for (long j = i + 1; j < denseDists.cols(); j++) {
+      if (denseDists(i, j) < distCutoff) {
+        dists[i].push_back(denseDists(i, j));
+        i_vec[i].push_back(i);
+        j_vec[i].push_back(j);
+      }
     }
-    std::vector<float> dists_all = combine_vectors(dists, len);
-    std::vector<long> i_vec_all = combine_vectors(i_vec, len);
-    std::vector<long> j_vec_all = combine_vectors(j_vec, len);
-    return (std::make_tuple(i_vec_all, j_vec_all, dists_all));
+    len += i_vec[i].size();
+  }
+  std::vector<float> dists_all = combine_vectors(dists, len);
+  std::vector<long> i_vec_all = combine_vectors(i_vec, len);
+  std::vector<long> j_vec_all = combine_vectors(j_vec, len);
+  return (std::make_tuple(i_vec_all, j_vec_all, dists_all));
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,
