@@ -10,7 +10,7 @@
 #include <omp.h>
 #include <string>
 #include <vector>
-
+#include <iostream>
 #include "api.hpp"
 
 // Prototypes for cppying functions run in threads
@@ -40,18 +40,19 @@ sparse_coo sparsify_dists_by_threshold(const NumpyMatrix &denseDists,
                                        const size_t num_threads) {
 
   if (distCutoff < 0) {
-    throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
+    throw std::runtime_error("Distance threshold must be at least 0");
   }
 
   // Parallelisation parameter
   size_t len = 0;
 
   // ijv vectors
-  std::vector<std::vector<float>> dists;
-  std::vector<std::vector<long>> i_vec;
-  std::vector<std::vector<long>> j_vec;
+  long num_samples = denseDists.rows();
+  std::vector<std::vector<float>> dists(num_samples);
+  std::vector<std::vector<long>> i_vec(num_samples);
+  std::vector<std::vector<long>> j_vec(num_samples);
 #pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
-  for (long i = 0; i < denseDists.rows(); i++) {
+  for (long i = 0; i < num_samples; i++) {
     for (long j = i + 1; j < denseDists.cols(); j++) {
       if (denseDists(i, j) < distCutoff) {
         dists[i].push_back(denseDists(i, j));
