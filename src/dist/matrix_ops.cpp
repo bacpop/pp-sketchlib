@@ -10,10 +10,8 @@
 #include <omp.h>
 #include <string>
 #include <vector>
-
+#include <iostream>
 #include "api.hpp"
-
-const float epsilon = 1E-10;
 
 // Prototypes for cppying functions run in threads
 void square_block(const Eigen::VectorXf &longDists, NumpyMatrix &squareMatrix,
@@ -25,55 +23,49 @@ void rectangle_block(const Eigen::VectorXf &longDists,
                      const size_t nqqSamples, const size_t start,
                      const size_t max_elems);
 
-sparse_coo sparsify_dists(const NumpyMatrix &denseDists, const float distCutoff,
-                          const unsigned long int kNN) {
-  if (kNN > 0 && distCutoff > 0) {
-    throw std::runtime_error("Specify only one of kNN or distCutoff");
-  } else if (kNN < 1 && distCutoff < 0) {
-    throw std::runtime_error("kNN must be > 1 or distCutoff > 0");
+template <typename T>
+std::vector<T> combine_vectors(const std::vector<std::vector<T>> &vec,
+                               const size_t len) {
+  std::vector<T> all(len);
+  auto all_it = all.begin();
+  for (size_t i = 0; i < vec.size(); ++i) {
+    std::copy(vec[i].cbegin(), vec[i].cend(), all_it);
+    all_it += vec[i].size();
   }
+  return all;
+}
+
+sparse_coo sparsify_dists_by_threshold(const NumpyMatrix &denseDists,
+                                       const float distCutoff,
+                                       const size_t num_threads) {
+
+  if (distCutoff < 0) {
+    throw std::runtime_error("Distance threshold must be at least 0");
+  }
+
+  // Parallelisation parameter
+  size_t len = 0;
 
   // ijv vectors
-  std::vector<float> dists;
-  std::vector<long> i_vec;
-  std::vector<long> j_vec;
-  if (distCutoff > 0) {
-    for (long i = 0; i < denseDists.rows(); i++) {
-      for (long j = i + 1; j < denseDists.cols(); j++) {
-        if (denseDists(i, j) < distCutoff) {
-          dists.push_back(denseDists(i, j));
-          i_vec.push_back(i);
-          j_vec.push_back(j);
-        }
+  long num_samples = denseDists.rows();
+  std::vector<std::vector<float>> dists(num_samples);
+  std::vector<std::vector<long>> i_vec(num_samples);
+  std::vector<std::vector<long>> j_vec(num_samples);
+#pragma omp parallel for schedule(static) num_threads(num_threads) reduction(+:len)
+  for (long i = 0; i < num_samples; i++) {
+    for (long j = i + 1; j < denseDists.cols(); j++) {
+      if (denseDists(i, j) < distCutoff) {
+        dists[i].push_back(denseDists(i, j));
+        i_vec[i].push_back(i);
+        j_vec[i].push_back(j);
       }
     }
-  } else if (kNN >= 1) {
-    // Only add the k nearest (unique) neighbours
-    // May be >k if repeats, often zeros
-    for (long i = 0; i < denseDists.rows(); i++) {
-      unsigned long unique_neighbors = 0;
-      float prev_value = -1;
-      for (auto j : sort_indexes(denseDists.row(i))) {
-        if (j == i) {
-          continue; // Ignore diagonal which will always be one of the closest
-        }
-        bool new_val = abs(denseDists(i, j) - prev_value) < epsilon;
-        if (unique_neighbors < kNN || new_val) {
-          dists.push_back(denseDists(i, j));
-          i_vec.push_back(i);
-          j_vec.push_back(j);
-          if (!new_val) {
-            unique_neighbors++;
-            prev_value = denseDists(i, j);
-          }
-        } else {
-          break;
-        }
-      }
-    }
+    len += i_vec[i].size();
   }
-
-  return (std::make_tuple(i_vec, j_vec, dists));
+  std::vector<float> dists_all = combine_vectors(dists, len);
+  std::vector<long> i_vec_all = combine_vectors(i_vec, len);
+  std::vector<long> j_vec_all = combine_vectors(j_vec, len);
+  return (std::make_tuple(i_vec_all, j_vec_all, dists_all));
 }
 
 NumpyMatrix long_to_square(const Eigen::VectorXf &rrDists,

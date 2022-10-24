@@ -29,6 +29,36 @@ def iterDistRows(refSeqs, querySeqs, self=True):
             for ref in refSeqs:
                 yield(ref, query)
 
+def get_kNN_sparse_tuple(square_core_mat,kNN):
+    i_vec = []
+    j_vec = []
+    dist_vec = []
+    for i in range(0,square_core_mat.shape[0]):
+        sorted_indices = np.argsort(square_core_mat[i,:])
+        j_index = 0
+        neighbour_count = 0
+        while neighbour_count < kNN:
+            if (sorted_indices[j_index] != i):
+                i_vec.append(i)
+                j_vec.append(sorted_indices[j_index])
+                dist_vec.append(square_core_mat[i,sorted_indices[j_index]])
+                neighbour_count = neighbour_count + 1
+            j_index = j_index + 1
+    sparse_knn = (i_vec,j_vec,dist_vec)
+    return sparse_knn
+
+def get_threshold_sparse_tuple(square_core_mat,threshold):
+    i_vec = []
+    j_vec = []
+    dist_vec = []
+    for i in range(0,square_core_mat.shape[0]):
+        for j in range(i,square_core_mat.shape[1]):
+            if square_core_mat[i,j] < threshold and i != j:
+                i_vec.append(i)
+                j_vec.append(j)
+                dist_vec.append(square_core_mat[i,j])
+    sparse_threshold = (i_vec,j_vec,dist_vec)
+    return sparse_threshold
 
 description = 'Run poppunk sketching/distances'
 parser = argparse.ArgumentParser(description=description,
@@ -110,7 +140,7 @@ sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
                                              rList=rList,
                                              klist=db_kmers,
                                              kNN=kNN)
-sparse_knn = pp_sketchlib.sparsifyDists(distMat=square_core_mat, distCutoff=0, kNN=kNN)
+sparse_knn = get_kNN_sparse_tuple(square_core_mat,kNN)
 if (sparseDistMat[0] != sparse_knn[0] or
     sparseDistMat[1] != sparse_knn[1]):
     sys.stderr.write("Sparse distances (kNN) mismatching\n")
@@ -126,7 +156,7 @@ sparseDistMat = pp_sketchlib.querySelfSparse(ref_db_name=args.ref_db,
                                              rList=rList,
                                              klist=db_kmers,
                                              dist_cutoff=cutoff)
-sparse_threshold = pp_sketchlib.sparsifyDists(distMat=square_core_mat, distCutoff=cutoff, kNN=0)
+sparse_threshold = get_threshold_sparse_tuple(square_core_mat,cutoff)
 if (sparseDistMat[0] != sparse_threshold[0] or
     sparseDistMat[1] != sparse_threshold[1]):
     sys.stderr.write("Sparse distances (cutoff) mismatching\n")

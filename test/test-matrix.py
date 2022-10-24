@@ -9,10 +9,10 @@ try:
     from pp_sketch.matrix import sparsify
 except ImportError as e:
     from scipy.sparse import coo_matrix
-    def sparsify(distMat, cutoff, kNN, threads):
-        sparse_coordinates = pp_sketchlib.sparsifyDists(distMat=distMat,
-                                                        distCutoff=cutoff,
-                                                        kNN=kNN)
+    def sparsify(distMat, cutoff, threads):
+        sparse_coordinates = pp_sketchlib.sparsifyDistsByThreshold(distMat=distMat,
+                                                                  distCutoff=cutoff,
+                                                                  num_threads=threads)
         sparse_scipy = coo_matrix((sparse_coordinates[2],
                                 (sparse_coordinates[0], sparse_coordinates[1])),
                                 shape=distMat.shape,
@@ -60,28 +60,8 @@ check_res(square2_res, square2)
 check_res(pp_sketchlib.squareToLong(distMat=square1_res, num_threads=2), rr_mat)
 
 # sparsification
-sparse1 = sparsify(square2_res, cutoff=5, kNN=0, threads=2)
+sparse1 = sparsify(square2_res, cutoff=5, threads=2)
 
 sparse1_res = square2_res.copy()
 sparse1_res[sparse1_res >= 5] = 0
 check_res(sparse1.todense(), sparse1_res)
-
-kNN = 2
-sparse2 = sparsify(square2_res, cutoff=0, kNN=kNN, threads=2)
-
-sparse2_res = square2_res.copy()
-row_sort = np.argsort(sparse2_res, axis=1)
-for i, row in enumerate(sparse2_res):
-    neighbours = 0
-    prev_val = 0
-    for j in row_sort[i, :]:
-        if i == j or row[j] == prev_val:
-            continue
-        else:
-            prev_val = row[j]
-            if neighbours >= kNN:
-                sparse2_res[i, j] = 0
-            else:
-                neighbours += 1
-
-check_res(sparse2.todense(), sparse2_res)
