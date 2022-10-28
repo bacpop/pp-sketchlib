@@ -135,13 +135,17 @@ if(UNIX AND (NOT APPLE OR NOT CMAKE_COMPILER_IS_GNUCC))
                           INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+
 # Link libraries
 if(CMAKE_CUDA_COMPILER)
     target_link_libraries("${TARGET_NAME}" PRIVATE "${TARGET_NAME}_CUDA")
     set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
-target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen ${HDF5_LIBRARIES} openblas lapack gfortran m dl)
+target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
+        ${HDF5_LIBRARIES} ${BLAS_libraries} ${LAPACK_libraries} gfortran m dl)
 if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda"))
     target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()
