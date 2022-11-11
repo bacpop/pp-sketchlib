@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#define EIGEN_USE_BLAS
 #include <Eigen/Dense>
 
 #include "matrix_idx.hpp"
