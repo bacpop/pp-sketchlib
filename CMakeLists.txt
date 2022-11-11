@@ -57,11 +57,17 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 find_package(ZLIB)
 execute_process(COMMAND pybind11-config --cmakedir OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE pybind11_DIR)
 find_package(pybind11 2.6 CONFIG REQUIRED)
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
+
+# Linear algebra packages
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(Armadillo REQUIRED)
-include_directories(${ARMADILLO_INCLUDE_DIRS})
+find_package(BLAS)
+if(BLAS_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_USE_BLAS")
+endif()
+find_package(LAPACK)
+if(LAPACK_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_USE_LAPACKE")
+endif()
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
