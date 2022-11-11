@@ -231,7 +231,7 @@ sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
                                     const float distCutoff, const int kNN,
                                     const size_t num_threads) {
   std::string error_msg = "pp_sketchlib.sparsifyDists was deprecated in v2.0.1\n"
-                          "Downgrade to v2.0.0, or update the calling package"
+                          "Downgrade to v2.0.0, or update the calling package";
   throw std::runtime_error(error_msg);
   sparse_coo coo_idx =
       sparsify_dists_by_threshold(denseDists, distCutoff, num_threads);
