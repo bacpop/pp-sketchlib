@@ -13,14 +13,12 @@
 #include <tuple>
 #include "robin_hood.h"
 
-#define ARMA_ALLOW_FAKE_GCC
-#define ARMA_DONT_USE_WRAPPER
-#include <armadillo>
-
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
 
 #include "sketch/sketch.hpp"
+
+auto key_selector = [](auto pair) { return pair.first; };
 
 class RandomMC;
 
@@ -67,7 +65,7 @@ public:
   template <typename T>
   std::tuple<float, float> core_acc_dist(Reference &query, const T &random);
   template <typename T>
-  std::tuple<float, float> core_acc_dist(Reference &query, const arma::mat &kmers, const T &random);
+  std::tuple<float, float> core_acc_dist(Reference &query, const std::vector<size_t> &kmers, const T &random);
   std::vector<size_t> kmer_lengths() const;
 
   std::string name() const { return _name; }
@@ -108,17 +106,21 @@ private:
 
   // sketch - map keys are k-mer length
   robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
-};
+  std::vector<size_t> _kmers;
 
-template <class T>
-arma::mat kmer2mat(const T &kmers);
+  void set_kmers() {
+    std::vector<size_t> _kmers.resize(usigs.size());
+    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), key_selector);
+    std::sort(_kmers.begin(), _kmers.end());
+  }
+};
 
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const arma::mat &kmers,
+                                       const std::vector<size_t> &kmers,
                                        const std::vector<double> &random);
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const arma::mat &kmers,
+                                       const std::vector<size_t> &kmers,
                                        const RandomMC &random);
