@@ -108,10 +108,9 @@ private:
   robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
   std::vector<size_t> _kmers;
 
-  auto key_selector = [](auto pair) { return pair.first; };
   void set_kmers() {
     _kmers.resize(usigs.size());
-    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), key_selector);
+    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), [](auto pair) { return pair.first; };);
     std::sort(_kmers.begin(), _kmers.end());
   }
 };
