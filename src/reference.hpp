@@ -20,8 +20,6 @@ const size_t def_sketchsize64 = 156;
 
 #include "sketch/sketch.hpp"
 
-auto key_selector = [](auto pair) { return pair.first; };
-
 class RandomMC;
 
 class Reference
@@ -110,6 +108,7 @@ private:
   robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
   std::vector<size_t> _kmers;
 
+  auto key_selector = [](auto pair) { return pair.first; };
   void set_kmers() {
     _kmers.resize(usigs.size());
     std::transform(usigs.begin(), usigs.end(), _kmers.begin(), key_selector);
