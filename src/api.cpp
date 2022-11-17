@@ -193,7 +193,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   if (ref_sketches == query_sketches) {
     // calculate dists
     distMat.resize(dist_rows, dist_cols);
-    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+    Eigen::MatrixXf kmer_mat = kmer2mat(kmer_lengths);
 
     // Iterate upper triangle
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads) shared(progress)
@@ -230,7 +230,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     distMat.resize(dist_rows, dist_cols);
 
     // Prepare objects used in distance calculations
-    arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+    Eigen::MatrixXf kmer_mat = kmer2mat(kmer_lengths);
     std::vector<size_t> query_lengths(query_sketches.size());
     std::vector<uint16_t> query_random_idxs(query_sketches.size());
 
@@ -338,7 +338,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   ProgressMeter dist_progress(n_progress_ticks, true);
   volatile int progress = 0;
 
-  arma::mat kmer_mat = kmer2mat<std::vector<size_t>>(kmer_lengths);
+  Eigen::MatrixXf kmer_mat = kmer2mat(kmer_lengths);
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
     std::vector<float> row_dists(ref_sketches.size());

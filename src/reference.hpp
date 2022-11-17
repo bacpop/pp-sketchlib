@@ -65,8 +65,7 @@ public:
   template <typename T>
   std::tuple<float, float> core_acc_dist(Reference &query, const T &random);
   template <typename T>
-  std::tuple<float, float> core_acc_dist(Reference &query, const std::vector<size_t> &kmers, const T &random);
-  std::vector<size_t> kmer_lengths() const;
+  std::tuple<float, float> core_acc_dist(Reference &query, const Eigen::MatrixXf &kmers, const T &random);
 
   std::string name() const { return _name; }
   size_t bbits() const { return _bbits; }
@@ -77,6 +76,7 @@ public:
   bool is_reads() const { return _reads; }
   std::vector<double> base_composition() const { return {_bases.a, _bases.c, _bases.g, _bases.t}; }
   unsigned long int missing_bases() const { return _missing_bases; }
+  std::vector<size_t> kmer_lengths() const { return _kmers; }
 
   // For sorting, order by name
   friend bool operator<(Reference const &a, Reference const &b)
@@ -118,9 +118,9 @@ private:
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const std::vector<size_t> &kmers,
+                                       const Eigen::MatrixXf &kmers,
                                        const std::vector<double> &random);
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const std::vector<size_t> &kmers,
+                                       const Eigen::MatrixXf &kmers,
                                        const RandomMC &random);

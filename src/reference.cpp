@@ -15,6 +15,15 @@
 
 #include "sketch/bitfuncs.hpp"
 
+template <T>
+Eigen::MatrixXf kmer2mat(const std::vector<T> &kmers) {
+  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmer_lengths.size(), 2);
+  for (int i = 0; i < kmer_lengths.size(); ++i) {
+    kmer_mat(i, 1) = kmer_lengths[i];
+  }
+  return kmer_mat;
+}
+
 // Initialisation
 Reference::Reference()
     : _bbits(def_bbits), _sketchsize64(def_sketchsize64), _use_rc(true),
@@ -109,7 +118,7 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query,
   }
 
   std::tuple<float, float> core_acc =
-      regress_kmers(this, &query, _kmers, random);
+      regress_kmers(this, &query, kmer2mat(_kmers), random);
   return (core_acc);
 }
 
@@ -122,7 +131,7 @@ template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(
 // Without k-mer sizes check
 template <typename T>
 std::tuple<float, float> Reference::core_acc_dist(Reference &query,
-                                                  const std::vector<size_t> &kmers,
+                                                  const Eigen::MatrixXf &kmers,
                                                   const T &random) {
   std::tuple<float, float> core_acc =
       regress_kmers(this, &query, kmers, random);
