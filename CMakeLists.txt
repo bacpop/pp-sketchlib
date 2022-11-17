@@ -148,7 +148,7 @@ if(CMAKE_CUDA_COMPILER)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
-    ${HDF5_LIBRARIES} ${BLAS_libraries} gfortran m dl)
+    ${HDF5_LIBRARIES} ${BLAS_LIBRARIES} gfortran m dl)
 if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda"))
     target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()
