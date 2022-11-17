@@ -117,6 +117,16 @@ private:
   }
 };
 
+// Helper fn used in reference.cpp and api.cpp
+template <typename T>
+Eigen::MatrixXf kmer2mat(const std::vector<T> &kmers) {
+  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmers.size(), 2);
+  for (int i = 0; i < kmers.size(); ++i) {
+    kmer_mat(i, 1) = kmers[i];
+  }
+  return kmer_mat;
+}
+
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,

@@ -84,7 +84,7 @@ if(CMAKE_CUDA_COMPILER)
         # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
         # --cudart static: static linking of the CUDA libraries
         # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
-        set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr --diag-suppress 20014")
+        set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr --diag-suppress 20236")
         # Turn on link time optimisation if available
         if(CMAKE_BUILD_TYPE MATCHES Release)
             string(APPEND CUDA_OPTS " -dlto -arch=sm_86")

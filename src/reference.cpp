@@ -15,15 +15,6 @@
 
 #include "sketch/bitfuncs.hpp"
 
-template <typename T>
-Eigen::MatrixXf kmer2mat(const std::vector<T> &kmers) {
-  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmers.size(), 2);
-  for (int i = 0; i < kmers.size(); ++i) {
-    kmer_mat(i, 1) = kmers[i];
-  }
-  return kmer_mat;
-}
-
 // Initialisation
 Reference::Reference()
     : _bbits(def_bbits), _sketchsize64(def_sketchsize64), _use_rc(true),
