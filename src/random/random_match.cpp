@@ -31,7 +31,7 @@ const size_t min_kmer = 3;
 const size_t max_kmer = 31;
 
 // k-means parameters
-const static char* kmeans_init = 'plusplus';
+static char* kmeans_init = "plusplus";
 const int max_iter = 300;
 const int kmeans_seed = 3019;
 
