@@ -11,6 +11,8 @@
 #include <vector>
 #include <string>
 #include <tuple>
+
+#include <Eigen/Dense>
 #include "robin_hood.h"
 
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
