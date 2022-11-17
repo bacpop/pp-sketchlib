@@ -139,7 +139,9 @@ Reference Database::load_sketch(const std::string &name) {
     } else if (attr == "missing_bases") {
       sketch_group.getAttribute("missing_bases").read(missing_bases);
     } else if (attr == "reads") {
-      sketch_group.getAttribute("reads").read(reads);
+      uint8_t reads_int;
+      sketch_group.getAttribute("reads").read(reads_int);
+      reads = static_cast<bool>(reads_int);
     }
   }
 
@@ -182,9 +184,10 @@ void Database::save_random(const RandomMC &random) {
     HighFive::Attribute k_max_a = random_group.createAttribute<unsigned int>(
         "k_max", HighFive::DataSpace::From(k_max));
     k_max_a.write(k_max);
+    uint8_t int_rc = static_cast<uint8_t>(random.use_rc());
     HighFive::Attribute rc_a = random_group.createAttribute<uint8_t>(
-        "use_rc", HighFive::DataSpace::From(random.use_rc()));
-    rc_a.write(random.use_rc());
+        "use_rc", HighFive::DataSpace::From(int_rc));
+    rc_a.write(int_rc);
   } else {
     throw std::runtime_error("Random matches already exist in " + _filename);
   }
