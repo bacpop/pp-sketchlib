@@ -131,6 +131,8 @@ target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/database/database.cpp
                                     src/api.cpp
                                     src/dist/linear_regression.cpp
+                                    src/random/kmeans/KMeansRexCore.cpp
+                                    src/random/kmeans/mersenneTwister2002.c
                                     src/random/rng.cpp
                                     src/random/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES
