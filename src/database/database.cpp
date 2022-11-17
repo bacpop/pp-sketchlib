@@ -32,7 +32,10 @@ Database::Database(const std::string &h5_filename, const bool writable)
     if (attr == "sketch_version") {
       sketch_group.getAttribute("sketch_version").read(_version_hash);
     } else if (attr == "codon_phased") {
-      sketch_group.getAttribute("codon_phased").read(_codon_phased);
+      // u8 to deal with highfive dropped bool support
+      uint8_t codon_phased_int;
+      sketch_group.getAttribute("codon_phased").read(codon_phased_int);
+      _codon_phased = static_cast<bool>(codon_phased_int);
     }
   }
 }
@@ -67,9 +70,11 @@ void Database::add_sketch(const Reference &ref) {
       sketch_group.createAttribute<unsigned long int>(
           "missing_bases", HighFive::DataSpace::From(ref.missing_bases()));
   missing_a.write(ref.missing_bases());
+  // u8 to deal with highfive dropped bool support
+  uint8_t int_is_reads = static_cast<bool>(ref.is_reads());
   HighFive::Attribute reads_a = sketch_group.createAttribute<uint8_t>(
-      "reads", HighFive::DataSpace::From(ref.is_reads()));
-  reads_a.write(ref.is_reads());
+      "reads", HighFive::DataSpace::From(int_is_reads));
+  reads_a.write(int_is_reads);
 
   // Write base composition and k-mer length vectors as further group attributes
   const std::vector<double> bases = ref.base_composition();
