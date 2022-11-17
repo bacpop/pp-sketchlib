@@ -110,7 +110,7 @@ private:
 
   void set_kmers() {
     _kmers.resize(usigs.size());
-    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), [](auto pair) { return pair.first; };);
+    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), [](auto pair) { return pair.first; });
     std::sort(_kmers.begin(), _kmers.end());
   }
 };
