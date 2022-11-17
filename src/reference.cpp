@@ -143,7 +143,7 @@ template std::tuple<float, float>
 Reference::core_acc_dist<RandomMC>(Reference &query, const Eigen::MatrixXf &kmers,
                                    const RandomMC &random);
 template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(
-    Reference &query, const const Eigen::MatrixXf &kmers,
+    Reference &query, const Eigen::MatrixXf &kmers,
     const std::vector<double> &random);
 
 const std::vector<uint64_t> &Reference::get_sketch(const int kmer_len) const {
