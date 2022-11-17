@@ -27,8 +27,8 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
         if (i == 0) {
           throw std::runtime_error("No non-zero Jaccard distances");
         }
-        Eigen::VectorXf dists_truncation = dists(Eigen::seqN(0, i));
-        Eigen::VectorXf kmer_truncation = kmers(Eigen::seqN(0, i), Eigen::all);
+        Eigen::VectorXf dists_truncation = dists.head(i);
+        Eigen::VectorXf kmer_truncation = kmers.topRows(i);
         slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
         break;
       } else if (i == dists.size() - 1) {
