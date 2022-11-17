@@ -15,11 +15,11 @@
 
 #include "sketch/bitfuncs.hpp"
 
-template <T>
+template <typename T>
 Eigen::MatrixXf kmer2mat(const std::vector<T> &kmers) {
-  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmer_lengths.size(), 2);
-  for (int i = 0; i < kmer_lengths.size(); ++i) {
-    kmer_mat(i, 1) = kmer_lengths[i];
+  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmers.size(), 2);
+  for (int i = 0; i < kmers.size(); ++i) {
+    kmer_mat(i, 1) = kmers[i];
   }
   return kmer_mat;
 }
@@ -140,10 +140,10 @@ std::tuple<float, float> Reference::core_acc_dist(Reference &query,
 
 // Instantiate templates here so they can be used in other files
 template std::tuple<float, float>
-Reference::core_acc_dist<RandomMC>(Reference &query, std::vector<size_t> &kmers,
+Reference::core_acc_dist<RandomMC>(Reference &query, const Eigen::MatrixXf &kmers,
                                    const RandomMC &random);
 template std::tuple<float, float> Reference::core_acc_dist<std::vector<double>>(
-    Reference &query, const std::vector<size_t> &kmers,
+    Reference &query, const const Eigen::MatrixXf &kmers,
     const std::vector<double> &random);
 
 const std::vector<uint64_t> &Reference::get_sketch(const int kmer_len) const {

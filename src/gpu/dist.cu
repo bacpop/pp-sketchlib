@@ -27,7 +27,7 @@ namespace py = pybind11;
 #include <cub/cub.cuh>
 #include <cuda/barrier>
 #include <cooperative_groups.h>
-#pragma nv_diag_suppress static_var_with_dynamic_init
+#pragma diag_suppress static_var_with_dynamic_init
 
 // internal headers
 #include "cuda.cuh"

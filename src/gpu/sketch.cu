@@ -14,7 +14,7 @@ namespace py = pybind11;
 // memcpy_async
 #include <cooperative_groups.h>
 #include <cooperative_groups/memcpy_async.h>
-#pragma nv_diag_suppress static_var_with_dynamic_init
+#pragma diag_suppress static_var_with_dynamic_init
 
 #include "cuda.cuh"
 #include "gpu.hpp"
