@@ -109,7 +109,7 @@ private:
   std::vector<size_t> _kmers;
 
   void set_kmers() {
-    std::vector<size_t> _kmers.resize(usigs.size());
+    _kmers.resize(usigs.size());
     std::transform(usigs.begin(), usigs.end(), _kmers.begin(), key_selector);
     std::sort(_kmers.begin(), _kmers.end());
   }
