@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <limits>
 #include <math.h>
+#include <iostream>
 
 #include "reference.hpp"
 
@@ -59,7 +60,7 @@ std::tuple<float, float> regress_kmers(Reference *r1, Reference *r2,
   // Vector of points
   Eigen::VectorXf dists(kmers.size());
   for (unsigned int i = 0; i < kmers.size(); ++i) {
-    dists[i] = r1->jaccard_dist(*r2, kmers[i], random);
+    dists(i) = r1->jaccard_dist(*r2, kmers[i], random);
   }
   return (fit_slope(kmers, dists, r1, r2));
 }
