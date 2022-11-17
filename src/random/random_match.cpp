@@ -40,8 +40,7 @@ double csrs(const size_t k, const bool use_rc, const size_t l1,
             const size_t l2);
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>, NumpyMatrix>
 cluster_frequencies(const std::vector<Reference> &sketches,
-                    const unsigned int n_clusters,
-                    const unsigned int num_threads);
+                    const unsigned int n_clusters);
 std::vector<double> apply_rc(const Reference &ref);
 uint16_t nearest_neighbour(const Reference &ref,
                            const NumpyMatrix &cluster_centroids);
@@ -83,7 +82,7 @@ RandomMC::RandomMC(const std::vector<Reference> &sketches,
 
   // Run k-means on the base frequencies, save the results in a hash table
   std::tie(_cluster_table, _cluster_centroids) =
-      cluster_frequencies(sketches, _n_clusters, num_threads);
+      cluster_frequencies(sketches, _n_clusters);
 
   // Decide which k-mer lengths to use assuming equal base frequencies
   RandomMC default_adjustment(use_rc);
