@@ -46,7 +46,7 @@ steps:
     export PATH=${CUDA_HOME}/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     export SKETCHLIB_INSTALL=azure
-    python -m pip install --no-deps --ignore-installed .
+    python -m pip install --no-deps --ignore-installed . -vvv
   displayName: 'Build & install (setup.py)'
 
 - script: |
