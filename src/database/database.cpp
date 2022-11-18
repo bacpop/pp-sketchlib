@@ -210,10 +210,12 @@ RandomMC Database::load_random(const bool use_rc_default) {
 
     // Read attributes
     unsigned int k_min, k_max;
-    bool use_rc;
     random_group.getAttribute("k_min").read(k_min);
     random_group.getAttribute("k_max").read(k_max);
-    random_group.getAttribute("use_rc").read(use_rc);
+
+    uint8_t int_use_rc;
+    random_group.getAttribute("use_rc").read(int_use_rc);
+    bool use_rc = static_cast<bool>(int_use_rc);
 
     // Constructor for reading database
     random = RandomMC(use_rc, k_min, k_max, cluster_table, matches, centroids);
@@ -245,12 +247,14 @@ Database new_db(const std::string &filename, const bool use_rc,
         sketch_group.createAttribute<std::string>(
             "sketch_version", HighFive::DataSpace::From(version_hash));
     sketch_version_a.write(version_hash);
+    uint8_t int_codon_phased = static_cast<uint8_t>(codon_phased);
     HighFive::Attribute codon_phased_a = sketch_group.createAttribute<uint8_t>(
-        "codon_phased", HighFive::DataSpace::From(codon_phased));
-    codon_phased_a.write(codon_phased);
+        "codon_phased", HighFive::DataSpace::From(int_codon_phased));
+    codon_phased_a.write(int_codon_phased);
+    uint8_t int_use_rc = static_cast<uint8_t>(use_rc);
     HighFive::Attribute use_rc_a = sketch_group.createAttribute<uint8_t>(
-        "reverse_complement", HighFive::DataSpace::From(use_rc));
-    use_rc_a.write(use_rc);
+        "reverse_complement", HighFive::DataSpace::From(int_use_rc));
+    use_rc_a.write(int_use_rc);
   }
   return (Database(filename, true));
 }
