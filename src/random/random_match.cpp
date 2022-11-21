@@ -373,8 +373,8 @@ cluster_frequencies(const std::vector<Reference> &sketches,
     }
   }
 
-  std::vector<double> means(0, n_clusters * N_BASES);
-  std::vector<double> Z(0, n_samples);
+  std::vector<double> means(n_clusters * N_BASES, 0);
+  std::vector<double> Z(n_samples, 0);
   RunKMeans(X.data(), n_samples, N_BASES, n_clusters, max_iter, kmeans_seed,
             kmeans_init, means.data(), Z.data());
 
