@@ -70,8 +70,8 @@ std::tuple<float, float> regress_kmers(Reference *r1, Reference *r2,
                                        const Eigen::MatrixXf &kmers,
                                        const std::vector<double> &random) {
   // Vector of points
-  Eigen::VectorXf dists(kmers.size());
-  for (unsigned int i = 0; i < dists.size(); ++i) {
+  Eigen::VectorXf dists(kmers.rows());
+  for (unsigned int i = 0; i < dists.rows(); ++i) {
     dists[i] = r1->jaccard_dist(*r2, kmers(i, 1), random[i]);
   }
   return (fit_slope(kmers, dists, r1, r2));
