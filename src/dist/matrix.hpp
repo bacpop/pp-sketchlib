@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+// These are set by CMake
+// #define EIGEN_USE_BLAS
+// #define EIGEN_USE_LAPACKE
 #include <Eigen/Dense>
 
 #include "matrix_idx.hpp"

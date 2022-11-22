@@ -11,7 +11,7 @@ endif
 
 UNAME_S := $(shell uname -s)
 LIBLOC = ${CONDA_PREFIX}
-LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -llapack -lgomp
+LDLIBS = -lz -lhdf5_cpp -lhdf5 -lopenblas -lgomp
 ifeq ($(UNAME_S),Linux)
 	CXXFLAGS+= -m64
 	ifdef PROFILE
@@ -29,11 +29,11 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS +=-Xcompiler -fPIC -Xptxas -dlcm=ca --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
 	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
-	CUDA_LDFLAGS += -L/usr/local/cuda-11.1/lib64
+	CUDA_LDFLAGS += -L/usr/local/cuda-11.2/lib64
 endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
@@ -43,7 +43,7 @@ python: CPPFLAGS += -DGPU_AVAILABLE -DPYTHON_EXT -DNDEBUG -Dpp_sketchlib_EXPORTS
 
 PROGRAMS=sketch_test matrix_test read_test gpu_dist_test
 
-SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sketch.o database/database.o sketch/countmin.o api.o dist/linear_regression.o random/rng.o random/random_match.o
+SKETCH_OBJS=dist/dist.o dist/matrix_ops.o reference.o sketch/seqio.o sketch/sketch.o database/database.o sketch/countmin.o api.o dist/linear_regression.o random/rng.o random/random_match.o random/kmeans/KMeansRexCore.o random/kmeans/mersenneTwister2002.o
 GPU_SKETCH_OBJS=gpu/gpu_api.o
 CUDA_OBJS=gpu/dist.cu.o gpu/sketch.cu.o gpu/device_reads.cu.o gpu/gpu_countmin.cu.o gpu/device_memory.cu.o
 
