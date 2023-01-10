@@ -22,19 +22,22 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
   static const double tolerance = (5.0 / (r1->sketchsize64() * 64));
   try {
     Eigen::VectorXf slopes;
+    std::vector<int> valid;
     for (int i = 0; i < dists.size(); ++i) {
-      if (dists(i) < tolerance) {
-        if (i == 0) {
-          throw std::runtime_error("No non-zero Jaccard distances");
-        }
-        Eigen::VectorXf dists_truncation = dists.head(i);
-        Eigen::VectorXf kmer_truncation = kmers.topRows(i);
-        slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
-        break;
-      } else if (i == dists.size() - 1) {
-        // See https://eigen.tuxfamily.org/dox/group__LeastSquares.html
-        slopes = (kmers.transpose() * kmers).ldlt().solve(kmers.transpose() * (dists.array().log().matrix()));
+      if (dists(i) > tolerance) {
+        valid.push_back(i);
       }
+    }
+
+    if (__builtin_expect(valid.size() == 0, 0)) {
+      throw std::runtime_error("No non-zero Jaccard distances");
+    } else if (__builtin_expect(valid.size() == dists.size(), 1)) {
+      // See https://eigen.tuxfamily.org/dox/group__LeastSquares.html
+      slopes = (kmers.transpose() * kmers).ldlt().solve(kmers.transpose() * (dists.array().log().matrix()));
+    } else {
+      Eigen::VectorXf dists_truncation = dists(valid);
+      Eigen::VectorXf kmer_truncation = kmers(valid, Eigen::placeholders::all);
+      slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
     }
 
     if (slopes(1) < core_upper) {
