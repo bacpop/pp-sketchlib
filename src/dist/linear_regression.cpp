@@ -28,17 +28,17 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
         valid.push_back(i);
       }
     }
+    size_t valid_size = valid.back() - valid.front() + 1;
 
-    if (__builtin_expect(valid.size() == 0, 0)) {
+    if (__builtin_expect(valid_size < 2, 0)) {
       throw std::runtime_error("No non-zero Jaccard distances");
-    } else if (__builtin_expect(valid.size() == dists.size(), 1)) {
+    } else if (__builtin_expect(valid_size == dists.size(), 1)) {
       // See https://eigen.tuxfamily.org/dox/group__LeastSquares.html
       slopes = (kmers.transpose() * kmers).ldlt().solve(kmers.transpose() * (dists.array().log().matrix()));
     } else {
       size_t slice_start = valid.front();
-      size_t slice_size = valid.back() - valid.front() + 1;
-      Eigen::VectorXf dists_truncation = dists.segment(slice_start, slice_size);
-      Eigen::MatrixXf kmer_truncation = kmers.block(slice_start, 0, slice_size, 2);
+      Eigen::VectorXf dists_truncation = dists.segment(slice_start, valid_size);
+      Eigen::MatrixXf kmer_truncation = kmers.block(slice_start, 0, valid_size, 2);
       slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
     }
 
