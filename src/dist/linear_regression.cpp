@@ -36,7 +36,7 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
       slopes = (kmers.transpose() * kmers).ldlt().solve(kmers.transpose() * (dists.array().log().matrix()));
     } else {
       Eigen::VectorXf dists_truncation = dists(valid);
-      Eigen::VectorXf kmer_truncation = kmers(valid, Eigen::placeholders::all);
+      Eigen::MatrixXf kmer_truncation = kmers(valid, Eigen::all);
       slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
     }
 
