@@ -22,7 +22,7 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
   static const double tolerance = (5.0 / (r1->sketchsize64() * 64));
   try {
     Eigen::VectorXf slopes;
-    std::vector<long int> valid;
+    std::vector<int> valid;
     for (int i = 0; i < dists.size(); ++i) {
       if (dists(i) > tolerance) {
         valid.push_back(i);
@@ -35,8 +35,10 @@ std::tuple<float, float> fit_slope(const Eigen::MatrixXf &kmers,
       // See https://eigen.tuxfamily.org/dox/group__LeastSquares.html
       slopes = (kmers.transpose() * kmers).ldlt().solve(kmers.transpose() * (dists.array().log().matrix()));
     } else {
-      Eigen::VectorXf dists_truncation = dists(valid);
-      Eigen::MatrixXf kmer_truncation = kmers(valid, Eigen::placeholders::all);
+      size_t slice_start = valid.front();
+      size_t slice_size = valid.back() - valid.front();
+      Eigen::VectorXf dists_truncation = dists.segment(slice_start, slice_size);
+      Eigen::MatrixXf kmer_truncation = kmers.block(slice_start, 0, slice_size, 2);
       slopes = (kmer_truncation.transpose() * kmer_truncation).ldlt().solve(kmer_truncation.transpose() * (dists_truncation.array().log().matrix()));
     }
 
