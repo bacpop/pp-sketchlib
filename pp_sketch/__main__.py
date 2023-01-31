@@ -166,7 +166,7 @@ def main():
         sequences = []
 
         if args['-l']:
-            with open(args['-l'], 'rU') as refFile:
+            with open(args['-l'], 'r') as refFile:
                 for refLine in refFile:
                     refFields = refLine.rstrip().split("\t")
                     names.append(refFields[0])

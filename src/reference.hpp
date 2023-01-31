@@ -11,11 +11,9 @@
 #include <vector>
 #include <string>
 #include <tuple>
-#include "robin_hood.h"
 
-#define ARMA_ALLOW_FAKE_GCC
-#define ARMA_DONT_USE_WRAPPER
-#include <armadillo>
+#include <Eigen/Dense>
+#include "robin_hood.h"
 
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
@@ -67,8 +65,7 @@ public:
   template <typename T>
   std::tuple<float, float> core_acc_dist(Reference &query, const T &random);
   template <typename T>
-  std::tuple<float, float> core_acc_dist(Reference &query, const arma::mat &kmers, const T &random);
-  std::vector<size_t> kmer_lengths() const;
+  std::tuple<float, float> core_acc_dist(Reference &query, const Eigen::MatrixXf &kmers, const T &random);
 
   std::string name() const { return _name; }
   size_t bbits() const { return _bbits; }
@@ -79,6 +76,7 @@ public:
   bool is_reads() const { return _reads; }
   std::vector<double> base_composition() const { return {_bases.a, _bases.c, _bases.g, _bases.t}; }
   unsigned long int missing_bases() const { return _missing_bases; }
+  std::vector<size_t> kmer_lengths() const { return _kmers; }
 
   // For sorting, order by name
   friend bool operator<(Reference const &a, Reference const &b)
@@ -108,17 +106,31 @@ private:
 
   // sketch - map keys are k-mer length
   robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
+  std::vector<size_t> _kmers;
+
+  void set_kmers() {
+    _kmers.resize(usigs.size());
+    std::transform(usigs.begin(), usigs.end(), _kmers.begin(), [](auto pair) { return pair.first; });
+    std::sort(_kmers.begin(), _kmers.end());
+  }
 };
 
-template <class T>
-arma::mat kmer2mat(const T &kmers);
+// Helper fn used in reference.cpp and api.cpp
+template <typename T>
+Eigen::MatrixXf kmer2mat(const std::vector<T> &kmers) {
+  Eigen::MatrixXf kmer_mat = Eigen::MatrixXf::Ones(kmers.size(), 2);
+  for (size_t i = 0; i < kmers.size(); ++i) {
+    kmer_mat(i, 1) = kmers[i];
+  }
+  return kmer_mat;
+}
 
 // Defined in linear_regression.cpp
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const arma::mat &kmers,
+                                       const Eigen::MatrixXf &kmers,
                                        const std::vector<double> &random);
 std::tuple<float, float> regress_kmers(Reference *r1,
                                        Reference *r2,
-                                       const arma::mat &kmers,
+                                       const Eigen::MatrixXf &kmers,
                                        const RandomMC &random);

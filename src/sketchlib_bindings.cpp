@@ -4,6 +4,8 @@
  *
  */
 
+#include <iostream>
+
 // pybind11 headers
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
@@ -227,6 +229,17 @@ sparse_coo sparsifyDistsByThreshold(const Eigen::Ref<NumpyMatrix> &denseDists,
   return coo_idx;
 }
 
+sparse_coo sparsifyDists(const Eigen::Ref<NumpyMatrix> &denseDists,
+                                    const float distCutoff, const int kNN,
+                                    const size_t num_threads) {
+  std::string error_msg = "pp_sketchlib.sparsifyDists was deprecated in v2.0.1\n"
+                          "Downgrade to v2.0.0, or update the calling package";
+  throw std::runtime_error(error_msg);
+  sparse_coo coo_idx =
+      sparsify_dists_by_threshold(denseDists, distCutoff, num_threads);
+  return coo_idx;
+}
+
 PYBIND11_MODULE(pp_sketchlib, m) {
   m.doc() = "Sketch implementation for PopPUNK";
 
@@ -288,6 +301,13 @@ PYBIND11_MODULE(pp_sketchlib, m) {
         "Transform all distances into a sparse matrix",
         py::arg("distMat").noconvert(), py::arg("distCutoff") = 0,
         py::arg("num_threads") = 1);
+
+  // Deprecated - just gives informative error message
+  m.def("sparsifyDists", &sparsifyDists,
+        py::return_value_policy::reference_internal,
+        "Transform all distances into a sparse matrix",
+        py::arg("distMat").noconvert(), py::arg("distCutoff") = 0,
+        py::arg("kNN") = 0, py::arg("num_threads") = 1);
 
   m.attr("version") = VERSION_INFO;
   m.attr("sketchVersion") = SKETCH_VERSION;

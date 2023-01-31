@@ -13,6 +13,8 @@
 #include <sstream>
 #include <stdlib.h>
 
+#include "kmeans/KMeansRexCoreInterface.h"
+
 #include "api.hpp"
 #include "random_match.hpp"
 #include "rng.hpp"
@@ -29,16 +31,16 @@ const size_t min_kmer = 3;
 const size_t max_kmer = 31;
 
 // k-means parameters
+static char kmeans_init[] = "plusplus";
 const int max_iter = 300;
-const int max_tries = 5;
+const int kmeans_seed = 3019;
 
 // Functions used in construction
 double csrs(const size_t k, const bool use_rc, const size_t l1,
             const size_t l2);
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>, NumpyMatrix>
 cluster_frequencies(const std::vector<Reference> &sketches,
-                    const unsigned int n_clusters,
-                    const unsigned int num_threads);
+                    const unsigned int n_clusters);
 std::vector<double> apply_rc(const Reference &ref);
 uint16_t nearest_neighbour(const Reference &ref,
                            const NumpyMatrix &cluster_centroids);
@@ -80,7 +82,7 @@ RandomMC::RandomMC(const std::vector<Reference> &sketches,
 
   // Run k-means on the base frequencies, save the results in a hash table
   std::tie(_cluster_table, _cluster_centroids) =
-      cluster_frequencies(sketches, _n_clusters, num_threads);
+      cluster_frequencies(sketches, _n_clusters);
 
   // Decide which k-mer lengths to use assuming equal base frequencies
   RandomMC default_adjustment(use_rc);
@@ -225,13 +227,6 @@ uint16_t RandomMC::closest_cluster(const Reference &ref) const {
   return (closest_cluster_id);
 }
 
-/*
-size_t RandomMC::closest_cluster(const arma::vec& bases) const {
-        double* ptr = bases.memptr();
-        return(closest_cluster(ptr, _cluster_centroids));
-}
-*/
-
 void RandomMC::add_query(const Reference &query) {
   _cluster_table[query.name()] = closest_cluster(query);
 }
@@ -363,61 +358,34 @@ uint16_t nearest_neighbour(const Reference &ref,
   return ((uint16_t)index);
 }
 
-arma::uvec random_ints(const size_t k_draws, const size_t max_n) {
-  std::vector<arma::uword> random_idx(max_n);
-  std::iota(random_idx.begin(), random_idx.end(), 0);
-  // std::shuffle(random_idx.begin(), random_idx.end(),
-  // std::mt19937{std::random_device{}()}); // non-deterministic
-  std::shuffle(random_idx.begin(), random_idx.end(),
-               std::mt19937{1}); // deterministic
-  std::sort(random_idx.begin(), random_idx.begin() + k_draws);
-  random_idx.erase(random_idx.begin() + k_draws, random_idx.end());
-  return (arma::uvec(random_idx));
-}
-
 // k-means
 std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>, NumpyMatrix>
 cluster_frequencies(const std::vector<Reference> &sketches,
-                    const unsigned int n_clusters,
-                    const unsigned int num_threads) {
+                    const unsigned int n_clusters) {
 
-  // Build the input matrix in the right form
-  arma::mat data(N_BASES, sketches.size(), arma::fill::zeros);
-  for (size_t idx = 0; idx < sketches.size(); idx++) {
+  // Build the input matrix in the right form (col-major/fortran)
+  int n_samples = sketches.size();
+  std::vector<double> X(N_BASES * n_samples);
+  for (size_t idx = 0; idx < n_samples; idx++) {
     std::vector<double> base_ref = apply_rc(sketches[idx]);
     for (size_t base = 0; base < base_ref.size(); base++) {
-      data(base, idx) = base_ref[base];
+      X[idx + base * n_samples] = base_ref[base];
     }
   }
 
-  arma::mat means;
-  bool success = false;
-  int tries = 0;
-#ifdef _OPENMP
-  omp_set_num_threads(num_threads);
-#endif
-  while (!success && tries < max_tries) {
-    tries++;
-    // Also uses openmp
-    success = arma::kmeans(means, data, n_clusters, arma::random_subset,
-                           max_iter, false);
-  }
-  if (!success) {
-    std::cerr
-        << "Could not cluster base frequencies; using randomly chosen samples"
-        << std::endl;
-    means = data.cols(random_ints(n_clusters, sketches.size()));
-  }
+  std::vector<double> means(n_clusters * N_BASES, 0);
+  std::vector<double> Z(n_samples, 0);
+  RunKMeans(X.data(), n_samples, N_BASES, n_clusters, max_iter, kmeans_seed,
+            kmeans_init, means.data(), Z.data());
 
   // Build the return types
   // doubles returned need to be cast to float in numpy matrix
   Eigen::Map<
-      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
-      centroids_matrix_d(means.memptr(), n_clusters, N_BASES);
+      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>>
+      centroids_matrix_d(means.data(), n_clusters, N_BASES);
   NumpyMatrix centroids_matrix = centroids_matrix_d.cast<float>();
 
   robin_hood::unordered_node_map<std::string, uint16_t> cluster_map;
-  // #pragma omp parallel for schedule(static)
   for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
     cluster_map[sketches[sketch_idx].name()] =
         nearest_neighbour(sketches[sketch_idx], centroids_matrix);

@@ -57,9 +57,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 find_package(ZLIB)
 execute_process(COMMAND pybind11-config --cmakedir OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE pybind11_DIR)
 find_package(pybind11 2.6 CONFIG REQUIRED)
+
+# Linear algebra packages
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(Armadillo REQUIRED)
-include_directories(${ARMADILLO_INCLUDE_DIRS})
+find_package(BLAS)
+if(BLAS_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_USE_BLAS")
+endif()
 
 # Define python library target
 add_library("${TARGET_NAME}" MODULE)
@@ -76,7 +80,7 @@ if(CMAKE_CUDA_COMPILER)
         # -Xptxas -dlcm=ca turns cache on, but not needed in recent nvcc versions
         # --cudart static: static linking of the CUDA libraries
         # -gencode arch=compute_35 etc compiles for each (minimum) device version listed (v3.5, v5.0, v7.5)
-        set(CUDA_OPTS "-Xcompiler -fPIC -Xptxas -dlcm=ca --relocatable-device-code=true --expt-relaxed-constexpr")
+        set(CUDA_OPTS "-Xcompiler -fPIC --relocatable-device-code=true --expt-relaxed-constexpr")
         # Turn on link time optimisation if available
         if(CMAKE_BUILD_TYPE MATCHES Release)
             string(APPEND CUDA_OPTS " -dlto -arch=sm_86")
@@ -123,6 +127,8 @@ target_sources("${TARGET_NAME}" PRIVATE src/sketchlib_bindings.cpp
                                     src/database/database.cpp
                                     src/api.cpp
                                     src/dist/linear_regression.cpp
+                                    src/random/kmeans/KMeansRexCore.cpp
+                                    src/random/kmeans/mersenneTwister2002.c
                                     src/random/rng.cpp
                                     src/random/random_match.cpp)
 set_target_properties("${TARGET_NAME}" PROPERTIES
@@ -141,7 +147,8 @@ if(CMAKE_CUDA_COMPILER)
     set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
     #set_property(TARGET "${TARGET_NAME}" PROPERTY CUDA_ARCHITECTURES OFF)
 endif()
-target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen ${HDF5_LIBRARIES} openblas lapack gfortran m dl)
+target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
+    ${HDF5_LIBRARIES} ${BLAS_LIBRARIES} gfortran m dl)
 if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda"))
     target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()

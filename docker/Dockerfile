@@ -4,7 +4,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
                           cmake \
                           gfortran \
-                          libarmadillo-dev \
+                          libhdf5-dev \
                           libeigen3-dev \
                           libopenblas-dev
 
