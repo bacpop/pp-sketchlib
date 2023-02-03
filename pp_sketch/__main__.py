@@ -9,7 +9,7 @@ Usage:
   sketchlib query sparse <db1> (--kNN <k>|--threshold <max>) [-o <output>] [--accessory] [--adj-random] [--subset <file>] [--cpus <cpus>] [--gpu <gpu>]
   sketchlib query sparse jaccard <db1> --kNN <k> --kmer <k> [-o <output>] [--adj-random] [--subset <file>] [--cpus <cpus>]
   sketchlib join <db1> <db2> -o <output>
-  sketchlib (add|remove) random <db1> [--cpus <cpus>]
+  sketchlib (add|remove) random <db1> [--single-strand] [--cpus <cpus>]
   sketchlib (-h | --help)
   sketchlib (--version)
 
