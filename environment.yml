@@ -15,7 +15,7 @@ dependencies:
   - zlib
   - eigen
   - highfive
-  - hdf5
+  - hdf5 >= 1.14.3
   - h5py
   - nlohmann_json
   - openblas
