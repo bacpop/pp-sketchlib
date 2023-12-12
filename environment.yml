@@ -15,8 +15,8 @@ dependencies:
   - zlib
   - eigen
   - highfive
-  - hdf5 == 1.14.2
-  - h5py == 3.10.0
+  - hdf5
+  - h5py
   - nlohmann_json
   - openblas
   - libgfortran-ng

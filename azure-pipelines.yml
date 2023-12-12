@@ -1,7 +1,4 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+# This just checks the package can be installed using CUDA, no testing
 
 trigger:
 - master
@@ -49,10 +46,3 @@ steps:
     python -m pip install --no-deps --ignore-installed . -vvv
   displayName: 'Build & install (setup.py)'
 
-- script: |
-    source activate pp_env
-    export CUDA_HOME=/usr/local/cuda-11.2
-    export PATH=${CUDA_HOME}/bin${PATH:+:${PATH}}
-    export LD_LIBRARY_PATH=${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-    cd test && python run_test.py
-  displayName: 'Run tests (run_test.py)'
