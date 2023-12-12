@@ -16,7 +16,7 @@ class Xoshiro
 {
 public:
   // Definitions to be used as URNG in C++11
-  typedef uint64_t result_type;
+  typedef size_t result_type;
   static constexpr size_t min() { return std::numeric_limits<uint64_t>::min(); }
   static constexpr size_t max() { return std::numeric_limits<uint64_t>::max(); }
   uint64_t operator()(); // generate random number U(min, max)
