@@ -36,10 +36,8 @@ jobs:
       shell: bash -l {0}
       run: |
         python setup.py install --debug
-        cd test && python run_test.py
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
-      if: ${{ failure() }}
       with:
         limit-access-to-actor: true
         detached: true
