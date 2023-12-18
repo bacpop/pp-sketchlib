@@ -4,7 +4,7 @@
 
 """Wrapper for running python executable without installing"""
 import os
-os.environ["LD_PRELOAD"] = "/lib/libSegFault.so"
+os.environ["LD_PRELOAD"] = "/lib/x86_64-linux-gnu/libSegFault.so"
 
 
 from pp_sketch.__main__ import main
