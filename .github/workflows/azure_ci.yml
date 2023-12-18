@@ -35,7 +35,7 @@ jobs:
     - name: Install and run_test.py
       shell: bash -l {0}
       run: |
-        python setup.py install --debug
+        python setup.py build --debug install
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       with:
