@@ -17,6 +17,8 @@ if not os.path.isfile("12754_4#89.contigs_velvet.fa"):
     sys.stderr.write("Extracting example dataset\n")
     subprocess.run("tar xf example_set.tar.bz2", shell=True, check=True)
 
+os.environ["LD_PRELOAD"] = "/lib/libSegFault.so"
+
 # python tests
 
 # module attributes
