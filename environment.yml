@@ -17,7 +17,7 @@ dependencies:
   - highfive
   - hdf5
   - h5py
-  - nlohmann_json
+  - libgomp
   - openblas
   - libgfortran-ng
   - nvcc_linux-64
