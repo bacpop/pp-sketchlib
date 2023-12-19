@@ -35,6 +35,7 @@ subprocess.run("python ../sketchlib-runner.py add random test_db --cpus 2", shel
 # calculate distances
 sys.stderr.write("Distance integration test\n")
 subprocess.run("python ../sketchlib-runner.py query dist test_db --cpus 1", shell=True, check=True) # checks if can be run
+subprocess.run("python ../sketchlib-runner.py query dist test_db --cpus 2", shell=True, check=True) # checks if can be run w/ openmp
 subprocess.run("python ../sketchlib-runner.py query dist test_db -o ppsketch --cpus 1", shell=True, check=True) # checks if can be run
 subprocess.run("python ../sketchlib-runner.py query jaccard test_db_small --cpus 1", shell=True, check=True) # checks if can be run
 subprocess.run("python test-dists.py --ref-db test_db --results ppsketch_ref", shell=True, check=True) # checks results match

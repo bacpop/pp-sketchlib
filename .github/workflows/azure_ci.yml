@@ -39,12 +39,12 @@ jobs:
         cd test && python run_test.py
 
     ## For debugging
-    - name: Install and run_test.py
+    - name: Install debug version
       if: failure()
       shell: bash -l {0}
       run: |
         python setup.py build_ext --debug install
-    - name: Setup tmate session
+    - name: Setup tmate session for interactive debugging
       if: failure()
       uses: mxschmitt/action-tmate@v3
       with:

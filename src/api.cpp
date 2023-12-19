@@ -199,9 +199,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     // Iterate upper triangle
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads) shared(progress)
     for (size_t i = 0; i < ref_sketches.size(); i++) {
-      if (interrupt || PyErr_CheckSignals() != 0) {
-        interrupt = true;
-      } else {
+      if (!interrupt) {
         for (size_t j = i + 1; j < ref_sketches.size(); j++) {
           size_t pos = square_to_condensed(i, j, ref_sketches.size());
           if (jaccard) {
@@ -220,6 +218,9 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
               {
                 progress += MAX(1, n_progress_ticks / dist_rows);
                 dist_progress.tick_count(progress);
+                if (PyErr_CheckSignals() != 0) {
+                  interrupt = true;
+                }
               }
           }
         }
@@ -245,9 +246,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
 #pragma omp parallel for collapse(2) schedule(static) num_threads(num_threads)
     for (unsigned int q_idx = 0; q_idx < query_sketches.size(); q_idx++) {
       for (unsigned int r_idx = 0; r_idx < ref_sketches.size(); r_idx++) {
-        if (interrupt || PyErr_CheckSignals() != 0) {
-          interrupt = true;
-        } else {
+        if (!interrupt) {
           const long dist_row = q_idx * ref_sketches.size() + r_idx;
           if (jaccard) {
             for (unsigned int kmer_idx = 0; kmer_idx < kmer_lengths.size();
@@ -271,6 +270,9 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
             {
               progress += MAX(1, n_progress_ticks / dist_rows);
               dist_progress.tick_count(progress);
+              if (PyErr_CheckSignals() != 0) {
+                interrupt = true;
+              }
             }
           }
         }
@@ -343,9 +345,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
     std::vector<float> row_dists(ref_sketches.size());
-    if (interrupt || PyErr_CheckSignals() != 0) {
-      interrupt = true;
-    } else {
+    if (!interrupt) {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
         if (i != j) {
           if (jaccard) {
@@ -371,6 +371,9 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
           {
             progress += MAX(1, n_progress_ticks / dist_rows);
             dist_progress.tick_count(progress);
+            if (PyErr_CheckSignals() != 0) {
+              interrupt = true;
+            }
           }
         }
         long offset = i * kNN;
