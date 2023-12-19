@@ -81,9 +81,7 @@ std::vector<Reference> create_sketches(
     std::vector<std::runtime_error> errors;
 #pragma omp parallel for schedule(dynamic, 5) num_threads(num_threads)
     for (unsigned int i = 0; i < names.size(); i++) {
-      if (interrupt || PyErr_CheckSignals() != 0) {
-        interrupt = true;
-      } else {
+      if (!interrupt) {
         try {
           SeqBuf seq_in(files[i], kmer_lengths.back());
           sketches[i] = Reference(names[i], seq_in, kmer_seeds, sketchsize64,
@@ -101,6 +99,9 @@ std::vector<Reference> create_sketches(
 
       if (omp_get_thread_num() == 0) {
         sketch_progress.tick_count(done_count);
+        if (PyErr_CheckSignals() != 0) {
+          interrupt = true;
+        }
       }
     }
     sketch_progress.finalise();
