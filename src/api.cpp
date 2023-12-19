@@ -218,7 +218,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
               {
                 progress += MAX(1, n_progress_ticks / dist_rows);
                 dist_progress.tick_count(progress);
-                if (PyErr_CheckSignals() != 0) {
+                if (omp_get_thread_num() == 0 && PyErr_CheckSignals() != 0) {
                   interrupt = true;
                 }
               }
@@ -270,7 +270,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
             {
               progress += MAX(1, n_progress_ticks / dist_rows);
               dist_progress.tick_count(progress);
-              if (PyErr_CheckSignals() != 0) {
+              if (omp_get_thread_num() == 0 && PyErr_CheckSignals() != 0) {
                 interrupt = true;
               }
             }
@@ -371,7 +371,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
           {
             progress += MAX(1, n_progress_ticks / dist_rows);
             dist_progress.tick_count(progress);
-            if (PyErr_CheckSignals() != 0) {
+            if (omp_get_thread_num() == 0 && PyErr_CheckSignals() != 0) {
               interrupt = true;
             }
           }
