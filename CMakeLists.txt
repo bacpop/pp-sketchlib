@@ -150,8 +150,17 @@ if(CMAKE_CUDA_COMPILER)
 endif()
 target_link_libraries("${TARGET_NAME}" PRIVATE pybind11::module Eigen3::Eigen
     ${BLAS_LIBRARIES} gfortran m dl)
-if(DEFINED ENV{CONDA_PREFIX} AND (NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda"))
-    target_link_libraries("${TARGET_NAME}" PRIVATE hdf5_cpp hdf5 gomp z)
+
+# HDF5 -- conda needs override
+if(DEFINED ENV{CONDA_PREFIX})
+    target_link_libraries("${TARGET_NAME}" PRIVATE hdf5_cpp hdf5)
+else()
+    target_link_libraries("${TARGET_NAME}" PRIVATE ${HDF5_LIBRARIES})
+endif()
+
+# OpenMP and zlib -- conda needs override; clang on OS X 'works' otherwise override
+if(NOT APPLE OR CMAKE_COMPILER_IS_GNUCC OR ENV{SKETCHLIB_INSTALL} EQUAL "conda")
+    target_link_libraries("${TARGET_NAME}" PRIVATE gomp z)
 else()
     target_link_libraries("${TARGET_NAME}" PRIVATE ${HDF5_LIBRARIES} ZLIB::ZLIB)
     find_package(OpenMP)
