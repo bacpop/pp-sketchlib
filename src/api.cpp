@@ -319,8 +319,8 @@ class SparseDist {
   public:
     SparseDist(float dist, long j) : _dist(dist), _j(j) {}
 
-    float dist() {return _dist; }
-    long j() {return _j; }
+    float dist() const {return _dist; }
+    long j() const {return _j; }
 
     friend bool operator<(SparseDist const &a, SparseDist const &b)
     {
@@ -386,9 +386,9 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
               row_dist = acc;
             }
           }
-          if (min_dists.size() < kNN || row_dist < min_dists.top()) {
+          if (min_dists.size() < kNN || row_dist < min_dists.top().dist()) {
             min_dists.push(SparseDist(row_dist, j));
-            if (min_dists.size > kNN) {
+            if (min_dists.size() > kNN) {
               min_dists.pop();
             }
           }
@@ -406,9 +406,10 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         long offset = i * kNN;
         std::fill_n(i_vec.begin() + offset, kNN, i);
         for (int k = 0; k < kNN; ++k) {
-          SparseDist entry = min_dists.pop();
+          SparseDist entry = min_dists.top();
           j_vec[offset + k] = entry.j();
           dists[offset + k] = entry.dist();
+          min_dists.pop();
         }
 
       }
