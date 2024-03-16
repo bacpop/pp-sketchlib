@@ -90,7 +90,7 @@ class CMakeBuild(build_ext):
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         elif target == 'jlees':
-            debug = "DEBUG=0"
+            debug = "DEBUG="
             if cfg == 'Debug':
                 debug = "DEBUG=1"
             subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python', debug], cwd=ext.sourcedir + '/src', env=env)
