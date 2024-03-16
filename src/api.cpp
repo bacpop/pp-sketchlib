@@ -386,12 +386,6 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
               row_dist = acc;
             }
           }
-          if (min_dists.size() < kNN || row_dist < min_dists.top().dist()) {
-            min_dists.push(SparseDist(row_dist, j));
-            if (min_dists.size() > kNN) {
-              min_dists.pop();
-            }
-          }
         }
         if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp critical
@@ -403,6 +397,14 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
             }
           }
         }
+
+        if (min_dists.size() < kNN || row_dist < min_dists.top().dist()) {
+          min_dists.push(SparseDist(row_dist, j));
+          if (min_dists.size() > kNN) {
+            min_dists.pop();
+          }
+        }
+
         long offset = i * kNN;
         std::fill_n(i_vec.begin() + offset, kNN, i);
         for (int k = 0; k < kNN; ++k) {
