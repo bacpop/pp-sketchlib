@@ -6,6 +6,7 @@
  *
  */
 
+#include <cstdint>
 #include "robin_hood.h"
 #include <exception>
 #include <iostream>
