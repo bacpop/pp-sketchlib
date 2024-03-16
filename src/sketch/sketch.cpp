@@ -168,7 +168,7 @@ sketch(SeqBuf &seq, const uint64_t sketchsize,
 }
 
 #ifdef GPU_AVAILABLE
-std::tuple<rankerl::unordered_dense::map<int, std::vector<uint64_t>>, size_t, bool>
+std::tuple<ankerl::unordered_dense::map<int, std::vector<uint64_t>>, size_t, bool>
 sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
            const uint64_t sketchsize, const std::vector<size_t> &kmer_lengths,
            const size_t bbits, const bool use_canonical,
