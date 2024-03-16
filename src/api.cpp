@@ -334,7 +334,7 @@ class SparseDist {
   private:
     float _dist;
     long _j;
-}
+};
 
 sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                      const std::vector<size_t> &kmer_lengths,
