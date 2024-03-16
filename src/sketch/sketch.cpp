@@ -6,8 +6,6 @@
  *
  */
 
-#include <cstdint>
-#include "unordered_dense.h"
 #include <exception>
 #include <iostream>
 #include <memory>

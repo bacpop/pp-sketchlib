@@ -13,7 +13,7 @@
 #include <array>
 
 #include "stHashIterator.hpp"
-#include "unordered_dense.h"
+#include "unordered_dense.hpp"
 
 // Countmin parameters
 const unsigned int table_width_bits = 27;

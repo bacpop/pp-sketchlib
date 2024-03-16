@@ -14,7 +14,7 @@
 
 #include "dist/matrix.hpp"
 #include "gpu/gpu.hpp"
-#include "unordered_dense.h"
+#include "unordered_dense.hpp"
 
 const unsigned int default_max_k = 101;
 const unsigned int default_n_clusters = 3;
