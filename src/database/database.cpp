@@ -12,8 +12,6 @@
 #include "hdf5_funcs.hpp"
 #include "random/random_match.hpp"
 
-#include "robin_hood.h"
-
 // const int deflate_level = 9;
 
 // Helper function prototypes
@@ -200,9 +198,9 @@ RandomMC Database::load_random(const bool use_rc_default) {
     HighFive::Group random_group = _h5_file.getGroup("/random");
 
     // Flattened hashes
-    robin_hood::unordered_node_map<std::string, uint16_t> cluster_table =
+    ankerl::unordered_dense::map<std::string, uint16_t> cluster_table =
         load_hash<std::string, uint16_t>(random_group, "table");
-    robin_hood::unordered_node_map<size_t, NumpyMatrix> matches =
+    ankerl::unordered_dense::map<size_t, NumpyMatrix> matches =
         load_hash<size_t, NumpyMatrix>(random_group, "matches");
 
     // Centroid matrix

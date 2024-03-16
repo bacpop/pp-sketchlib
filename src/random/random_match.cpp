@@ -38,7 +38,7 @@ const int kmeans_seed = 3019;
 // Functions used in construction
 double csrs(const size_t k, const bool use_rc, const size_t l1,
             const size_t l2);
-std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>, NumpyMatrix>
+std::tuple<ankerl::unordered_dense::map<std::string, uint16_t>, NumpyMatrix>
 cluster_frequencies(const std::vector<Reference> &sketches,
                     const unsigned int n_clusters);
 std::vector<double> apply_rc(const Reference &ref);
@@ -359,7 +359,7 @@ uint16_t nearest_neighbour(const Reference &ref,
 }
 
 // k-means
-std::tuple<robin_hood::unordered_node_map<std::string, uint16_t>, NumpyMatrix>
+std::tuple<ankerl::unordered_dense::map<std::string, uint16_t>, NumpyMatrix>
 cluster_frequencies(const std::vector<Reference> &sketches,
                     const unsigned int n_clusters) {
 
@@ -385,7 +385,7 @@ cluster_frequencies(const std::vector<Reference> &sketches,
       centroids_matrix_d(means.data(), n_clusters, N_BASES);
   NumpyMatrix centroids_matrix = centroids_matrix_d.cast<float>();
 
-  robin_hood::unordered_node_map<std::string, uint16_t> cluster_map;
+  ankerl::unordered_dense::map<std::string, uint16_t> cluster_map;
   for (size_t sketch_idx = 0; sketch_idx < sketches.size(); sketch_idx++) {
     cluster_map[sketches[sketch_idx].name()] =
         nearest_neighbour(sketches[sketch_idx], centroids_matrix);

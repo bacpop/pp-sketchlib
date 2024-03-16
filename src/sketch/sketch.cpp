@@ -7,7 +7,7 @@
  */
 
 #include <cstdint>
-#include "robin_hood.h"
+#include "unordered_dense.h"
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -170,7 +170,7 @@ sketch(SeqBuf &seq, const uint64_t sketchsize,
 }
 
 #ifdef GPU_AVAILABLE
-std::tuple<robin_hood::unordered_map<int, std::vector<uint64_t>>, size_t, bool>
+std::tuple<rankerl::unordered_dense::map<int, std::vector<uint64_t>>, size_t, bool>
 sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
            const uint64_t sketchsize, const std::vector<size_t> &kmer_lengths,
            const size_t bbits, const bool use_canonical,
@@ -178,7 +178,7 @@ sketch_gpu(const std::shared_ptr<SeqBuf> &seq, GPUCountMin &countmin,
            const size_t cpu_threads, const size_t shared_size) {
   const uint64_t nbins = sketchsize * NBITS(uint64_t);
   const uint64_t binsize = (SIGN_MOD + nbins - 1ULL) / nbins;
-  robin_hood::unordered_map<int, std::vector<uint64_t>> sketch;
+  ankerl::unordered_dense::map<int, std::vector<uint64_t>> sketch;
 
   if (seq->n_full_seqs() == 0) {
     throw std::runtime_error("Sequence is empty");

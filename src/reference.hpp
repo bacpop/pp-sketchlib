@@ -13,7 +13,7 @@
 #include <tuple>
 
 #include <Eigen/Dense>
-#include "robin_hood.h"
+#include "unordered_dense.hpp"
 
 const size_t def_bbits = 14; // = log2(sketch size) where sketch size = 64 * sketchsize64
 const size_t def_sketchsize64 = 156;
@@ -47,7 +47,7 @@ public:
 
   // Initialise from GPU sketch
   Reference(const std::string &name,
-            robin_hood::unordered_map<int, std::vector<uint64_t>> &sketch,
+            ankerl::unordered_dense::map<int, std::vector<uint64_t>> &sketch,
             const size_t bbits,
             const size_t sketchsize64,
             const size_t seq_size,
@@ -105,7 +105,7 @@ private:
   BaseComp<double> _bases;
 
   // sketch - map keys are k-mer length
-  robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
+  ankerl::unordered_dense::map<int, std::vector<uint64_t>> usigs;
   std::vector<size_t> _kmers;
 
   void set_kmers() {

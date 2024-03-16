@@ -13,7 +13,7 @@
 #include <array>
 
 #include "stHashIterator.hpp"
-#include "robin_hood.h"
+#include "unordered_dense.h"
 
 // Countmin parameters
 const unsigned int table_width_bits = 27;
@@ -59,5 +59,5 @@ public:
   uint8_t probe(stHashIterator &hash);
 
 private:
-  robin_hood::unordered_flat_map<uint64_t, uint8_t> hash_table;
+  ankerl::unordered_dense::map<uint64_t, uint8_t> hash_table;
 };
