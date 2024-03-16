@@ -77,6 +77,8 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
+        if cfg == 'Debug':
+            env['CXXFLAGS'] += "-DDEBUG"
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
