@@ -1,4 +1,4 @@
-CXXFLAGS+=-Wall -Wextra -std=c++14 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
+CXXFLAGS+=-Wall -Wextra -std=c++17 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
   CUDAFLAGS = -g -G
