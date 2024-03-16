@@ -88,6 +88,9 @@ class CMakeBuild(build_ext):
         elif target == 'azure':
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+        elif target == 'jlees':
+            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         else:
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)

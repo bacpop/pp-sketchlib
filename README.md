@@ -334,6 +334,7 @@ You can set an environment variable `SKETCHLIB_INSTALL` to affect `python setup.
 - Empty: uses cmake
 - `conda`: sets library location to the conda environment, and uses `src/Makefile` (used to be used in conda-forge recipe)
 - `azure`: Uses `src/Makefile`
+- `jlees`: Uses `src/Makefile_fedora38`
 
 ### cmake
 Now requires v3.19. If nvcc version is 11.0 or higher, sm8.6 with device link time optimisation will be used.
