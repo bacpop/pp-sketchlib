@@ -77,22 +77,24 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
+        make_call = []
         if cfg == 'Debug':
-            env['CXXFLAGS'] += "-DDEBUG"
+            make_call = ["DEBUG=1"]
+        make_call.append("make")
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
         target = os.getenv('SKETCHLIB_INSTALL', None)
         if target == 'conda':
-            subprocess.check_call(['make', 'python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
-            subprocess.check_call(['make', 'install_python', 'LIBLOC="' + os.environ['PREFIX'] + '"', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + ['python', 'LIBLOC="' + os.environ['PREFIX'] + '"'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + [ 'install_python', 'LIBLOC="' + os.environ['PREFIX'] + '"', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         elif target == 'azure':
-            subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
-            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + [ 'python'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + [ 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         elif target == 'jlees':
-            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python'], cwd=ext.sourcedir + '/src', env=env)
-            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + [ '-f', 'Makefile_fedora38', 'python'], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(make_call + ['install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         else:
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
