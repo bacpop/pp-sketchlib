@@ -77,8 +77,7 @@ class CMakeBuild(build_ext):
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
-        if cfg == 'Debug':
-            env['CXXFLAGS'] += "-DDEBUG"
+
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -91,8 +90,11 @@ class CMakeBuild(build_ext):
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
         elif target == 'jlees':
-            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python'], cwd=ext.sourcedir + '/src', env=env)
-            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+            debug = "DEBUG=0"
+            if cfg == 'Debug':
+                debug = "DEBUG=1"
+            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python', debug], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir, debug], cwd=ext.sourcedir + '/src', env=env)
         else:
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
