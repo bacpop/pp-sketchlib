@@ -359,6 +359,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   Eigen::MatrixXf kmer_mat = kmer2mat(kmer_lengths);
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
+    // Use a priority queue to efficiently track the smallest N dists
     std::priority_queue<SparseDist> min_dists;
     if (!interrupt) {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
@@ -380,6 +381,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
             }
           }
         }
+        // Add dist if it is in the smallest k
         if (min_dists.size() < kNN || row_dist < min_dists.top().dist) {
           SparseDist new_min = {row_dist, j};
           min_dists.push(new_min);
@@ -399,9 +401,11 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         }
       }
 
+      // For each sample/row/i, fill the ijk vectors
+      // This goes 'backwards' for compatibility with numpy (so dists are ascending)
       long offset = i * kNN;
       std::fill_n(i_vec.begin() + offset, kNN, i);
-      for (int k = 0; k < kNN; ++k) {
+      for (int k = kNN - 1; k >= 0; --k) {
         SparseDist entry = min_dists.top();
         j_vec[offset + k] = entry.j;
         dists[offset + k] = entry.dist;
