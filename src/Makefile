@@ -7,6 +7,7 @@ else ifdef PROFILE
   CUDAFLAGS = -O2 -pg -lineinfo
 else
   CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
+  CUDAFLAGS = -O3
 endif
 
 UNAME_S := $(shell uname -s)
@@ -29,7 +30,7 @@ LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS +=-Xcompiler -std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
 	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
