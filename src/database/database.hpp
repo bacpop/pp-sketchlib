@@ -12,7 +12,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
-#include "robin_hood.h"
+#include "unordered_dense.hpp"
 
 #include <highfive/H5File.hpp>
 

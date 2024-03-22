@@ -1,3 +1,6 @@
+CXX=gcc-11
+CC=gcc-11
+CFLAGS+=-Wall -Wextra -fPIC
 CXXFLAGS+=-Wall -Wextra -std=c++17 -fopenmp -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -fPIC
 ifdef DEBUG
   CXXFLAGS+= -O0 -g
@@ -6,8 +9,9 @@ else ifdef PROFILE
   CXXFLAGS+= -O2 -g -flto -fno-fat-lto-objects -fvisibility=hidden
   CUDAFLAGS = -O2 -pg -lineinfo
 else
-  CXXFLAGS+= -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
-  CUDAFLAGS = -O3
+  CXXFLAGS+= -march=native -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
+  CFLAGS+= -march=native -O3 -flto -fno-fat-lto-objects -fvisibility=hidden
+  CUDAFLAGS+= -O3
 endif
 
 UNAME_S := $(shell uname -s)
@@ -25,16 +29,16 @@ ifeq ($(UNAME_S),Darwin)
 	LDLIBS+= -pthread
 endif
 
-CPPFLAGS+=-I"." -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
-LDFLAGS+= -L$(LIBLOC)/lib
+CPPFLAGS+=-I"/home/linuxbrew/.linuxbrew/include" -I"." -I"../vendor/highfive/include" -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
+LDFLAGS+= -L$(LIBLOC)/lib -L"/home/linuxbrew/.linuxbrew/lib" -L/usr/local/cuda-12.3/lib64
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
 CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
+CUDAFLAGS +=-ccbin /home/linuxbrew/.linuxbrew/bin/g++-11 -std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
 	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
-	CUDA_LDFLAGS += -L/usr/local/cuda-11.2/lib64
+	CUDA_LDFLAGS += -L/usr/local/cuda-12.3/lib64
 endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)

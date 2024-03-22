@@ -73,7 +73,7 @@ Reference::Reference(const std::string &name, const size_t bbits,
 // Initialise from GPU sketch
 Reference::Reference(
     const std::string &name,
-    robin_hood::unordered_map<int, std::vector<uint64_t>> &sketch,
+    ankerl::unordered_dense::map<int, std::vector<uint64_t>> &sketch,
     const size_t bbits, const size_t sketchsize64, const size_t seq_size,
     const BaseComp<double> &bases, const unsigned long int missing_bases,
     const bool use_rc, const bool densified, const bool reads)

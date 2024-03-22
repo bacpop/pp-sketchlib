@@ -8,7 +8,7 @@
 
 #include "dist/matrix.hpp"
 
-#include "robin_hood.h"
+#include "unordered_dense.hpp"
 #include <highfive/H5File.hpp>
 
 // HighFive does have support for reading/writing Eigen::Matrix
@@ -18,7 +18,7 @@
 // code)
 // Save a hash into a HDF5 file by saving as array of keys and values
 template <typename T, typename U>
-void save_hash(const robin_hood::unordered_node_map<T, U> &hash,
+void save_hash(const ankerl::unordered_dense::map<T, U> &hash,
                HighFive::Group &group,
                const std::string &dataset_name)
 {
@@ -38,7 +38,7 @@ void save_hash(const robin_hood::unordered_node_map<T, U> &hash,
 
 // Specialisation for saving Eigen matrix keys
 template <>
-void save_hash<size_t, NumpyMatrix>(const robin_hood::unordered_node_map<size_t, NumpyMatrix> &hash,
+void save_hash<size_t, NumpyMatrix>(const ankerl::unordered_dense::map<size_t, NumpyMatrix> &hash,
                                     HighFive::Group &group,
                                     const std::string &dataset_name)
 {
@@ -74,7 +74,7 @@ void save_hash<size_t, NumpyMatrix>(const robin_hood::unordered_node_map<size_t,
 // Load a hash from a HDF5 file by reading arrays of keys and values
 // and re-inserting into a new hash
 template <typename T, typename U>
-robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group &group,
+ankerl::unordered_dense::map<T, U> load_hash(HighFive::Group &group,
                                                const std::string &dataset_name)
 {
   std::vector<T> hash_keys;
@@ -82,7 +82,7 @@ robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group &group,
   group.getDataSet(dataset_name + "_keys").read(hash_keys);
   group.getDataSet(dataset_name + "_values").read(hash_values);
 
-  robin_hood::unordered_node_map<T, U> hash;
+  ankerl::unordered_dense::map<T, U> hash;
   for (size_t i = 0; i < hash_keys.size(); i++)
   {
     hash[hash_keys[i]] = hash_values[i];
@@ -92,7 +92,7 @@ robin_hood::unordered_node_map<T, U> load_hash(HighFive::Group &group,
 
 // Specialisation for reading in Eigen matrices
 template <>
-robin_hood::unordered_node_map<size_t, NumpyMatrix> load_hash(
+ankerl::unordered_dense::map<size_t, NumpyMatrix> load_hash(
     HighFive::Group &group,
     const std::string &dataset_name)
 {
@@ -104,7 +104,7 @@ robin_hood::unordered_node_map<size_t, NumpyMatrix> load_hash(
   values.read(buffer);
   values.getAttribute("dims").read(dims);
 
-  robin_hood::unordered_node_map<size_t, NumpyMatrix> hash;
+  ankerl::unordered_dense::map<size_t, NumpyMatrix> hash;
   float *buffer_pos = buffer.data();
   for (size_t i = 0; i < hash_keys.size(); i++)
   {

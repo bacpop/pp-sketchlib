@@ -78,6 +78,7 @@ class CMakeBuild(build_ext):
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
 
+
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
@@ -88,6 +89,12 @@ class CMakeBuild(build_ext):
         elif target == 'azure':
             subprocess.check_call(['make', 'python'], cwd=ext.sourcedir + '/src', env=env)
             subprocess.check_call(['make', 'install_python', 'PYTHON_LIB_PATH=' + extdir], cwd=ext.sourcedir + '/src', env=env)
+        elif target == 'local':
+            debug = "DEBUG="
+            if cfg == 'Debug':
+                debug = "DEBUG=1"
+            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'python', debug], cwd=ext.sourcedir + '/src', env=env)
+            subprocess.check_call(['make', '-f', 'Makefile_fedora38', 'install_python', 'PYTHON_LIB_PATH=' + extdir, debug], cwd=ext.sourcedir + '/src', env=env)
         else:
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)

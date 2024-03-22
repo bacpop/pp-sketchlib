@@ -14,7 +14,7 @@
 
 #include "dist/matrix.hpp"
 #include "gpu/gpu.hpp"
-#include "robin_hood.h"
+#include "unordered_dense.hpp"
 
 const unsigned int default_max_k = 101;
 const unsigned int default_n_clusters = 3;
@@ -37,9 +37,9 @@ public:
   // load MC from database (see database.cpp)
   RandomMC(const bool use_rc, const unsigned int min_k,
            const unsigned int max_k,
-           const robin_hood::unordered_node_map<std::string, uint16_t>
+           const ankerl::unordered_dense::map<std::string, uint16_t>
                &cluster_table,
-           const robin_hood::unordered_node_map<size_t, NumpyMatrix> &matches,
+           const ankerl::unordered_dense::map<size_t, NumpyMatrix> &matches,
            const NumpyMatrix &cluster_centroids)
       : _n_clusters(cluster_centroids.rows()), _no_adjustment(false),
         _no_MC(false), _use_rc(use_rc), _min_k(min_k), _max_k(max_k),
@@ -80,10 +80,10 @@ public:
                               const size_t default_length) const;
 
   // functions for saving
-  robin_hood::unordered_node_map<std::string, uint16_t> cluster_table() const {
+  ankerl::unordered_dense::map<std::string, uint16_t> cluster_table() const {
     return _cluster_table;
   }
-  robin_hood::unordered_node_map<size_t, NumpyMatrix> matches() const {
+  ankerl::unordered_dense::map<size_t, NumpyMatrix> matches() const {
     return _matches;
   }
   NumpyMatrix cluster_centroids() const { return _cluster_centroids; }
@@ -110,9 +110,9 @@ private:
   unsigned int _max_k;
 
   // name index -> cluster ID
-  robin_hood::unordered_node_map<std::string, uint16_t> _cluster_table;
+  ankerl::unordered_dense::map<std::string, uint16_t> _cluster_table;
   // k-mer idx -> square matrix of matches, idx = cluster
-  robin_hood::unordered_node_map<size_t, NumpyMatrix> _matches;
+  ankerl::unordered_dense::map<size_t, NumpyMatrix> _matches;
 
   NumpyMatrix _cluster_centroids;
 };

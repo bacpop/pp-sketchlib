@@ -126,7 +126,7 @@ std::vector<Reference> create_sketches_cuda(
 
       // Run the sketch on the GPU (serially over the batch)
       for (size_t j = 0; j < batch_size; j++) {
-        robin_hood::unordered_map<int, std::vector<uint64_t>> usigs;
+        ankerl::unordered_dense::map<int, std::vector<uint64_t>> usigs;
         size_t seq_length;
         bool densified;
         try {

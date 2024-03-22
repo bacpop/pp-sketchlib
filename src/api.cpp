@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <queue>
 
 #include <H5Cpp.h>
 #include <omp.h>
@@ -314,6 +315,20 @@ void check_sparse_inputs(const std::vector<Reference> &ref_sketches,
   }
 }
 
+// Struct that allows sorting by dist but also keeping index
+struct SparseDist {
+  float dist;
+  long j;
+};
+bool operator<(SparseDist const &a, SparseDist const &b)
+{
+  return a.dist < b.dist;
+}
+bool operator==(SparseDist const &a, SparseDist const &b)
+{
+  return a.dist == b.dist;
+}
+
 sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                      const std::vector<size_t> &kmer_lengths,
                      RandomMC &random_chance, const bool jaccard,
@@ -344,13 +359,15 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   Eigen::MatrixXf kmer_mat = kmer2mat(kmer_lengths);
 #pragma omp parallel for schedule(static) num_threads(num_threads) shared(progress)
   for (size_t i = 0; i < ref_sketches.size(); i++) {
-    std::vector<float> row_dists(ref_sketches.size());
+    // Use a priority queue to efficiently track the smallest N dists
+    std::priority_queue<SparseDist> min_dists;
     if (!interrupt) {
       for (size_t j = 0; j < ref_sketches.size(); j++) {
+        float row_dist = std::numeric_limits<float>::infinity();
         if (i != j) {
           if (jaccard) {
             // Need 1-J here to sort correctly
-            row_dists[j] = 1.0f - ref_sketches[i].jaccard_dist(
+            row_dist = 1.0f - ref_sketches[i].jaccard_dist(
                 ref_sketches[j], kmer_lengths[dist_col], random_chance);
           } else {
             float core, acc;
@@ -358,13 +375,19 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                 ref_sketches[i].core_acc_dist<RandomMC>(
                     ref_sketches[j], kmer_mat, random_chance);
             if (dist_col == 0) {
-              row_dists[j] = core;
+              row_dist = core;
             } else {
-              row_dists[j] = acc;
+              row_dist = acc;
             }
           }
-        } else {
-          row_dists[j] = std::numeric_limits<float>::infinity();
+        }
+        // Add dist if it is in the smallest k
+        if (min_dists.size() < kNN || row_dist < min_dists.top().dist) {
+          SparseDist new_min = {row_dist, j};
+          min_dists.push(new_min);
+          if (min_dists.size() > kNN) {
+            min_dists.pop();
+          }
         }
         if ((i * ref_sketches.size() + j) % update_every == 0) {
 #pragma omp critical
@@ -376,16 +399,17 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
             }
           }
         }
-        long offset = i * kNN;
-        std::vector<long> ordered_dists = sort_indexes(row_dists);
-        std::fill_n(i_vec.begin() + offset, kNN, i);
-        // std::copy_n(ordered_dists.begin(), kNN, j_vec.begin() + offset);
+      }
 
-        for (int k = 0; k < kNN; ++k) {
-          j_vec[offset + k] = ordered_dists[k];
-          dists[offset + k] = row_dists[ordered_dists[k]];
-        }
-
+      // For each sample/row/i, fill the ijk vectors
+      // This goes 'backwards' for compatibility with numpy (so dists are ascending)
+      long offset = i * kNN;
+      std::fill_n(i_vec.begin() + offset, kNN, i);
+      for (int k = kNN - 1; k >= 0; --k) {
+        SparseDist entry = min_dists.top();
+        j_vec[offset + k] = entry.j;
+        dists[offset + k] = entry.dist;
+        min_dists.pop();
       }
     }
   }
