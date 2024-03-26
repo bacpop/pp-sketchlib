@@ -383,7 +383,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
         }
         // Add dist if it is in the smallest k
         if (min_dists.size() < kNN || row_dist < min_dists.top().dist) {
-          SparseDist new_min = {row_dist, j};
+          SparseDist new_min = {row_dist, static_cast<long>(j)};
           min_dists.push(new_min);
           if (min_dists.size() > kNN) {
             min_dists.pop();
