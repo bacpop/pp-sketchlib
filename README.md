@@ -7,7 +7,7 @@
 <!-- badges: end -->
 
 
-Library of sketching functions used by [PopPUNK](https://www.poppunk.net>). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
+Library of sketching functions used by [PopPUNK]([https://www.poppunk.net](https://poppunk.readthedocs.io/). See documentation at http://poppunk.readthedocs.io/en/latest/sketching.html
 
 ## Installation
 
