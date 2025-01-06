@@ -99,11 +99,6 @@ NumpyMatrix queryDatabase(const std::string &ref_db_name,
     throw std::runtime_error(
         "Extracting Jaccard distances not supported on GPU");
   }
-  if (!same_db_version(ref_db_name, query_db_name)) {
-    std::cerr << "WARNING: versions of input databases sketches are different,"
-                 " results may not be compatible"
-              << std::endl;
-  }
 
   std::vector<Reference> ref_sketches =
       load_sketches(ref_db_name, ref_names, kmer_lengths, false);
