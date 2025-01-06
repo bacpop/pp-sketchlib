@@ -21,4 +21,4 @@ dependencies:
   - openblas
   - libgfortran-ng
   - nvcc_linux-64
-  - cudatoolkit==11.2 # This is pinned due to version install on azure, see azure-pipelines.yml
+  - cudatoolkit # This is pinned due to version install on azure, see azure-pipelines.yml
