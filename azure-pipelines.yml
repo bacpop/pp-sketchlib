@@ -4,7 +4,7 @@ trigger:
 - master
 
 pool:
-  vmImage: 'ubuntu-20.04'
+  vmImage: 'ubuntu-22.04'
 strategy:
   matrix:
     Python38:
@@ -24,12 +24,10 @@ steps:
   displayName: Add conda to PATH
 
 - script: |
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
-    sudo mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
-    sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
-    sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+    sudo dpkg -i cuda-keyring_1.1-1_all.deb
     sudo apt-get update
-    sudo apt-get -y install cuda=11.2.2-1
+    sudo apt-get -y install cuda-toolkit
   displayName: Install nvcc
 
 - bash: conda env create --file environment.yml
@@ -39,7 +37,7 @@ steps:
 # pushd src && make && make install && popd
 - script: |
     source activate pp_env
-    export CUDA_HOME=/usr/local/cuda-11.2
+    export CUDA_HOME=/usr/local/cuda-12.6
     export PATH=${CUDA_HOME}/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     export SKETCHLIB_INSTALL=azure
@@ -48,7 +46,7 @@ steps:
 
 - script: |
     source activate pp_env
-    export CUDA_HOME=/usr/local/cuda-11.2
+    export CUDA_HOME=/usr/local/cuda-12.6
     export PATH=${CUDA_HOME}/bin${PATH:+:${PATH}}
     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
     cd test && python run_test.py
