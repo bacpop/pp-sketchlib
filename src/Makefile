@@ -34,7 +34,7 @@ CUDAFLAGS +=-std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-cod
 ifdef GPU
 	CXXFLAGS += -DGPU_AVAILABLE
 	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
-	CUDA_LDFLAGS += -L/usr/local/cuda-11.2/lib64
+	CUDA_LDFLAGS += -L${CUDA_HOME}/lib64
 endif
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
