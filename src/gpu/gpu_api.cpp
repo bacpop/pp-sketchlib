@@ -201,8 +201,8 @@ void longToSquareBlock(NumpyMatrix &coreSquare, NumpyMatrix &accessorySquare,
                                  dummy_query_query, num_threads);
   } else {
     square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(
-        blockMat.data(), sketch_subsample.ref_size,
-        sketch_subsample.query_size);
+        blockMat.data(), sketch_subsample.query_size,
+        sketch_subsample.ref_size);
   }
   // Only update the upper triangle
   coreSquare.block(sketch_subsample.query_offset, sketch_subsample.ref_offset,
@@ -214,8 +214,8 @@ void longToSquareBlock(NumpyMatrix &coreSquare, NumpyMatrix &accessorySquare,
                                  dummy_query_query, num_threads);
   } else {
     square_form = Eigen::Map<NumpyMatrix, 0, Eigen::InnerStride<2>>(
-        blockMat.data() + 1, sketch_subsample.ref_size,
-        sketch_subsample.query_size);
+        blockMat.data() + 1, sketch_subsample.query_size,
+        sketch_subsample.ref_size);
   }
   accessorySquare.block(
       sketch_subsample.query_offset, sketch_subsample.ref_offset,
