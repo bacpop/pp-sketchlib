@@ -29,13 +29,8 @@ CPPFLAGS+=-I"." -I$(LIBLOC)/include -I$(LIBLOC)/include/eigen3
 LDFLAGS+= -L$(LIBLOC)/lib
 CUDA_LDLIBS=-lcudadevrt -lcudart_static $(LDLIBS)
 
-CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib
-CUDAFLAGS +=-std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75
-ifdef GPU
-	CXXFLAGS += -DGPU_AVAILABLE
-	CUDAFLAGS += -gencode arch=compute_86,code=sm_86
-	CUDA_LDFLAGS += -L${CUDA_HOME}/lib64
-endif
+CUDA_LDFLAGS =-L$(LIBLOC)/lib -L${CUDA_HOME}/targets/x86_64-linux/lib/stubs -L${CUDA_HOME}/targets/x86_64-linux/lib -L${CUDA_HOME}/lib64
+CUDAFLAGS +=-std=c++17 -Xcompiler -fPIC --cudart static --relocatable-device-code=true --expt-relaxed-constexpr -gencode arch=compute_75,code=sm_75 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_90,code=sm_90 -gencode arch=compute_100,code=sm_100
 
 PYTHON_LIB = pp_sketchlib$(shell python3-config --extension-suffix)
 
