@@ -1,5 +1,7 @@
 # This just checks the package can be installed using CUDA, no testing
 
+# 2026-06-08 This test no longer works as it's not possible to install CUDA in the space available on the runner
+
 trigger:
 - master
 
