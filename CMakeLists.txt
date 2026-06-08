@@ -60,7 +60,7 @@ execute_process(COMMAND pybind11-config --cmakedir OUTPUT_STRIP_TRAILING_WHITESP
 find_package(pybind11 2.6 CONFIG REQUIRED)
 
 # Linear algebra packages
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(BLAS)
 if(BLAS_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_USE_BLAS")

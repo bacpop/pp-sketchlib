@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 #include <queue>
+#include <string>
 
 #include <H5Cpp.h>
 #include <omp.h>
@@ -21,6 +22,24 @@
 
 using namespace Eigen;
 namespace py = pybind11;
+
+namespace {
+const float unfit_core_acc_distance = 1.0f;
+
+void warn_unfit_core_acc_distances(const size_t fallback_count) {
+  if (fallback_count == 0) {
+    return;
+  }
+
+  std::string message =
+      "Core/accessory distance regression failed for " +
+      std::to_string(fallback_count) +
+      " comparison(s); setting those distances to 1";
+  if (PyErr_WarnEx(PyExc_RuntimeWarning, message.c_str(), 1) != 0) {
+    throw py::error_already_set();
+  }
+}
+}
 
 bool same_db_version(const std::string &db1_name, const std::string &db2_name) {
   // Open databases
@@ -192,6 +211,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
   // using a sort, except the return order of the distances wouldn't be as
   // expected. self iff ref_names == query_names as input
   bool interrupt = false;
+  size_t regression_fallbacks = 0;
   if (ref_sketches == query_sketches) {
     // calculate dists
     distMat.resize(dist_rows, dist_cols);
@@ -210,9 +230,16 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
                   ref_sketches[j], kmer_lengths[kmer_idx], random_chance);
             }
           } else {
-            std::tie(distMat(pos, 0), distMat(pos, 1)) =
-                ref_sketches[i].core_acc_dist<RandomMC>(
-                    ref_sketches[j], kmer_mat, random_chance);
+            try {
+              std::tie(distMat(pos, 0), distMat(pos, 1)) =
+                  ref_sketches[i].core_acc_dist<RandomMC>(
+                      ref_sketches[j], kmer_mat, random_chance);
+            } catch (const RegressionFitError &) {
+              distMat(pos, 0) = unfit_core_acc_distance;
+              distMat(pos, 1) = unfit_core_acc_distance;
+#pragma omp atomic
+              ++regression_fallbacks;
+            }
           }
           if (pos % update_every == 0) {
 #pragma omp critical
@@ -262,9 +289,16 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
             std::vector<double> jaccard_random = random_chance.random_matches(
                 ref_sketches[r_idx], query_random_idxs[q_idx],
                 query_lengths[q_idx], kmer_lengths);
-            std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
-                query_sketches[q_idx].core_acc_dist<std::vector<double>>(
-                    ref_sketches[r_idx], kmer_mat, jaccard_random);
+            try {
+              std::tie(distMat(dist_row, 0), distMat(dist_row, 1)) =
+                  query_sketches[q_idx].core_acc_dist<std::vector<double>>(
+                      ref_sketches[r_idx], kmer_mat, jaccard_random);
+            } catch (const RegressionFitError &) {
+              distMat(dist_row, 0) = unfit_core_acc_distance;
+              distMat(dist_row, 1) = unfit_core_acc_distance;
+#pragma omp atomic
+              ++regression_fallbacks;
+            }
           }
           if ((q_idx * ref_sketches.size() + r_idx) % update_every == 0) {
 #pragma omp critical
@@ -286,6 +320,7 @@ NumpyMatrix query_db(std::vector<Reference> &ref_sketches,
     throw py::error_already_set();
   }
   dist_progress.finalise();
+  warn_unfit_core_acc_distances(regression_fallbacks);
 
   return (distMat);
 }
@@ -345,6 +380,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   std::vector<long> j_vec(ref_sketches.size() * kNN);
 
   bool interrupt = false;
+  size_t regression_fallbacks = 0;
 
   // Set up progress meter
   size_t dist_rows = static_cast<size_t>(ref_sketches.size() * ref_sketches.size());
@@ -371,13 +407,19 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
                 ref_sketches[j], kmer_lengths[dist_col], random_chance);
           } else {
             float core, acc;
-            std::tie(core, acc) =
-                ref_sketches[i].core_acc_dist<RandomMC>(
-                    ref_sketches[j], kmer_mat, random_chance);
-            if (dist_col == 0) {
-              row_dist = core;
-            } else {
-              row_dist = acc;
+            try {
+              std::tie(core, acc) =
+                  ref_sketches[i].core_acc_dist<RandomMC>(
+                      ref_sketches[j], kmer_mat, random_chance);
+              if (dist_col == 0) {
+                row_dist = core;
+              } else {
+                row_dist = acc;
+              }
+            } catch (const RegressionFitError &) {
+              row_dist = unfit_core_acc_distance;
+#pragma omp atomic
+              ++regression_fallbacks;
             }
           }
         }
@@ -419,6 +461,7 @@ sparse_coo query_db_sparse(std::vector<Reference> &ref_sketches,
   if (interrupt) {
     throw py::error_already_set();
   }
+  warn_unfit_core_acc_distances(regression_fallbacks);
 
   // Revert to correct distance J = 1 - dist
   if (jaccard) {

@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <tuple>
@@ -21,6 +22,12 @@ const size_t def_sketchsize64 = 156;
 #include "sketch/sketch.hpp"
 
 class RandomMC;
+
+class RegressionFitError : public std::runtime_error {
+public:
+  explicit RegressionFitError(const std::string &message)
+      : std::runtime_error(message) {}
+};
 
 class Reference
 {
